@@ -177,7 +177,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                   ),
                   const SizedBox(width: 12),
                   // Meal Plan button
-                  Container(
+                  SizedBox(
                     height: 56,
                     child: ElevatedButton.icon(
                       onPressed: () => _showAddMealDialog(),
@@ -353,7 +353,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
               ),
             )
           else
-            ...meals.map((plan) => _buildMealCard(plan)).toList(),
+            ...meals.map((plan) => _buildMealCard(plan)),
         ],
       ),
     );

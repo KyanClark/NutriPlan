@@ -8,13 +8,13 @@ class RecipeInfoScreen extends StatelessWidget {
   final int timeMinutes;
 
   const RecipeInfoScreen({
-    Key? key,
+    super.key,
     required this.imageUrl,
     required this.title,
     required this.description,
     required this.price,
     required this.timeMinutes,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

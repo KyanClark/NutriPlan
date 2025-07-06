@@ -83,7 +83,7 @@ class DinnerPage extends StatelessWidget {
           ],
         ),
       ),
-      floatingActionButton: Container(
+      floatingActionButton: SizedBox(
         width: 200,
         height: 56,
         child: FloatingActionButton.extended(
