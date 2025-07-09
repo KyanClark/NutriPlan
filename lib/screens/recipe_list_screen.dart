@@ -25,9 +25,7 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
     'Main Dishes',
     'Appetizers',
     'Soups',
-    'Snacks',
     'Side Dishes',
-    'Baked Goods',
     'Rice Cakes'
   ];
 

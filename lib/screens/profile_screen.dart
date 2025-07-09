@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../models/user_profile.dart';
-import '../widgets/profile_form.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -10,8 +10,38 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  UserProfile? _profile;
-  bool _showForm = false;
+  String? _email;
+  String? _fullName; // Add this line
+  String? _dietType;
+  List<dynamic>? _allergies;
+  int? _servings;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserProfile();
+  }
+
+  Future<void> _fetchUserProfile() async {
+    setState(() => _loading = true);
+    final user = Supabase.instance.client.auth.currentUser;
+    _email = user?.email;
+    _fullName = user?.userMetadata?['full_name'] as String?;
+    if (user != null) {
+      final data = await Supabase.instance.client
+          .from('user_preferences')
+          .select()
+          .eq('user_id', user.id)
+          .maybeSingle();
+      if (data != null) {
+        _dietType = data['diet_type'] as String?;
+        _allergies = data['allergies'] as List<dynamic>?;
+        _servings = data['servings'] as int?;
+      }
+    }
+    setState(() => _loading = false);
+  }
 
   void _showLogoutConfirmation(BuildContext context) {
     showDialog(
@@ -34,10 +64,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 Navigator.pop(context);
-                // Navigate to home or login page
-                Navigator.pop(context);
+                await Supabase.instance.client.auth.signOut();
+                if (!mounted) return; // Prevent using context after dispose
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (route) => false,
+                );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.lightBlueAccent,
@@ -76,219 +111,72 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Color.fromRGBO(142, 190, 155, 1.0),
-              Color.fromRGBO(125, 189, 228, 1.0),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      appBar: AppBar(
+        title: const Text('Profile'),
+        backgroundColor: const Color(0xFF4CAF50),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(24.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Back Button
-                  Padding(
-                    padding: const EdgeInsets.only(top: 24.0),
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                    ),
-                  ),
-
-                  // Profile Picture and Name
-                  Center(
-                    child: Column(
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            _changeProfilePicture(context);
-                          },
-                          child: CircleAvatar(
-                            radius: 60,
-                            backgroundImage: const AssetImage('images/black.jpeg'),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _profile?.name ?? 'User Name',
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _profile?.healthGoal ?? 'Health Goal',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: Colors.white70,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Edit Profile Button
-                  Center(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          _showForm = !_showForm;
-                        });
-                      },
-                      icon: Icon(_showForm ? Icons.close : Icons.edit),
-                      label: Text(_showForm ? 'Close Form' : 'Edit Profile'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.green[700],
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 32,
+                        backgroundColor: Colors.green[100],
+                        child: const Icon(Icons.person, size: 40, color: Color(0xFF388E3C)),
                       ),
-                    ),
-                  ),
-
-                  // Profile Form (Conditional)
-                  if (_showForm) ...[
-                    const SizedBox(height: 20),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 10,
-                            spreadRadius: 5,
+                      const SizedBox(width: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _fullName ?? 'User', // Show full name if available
+                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                           ),
+                          if (_email != null)
+                            Text(_email!, style: const TextStyle(fontSize: 16, color: Colors.black54)),
+                          if (_dietType != null)
+                            Text('Diet: $_dietType', style: const TextStyle(fontSize: 16)),
+                          if (_servings != null)
+                            Text('Servings: $_servings', style: const TextStyle(fontSize: 16)),
                         ],
                       ),
-                      child: ProfileForm(
-                        initialProfile: _profile,
-                        onSave: (profile) {
-                          setState(() {
-                            _profile = profile;
-                            _showForm = false;
-                          });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Profile saved!')),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-
-                  const SizedBox(height: 20),
-
-                  // Nutritional Tracking Header
-                  const Text(
-                    'Nutritional Tracking',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-
-                  // Calories Container
-                  const SizedBox(height: 16),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 10,
-                          spreadRadius: 5,
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          'Calories consumed for the day:',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.normal,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        SizedBox(height: 12),
-                        Center(
-                          child: Text(
-                            '1,800',
-                            style: TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Micronutrients Section
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildMicronutrientContainer(context, 'Carbs', '250g'),
-                      _buildMicronutrientContainer(context, 'Protein', '75g'),
-                      _buildMicronutrientContainer(context, 'Fats', '50g'),
                     ],
                   ),
-
-                  const SizedBox(height: 24),
-
-                  // Logout Button
-                  Center(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        _showLogoutConfirmation(context);
-                      },
+                  const SizedBox(height: 32),
+                  if (_allergies != null && _allergies!.isNotEmpty) ...[
+                    const Text('Allergies:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: _allergies!.map((a) => Chip(label: Text(a.toString()))).toList(),
+                    ),
+                  ],
+                  if ((_allergies == null || _allergies!.isEmpty) && !_loading)
+                    const Text('No allergies specified.', style: TextStyle(fontSize: 16)),
+                  const Spacer(),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.logout),
+                      label: const Text('Logout'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.lightBlueAccent,
-                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        backgroundColor: Colors.redAccent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
-                      child: const Text(
-                        'Logout',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.white,
-                        ),
-                      ),
+                      onPressed: () => _showLogoutConfirmation(context),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-        ),
-      ),
     );
   }
 

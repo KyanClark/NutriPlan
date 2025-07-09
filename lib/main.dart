@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:nutriplan/screens/home_page.dart';
-import 'package:nutriplan/screens/breakfast_page.dart';
-import 'package:nutriplan/screens/lunch_page.dart';
-import 'package:nutriplan/screens/dinner_page.dart';
+import 'package:nutriplan/screens/Diet_Type_preference.dart';
+import 'package:nutriplan/screens/login_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Supabase.initialize(
+    url: 'https://ehpwztftkbzjwezmdwzt.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVocHd6dGZ0a2J6andlem1kd3p0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE5ODU3NjUsImV4cCI6MjA2NzU2MTc2NX0.2jdAwYW8Iv1j5SkrW9YrPCzqEjM1R8jVcuM_5hrabM4',
+  );
   runApp(const NutriPlan());
 }
 
@@ -35,37 +39,10 @@ class NutriPlan extends StatelessWidget {
           bodyMedium: TextStyle(fontSize: 14),
           bodySmall: TextStyle(fontSize: 12),
         ),
-        appBarTheme: const AppBarTheme(
-          elevation: 0,
-          centerTitle: true,
-          titleTextStyle: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
-        cardTheme: CardThemeData(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-        ),
       ),
       initialRoute: '/',
       routes: {
-        '/': (context) => const HomePage(),
-        '/breakfast_page': (context) => const BreakfastPage(),
-        '/lunch_page': (context) => const LunchPage(),
-        '/dinner_page': (context) => const DinnerPage(),
+        '/': (context) => const LoginScreen(),
       },
     );
   }

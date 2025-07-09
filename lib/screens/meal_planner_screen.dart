@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import '../models/meal.dart';
 import '../models/meal_plan.dart';
-import '../models/user_profile.dart';
 import '../services/meal_service.dart';
 
 class MealPlannerScreen extends StatefulWidget {
-  final UserProfile? userProfile;
 
-  const MealPlannerScreen({super.key, this.userProfile});
+  const MealPlannerScreen({super.key});
 
   @override
   State<MealPlannerScreen> createState() => _MealPlannerScreenState();
@@ -28,7 +26,6 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
   @override
   void initState() {
     super.initState();
-    _loadMealSuggestions();
     _startTimer();
   }
 
@@ -53,13 +50,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
     });
   }
 
-  void _loadMealSuggestions() {
-    if (widget.userProfile != null) {
-      mealSuggestions = MealService.getMealSuggestions(widget.userProfile!);
-    } else {
-      mealSuggestions = MealService.getAllMeals();
-    }
-  }
+
 
   void _addMealToPlan(Meal meal, MealType mealType, DateTime date) {
     final mealPlan = MealPlan(
