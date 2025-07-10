@@ -11,11 +11,24 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   String? _email;
-  String? _fullName; // Add this line
+  String? _fullName;
+  String? _bio;
   String? _dietType;
   List<dynamic>? _allergies;
   int? _servings;
+  List<String> _healthGoals = [];
   bool _loading = true;
+  // Removed edit mode and saving state
+  bool _shouldLogout = false;
+
+  // Example health goals
+  final List<String> _availableHealthGoals = [
+    'Lose Weight',
+    'Build Muscle',
+    'Improve Endurance',
+    'Eat Healthier',
+    'Maintain Weight',
+  ];
 
   @override
   void initState() {
@@ -28,23 +41,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = Supabase.instance.client.auth.currentUser;
     _email = user?.email;
     _fullName = user?.userMetadata?['full_name'] as String?;
+    _bio = user?.userMetadata?['bio'] as String?;
     if (user != null) {
-      final data = await Supabase.instance.client
-          .from('user_preferences')
-          .select()
-          .eq('user_id', user.id)
-          .maybeSingle();
-      if (data != null) {
-        _dietType = data['diet_type'] as String?;
-        _allergies = data['allergies'] as List<dynamic>?;
-        _servings = data['servings'] as int?;
+      try {
+        final data = await Supabase.instance.client
+            .from('user_preferences')
+            .select()
+            .eq('user_id', user.id)
+            .maybeSingle();
+        if (data != null) {
+          setState(() {
+            _dietType = data['diet_type'] as String?;
+            _allergies = data['allergies'] as List<dynamic>? ?? [];
+            _servings = data['servings'] as int?;
+            if (data['health_goals'] != null) {
+              _healthGoals = List<String>.from(data['health_goals']);
+            }
+          });
+        }
+      } catch (e) {
+        print('Error fetching user preferences: $e');
       }
     }
     setState(() => _loading = false);
   }
 
-  void _showLogoutConfirmation(BuildContext context) {
-    showDialog(
+  Future<void> _saveUserPreferences() async {
+    // Removed _saving = true;
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      try {
+        await Supabase.instance.client
+            .from('user_preferences')
+            .upsert({
+              'user_id': user.id,
+              'diet_type': _dietType,
+              'allergies': _allergies ?? [],
+              'servings': _servings,
+              'health_goals': _healthGoals,
+            });
+        
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile updated successfully!')),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update profile: $e')),
+        );
+      }
+    }
+    // Removed setState(() => _saving = false);
+  }
+
+  Future<bool?> _showLogoutConfirmation(BuildContext context) {
+    return showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -52,55 +104,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           content: const Text('Are you sure you want to log out?'),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.white,
-              ),
-              child: const Text(
-                'Cancel',
-                style: TextStyle(color: Colors.black),
-              ),
+              onPressed: () => Navigator.of(context, rootNavigator: true).pop(false),
+              child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                await Supabase.instance.client.auth.signOut();
-                if (!mounted) return; // Prevent using context after dispose
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                  (route) => false,
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.lightBlueAccent,
-              ),
-              child: const Text(
-                'Logout',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _changeProfilePicture(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Change Profile Picture'),
-          content: const Text('This feature is under development.'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('OK'),
+              onPressed: () => Navigator.of(context, rootNavigator: true).pop(true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+              child: const Text('Logout', style: TextStyle(color: Colors.white)),
             ),
           ],
         );
@@ -109,69 +119,331 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _handleLogoutIfNeeded();
+  }
+
+  @override
+  void didUpdateWidget(covariant ProfileScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _handleLogoutIfNeeded();
+  }
+
+  Future<void> _handleLogoutIfNeeded() async {
+    if (_shouldLogout) {
+      setState(() {
+        _shouldLogout = false;
+      });
+      try {
+        await Supabase.instance.client.auth.signOut();
+        if (!mounted) return;
+        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false,
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Logout failed: ' + e.toString())),
+        );
+      }
+    }
+  }
+
+  // Removed _toggleEditMode function
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profile'),
-        backgroundColor: const Color(0xFF4CAF50),
-      ),
+      backgroundColor: const Color.fromARGB(255, 241, 241, 241),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(24.0),
+          : SingleChildScrollView(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 24),
-                  Row(
+                  // Purple background with back button and profile image
+                  Stack(
+                    clipBehavior: Clip.none,
                     children: [
-                      CircleAvatar(
-                        radius: 32,
-                        backgroundColor: Colors.green[100],
-                        child: const Icon(Icons.person, size: 40, color: Color(0xFF388E3C)),
-                      ),
-                      const SizedBox(width: 16),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _fullName ?? 'User', // Show full name if available
-                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      Container(
+                        height: 200, // Increased height for more overlap room
+                        width: double.infinity,
+                        decoration: const BoxDecoration(
+                          color: Color.fromARGB(255, 103, 196, 106), // Main project color
+                          borderRadius: BorderRadius.only(
+                            bottomLeft: Radius.circular(25),
+                            bottomRight: Radius.circular(25),
                           ),
-                          if (_email != null)
-                            Text(_email!, style: const TextStyle(fontSize: 16, color: Colors.black54)),
-                          if (_dietType != null)
-                            Text('Diet: $_dietType', style: const TextStyle(fontSize: 16)),
-                          if (_servings != null)
-                            Text('Servings: $_servings', style: const TextStyle(fontSize: 16)),
-                        ],
+                        ),
+                      ),
+                      Positioned(
+                        top: MediaQuery.of(context).padding.top + 16,
+                        left: 16,
+                        child: IconButton(
+                          icon: const Icon(Icons.arrow_back, color: Colors.white, size: 32),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                      ),
+                      // Removed edit mode icon button
+                      // Overlapping large profile avatar at the bottom center
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: -58, // Half of avatar radius to overlap
+                        child: Center(
+                          child: CircleAvatar(
+                            radius: 70,
+                            backgroundColor: Colors.white,
+                            backgroundImage: null, // TODO: Add user image if available
+                            child: Icon(Icons.person, size: 90, color: const Color.fromARGB(255, 97, 212, 86)),
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 32),
-                  if (_allergies != null && _allergies!.isNotEmpty) ...[
-                    const Text('Allergies:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: _allergies!.map((a) => Chip(label: Text(a.toString()))).toList(),
-                    ),
-                  ],
-                  if ((_allergies == null || _allergies!.isEmpty) && !_loading)
-                    const Text('No allergies specified.', style: TextStyle(fontSize: 16)),
-                  const Spacer(),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.logout),
-                      label: const Text('Logout'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  const SizedBox(height: 65), // Reduced spacing between avatar and name/email
+                  // Name and Email
+                  Text(
+                    _fullName ?? 'User',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  if (_email != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2.0, bottom: 8.0), // Reduced top padding
+                      child: Text(
+                        _email!,
+                        style: const TextStyle(fontSize: 15, color: Colors.black54, fontWeight: FontWeight.w400),
+                        textAlign: TextAlign.center,
                       ),
-                      onPressed: () => _showLogoutConfirmation(context),
+                    ),
+                  if (_bio != null && _bio!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Text(
+                        _bio!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 14, color: Colors.black54),
+                      ),
+                    ),
+                  if (_bio == null || _bio!.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8.0),
+                      child: Text(
+                        'Set your bio to let others know more about you!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 14, color: Colors.black38),
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  // Statistics Row
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: Column(
+                      children: [
+                        // Large rectangle stat card for Total Meal Plans Set
+                        Container(
+                          width: double.infinity,
+                          height: 110,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [
+                                Colors.white,
+                                Color(0xFF4CAF50),
+                              ],
+                              stops: [0.05, 0.4],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              width: 2,
+                              style: BorderStyle.solid,
+                              color: Color(0xFF4CAF50),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.08),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 24.0),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Text(
+                                  '10',
+                                  style: const TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    shadows: [Shadow(blurRadius: 2, color: Colors.black26, offset: Offset(0, 1))],
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  'Total Meals Planned',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                    shadows: [Shadow(blurRadius: 2, color: Colors.black26, offset: Offset(0, 1))],
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        // Row for the other two stat cards
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Expanded(child: _buildStatCard('Goals Met', '0')),
+                            const SizedBox(width: 16),
+                            Expanded(child: _buildStatCard('Allergies', _allergies?.length.toString() ?? '0')),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Personal Details Card
+                  Card(
+                    color: const Color(0xFF4CAF50),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    elevation: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Personal Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                          const SizedBox(height: 16),
+                          // Dietary Preferences
+                          Row(
+                            children: [
+                              const Icon(Icons.restaurant_menu, color: Colors.white),
+                              const SizedBox(width: 8),
+                              const Text('Dietary Preference:', style: TextStyle(color: Colors.white)),
+                              const SizedBox(width: 8),
+                              Text(
+                                _dietType ?? 'Not set',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          // Health Goals
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.flag, color: Colors.white),
+                              const SizedBox(width: 8),
+                              const Text('Health Goals:', style: TextStyle(color: Colors.white)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _healthGoals.isEmpty
+                                    ? const Text(
+                                        'No health goals set',
+                                        style: TextStyle(color: Colors.white70),
+                                      )
+                                    : Wrap(
+                                        spacing: 8,
+                                        children: _availableHealthGoals.map((goal) {
+                                          final selected = _healthGoals.contains(goal);
+                                          return FilterChip(
+                                            label: Text(goal, style: TextStyle(color: selected ? Colors.white : Colors.white70)),
+                                            selected: selected,
+                                            selectedColor: Colors.green[700],
+                                            backgroundColor: Colors.green[300],
+                                            checkmarkColor: Colors.white,
+                                            onSelected: null,
+                                          );
+                                        }).toList(),
+                                      ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          // Allergies
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.warning_amber_rounded, color: Colors.white),
+                              const SizedBox(width: 8),
+                              const Text('Allergies:', style: TextStyle(color: Colors.white)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: (_allergies == null || _allergies!.isEmpty)
+                                    ? const Text(
+                                        'No allergies recorded',
+                                        style: TextStyle(color: Colors.white70),
+                                      )
+                                    : Wrap(
+                                        spacing: 8,
+                                        children: (_allergies ?? []).map((a) {
+                                          return Chip(
+                                            label: Text(a.toString(), style: const TextStyle(color: Colors.white)),
+                                            backgroundColor: Colors.green[300],
+                                            deleteIconColor: Colors.white,
+                                            onDeleted: null,
+                                          );
+                                        }).toList(),
+                                      ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.logout),
+                        label: const Text('Logout'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Color.fromARGB(255, 247, 59, 42), // Light red
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 2,
+                        ),
+                        onPressed: () async {
+                          final shouldLogout = await _showLogoutConfirmation(context);
+                          if (shouldLogout == true) {
+                            try {
+                              await Supabase.instance.client.auth.signOut();
+                              if (!mounted) return;
+                              Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+                                MaterialPageRoute(builder: (context) => const LoginScreen()),
+                                (route) => false,
+                              );
+                            } catch (e) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Logout failed: $e')),
+                              );
+                            }
+                          }
+                        },
+                      ),
                     ),
                   ),
                 ],
@@ -180,44 +452,87 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // Helper function to build a micronutrient container
-  Widget _buildMicronutrientContainer(BuildContext context, String label, String value) {
+  Widget _buildStatCard(String label, String value) {
     return Container(
-      width: MediaQuery.of(context).size.width / 3 - 16,
-      padding: const EdgeInsets.all(12),
+      width: 120,
+      height: 90,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        gradient: const LinearGradient(
+          colors: [
+            Colors.white,
+            Color(0xFF4CAF50),
+          ],
+          stops: [0.05, 0.4],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          width: 2,
+          style: BorderStyle.solid,
+          color: Color(0xFF4CAF50),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-            spreadRadius: 5,
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.normal,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 8),
           Text(
             value,
             style: const TextStyle(
-              fontSize: 20,
+              fontSize: 28,
               fontWeight: FontWeight.bold,
-              color: Colors.black,
+              color: Colors.white,
+              shadows: [Shadow(blurRadius: 2, color: Colors.black26, offset: Offset(0, 1))],
             ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 15,
+              color: Colors.white,
+              fontWeight: FontWeight.w500,
+              shadows: [Shadow(blurRadius: 2, color: Colors.black26, offset: Offset(0, 1))],
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
+    );
+  }
+
+  Future<String?> _showAddAllergyDialog(BuildContext context) async {
+    String allergy = '';
+    return showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Add Allergy'),
+          content: TextField(
+            autofocus: true,
+            decoration: const InputDecoration(hintText: 'Enter allergy'),
+            onChanged: (val) => allergy = val,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, allergy),
+              child: const Text('Add'),
+            ),
+          ],
+        );
+      },
     );
   }
 } 

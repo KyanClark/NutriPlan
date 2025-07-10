@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'diet_type_preference.dart';
 import 'home_page.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ServingsSelectionPage extends StatefulWidget {
   const ServingsSelectionPage({Key? key}) : super(key: key);
@@ -130,7 +131,17 @@ class _ServingsSelectionPageState extends State<ServingsSelectionPage> {
                           borderRadius: BorderRadius.circular(30),
                         ),
                       ),
-                      onPressed: selectedIndex != null ? () {
+                      onPressed: selectedIndex != null ? () async {
+                        final user = Supabase.instance.client.auth.currentUser;
+                        if (user != null && selectedIndex != null) {
+                          int servings = selectedIndex! + 1;
+                          await Supabase.instance.client
+                            .from('user_preferences')
+                            .upsert({
+                              'user_id': user.id,
+                              'servings': servings,
+                            });
+                        }
                         Navigator.push(
                           context,
                           MaterialPageRoute(builder: (context) => const HomePage()),

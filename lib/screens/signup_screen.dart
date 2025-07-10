@@ -30,6 +30,7 @@ class _SignupScreenState extends State<SignupScreen> {
         final response = await Supabase.instance.client.auth.signUp(
           email: _emailController.text,
           password: _passwordController.text,
+          data: {'full_name': _fullNameController.text},
         );
         setState(() { _isLoading = false; });
         if (response.user != null) {

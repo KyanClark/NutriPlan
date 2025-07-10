@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'servings_selection_page.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AllergySelectionPage extends StatefulWidget {
   const AllergySelectionPage({Key? key}) : super(key: key);
@@ -195,7 +196,18 @@ class _AllergySelectionPageState extends State<AllergySelectionPage> {
                       borderRadius: BorderRadius.circular(30),
                     ),
                   ),
-                  onPressed: selectedIndexes.isNotEmpty ? () {
+                  onPressed: selectedIndexes.isNotEmpty ? () async {
+                    final user = Supabase.instance.client.auth.currentUser;
+                    if (user != null) {
+                      // Get selected allergy titles
+                      final selectedAllergies = selectedIndexes.map((i) => allergies[i]['title']).toList();
+                      await Supabase.instance.client
+                        .from('user_preferences')
+                        .upsert({
+                          'user_id': user.id,
+                          'allergies': selectedAllergies,
+                        });
+                    }
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const ServingsSelectionPage()),

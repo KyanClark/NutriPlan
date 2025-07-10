@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'allergy_selection_page.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DietTypePreferencePage extends StatefulWidget {
   const DietTypePreferencePage({Key? key}) : super(key: key);
@@ -158,7 +159,17 @@ class _DietTypePreferencePageState extends State<DietTypePreferencePage> {
                       borderRadius: BorderRadius.circular(30),
                     ),
                   ),
-                  onPressed: selectedIndex != null ? () {
+                  onPressed: selectedIndex != null ? () async {
+                    final user = Supabase.instance.client.auth.currentUser;
+                    if (user != null && selectedIndex != null) {
+                      final selectedDiet = dietTypes[selectedIndex!]['title'];
+                      await Supabase.instance.client
+                        .from('user_preferences')
+                        .upsert({
+                          'user_id': user.id,
+                          'diet_type': selectedDiet,
+                        });
+                    }
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const AllergySelectionPage()),

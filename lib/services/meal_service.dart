@@ -1,5 +1,4 @@
 import '../models/meal.dart';
-import '../models/user_profile.dart';
 import '../models/meal_plan.dart';
 
 class MealService {
@@ -150,7 +149,7 @@ class MealService {
     return _sampleMeals;
   }
 
-  static List<Meal> getMealSuggestions(UserProfile profile) {
+  static List<Meal> getMealSuggestions(profile) {
     List<Meal> suggestions = [];
     
     for (Meal meal in _sampleMeals) {

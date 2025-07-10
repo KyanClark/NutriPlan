@@ -28,71 +28,76 @@ class _HomePageState extends State<HomePage> {
     
     return Scaffold(
       appBar: PreferredSize(
-        preferredSize: Size.fromHeight(isSmallScreen ? 70 : 80), // Responsive height
-        child: AppBar(
-          automaticallyImplyLeading: false,
-          flexibleSpace: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Color.fromRGBO(142, 190, 155, 1.0),
-                  Color.fromRGBO(125, 189, 228, 1.0),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-          ),
-          title: Text(
-            'NutriPlan',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: ResponsiveDesign.responsiveFontSize(context, 20),
-            ),
-          ),
-          centerTitle: true,
-          actions: [
-            const SizedBox(width: 12),
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ProfileScreen()),
-                );
-              },
-              child: Padding(
-                padding: EdgeInsets.only(right: isSmallScreen ? 12 : 16),
-                child: CircleAvatar(
-                  radius: isSmallScreen ? 18 : 20,
-                  backgroundColor: Colors.white,
-                  child: Icon(Icons.person, color: Colors.grey),
+        preferredSize: Size.fromHeight(isSmallScreen ? 70 : 80),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppBar(
+              backgroundColor: Colors.white,
+              elevation: 0,
+              automaticallyImplyLeading: false,
+              title: Text(
+                'NutriPlan',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: ResponsiveDesign.responsiveFontSize(context, 20),
+                  color: Colors.black87,
                 ),
               ),
+              centerTitle: true,
+              actions: [
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                    );
+                  },
+                  child: Padding(
+                    padding: EdgeInsets.only(right: isSmallScreen ? 16 : 24, top: 8, bottom: 8),
+                    child: CircleAvatar(
+                      radius: isSmallScreen ? 20 : 22,
+                      backgroundColor: Colors.grey[200],
+                      child: Icon(Icons.person, color: Colors.grey[700]),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            // Black bottom border
+            Container(
+              height: 1,
+              color: Colors.black,
             ),
           ],
         ),
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Color.fromRGBO(142, 190, 155, 1.0),
-              Color.fromRGBO(125, 189, 228, 1.0),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Column(
-          children: [
-            // DASHBOARD SECTION - Only show when on dashboard tab
-            if (_selectedIndex == 0) ...[
-              Padding(
-                padding: ResponsiveDesign.responsivePadding(context),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
+      backgroundColor: const Color.fromARGB(255, 193, 231, 175),
+      body: Column(
+        children: [
+          // DASHBOARD SECTION - Only show when on dashboard tab
+          if (_selectedIndex == 0) ...[
+            Padding(
+              padding: ResponsiveDesign.responsivePadding(context),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [
+                          Color.fromRGBO(142, 190, 155, 1.0),
+                          Color.fromRGBO(125, 189, 228, 1.0),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
                       'Your Analytics',
                       style: TextStyle(
                         fontSize: ResponsiveDesign.responsiveFontSize(context, 22),
@@ -100,181 +105,196 @@ class _HomePageState extends State<HomePage> {
                         color: Colors.white,
                       ),
                     ),
-                    SizedBox(height: ResponsiveDesign.responsiveSpacing(context)),
-                    Row(
-                      children: [
-                        // Line Chart: Calorie Intake
-                        Expanded(
-                          child: Container(
-                            padding: EdgeInsets.all(isSmallScreen ? 10 : 12),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.08),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
+                  ),
+                  SizedBox(height: ResponsiveDesign.responsiveSpacing(context)),
+                  Row(
+                    children: [
+                      // Line Chart: Calorie Intake
+                      Expanded(
+                        child: Container(
+                          padding: EdgeInsets.all(isSmallScreen ? 10 : 12),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color.fromRGBO(142, 190, 155, 1.0),
+                                Color.fromRGBO(125, 189, 228, 1.0),
                               ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                            height: isSmallScreen ? 160 : 180,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Calories (7 days)',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                    fontSize: ResponsiveDesign.responsiveFontSize(context, 14),
-                                  ),
+                            borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.08),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          height: isSmallScreen ? 160 : 180,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Calories (7 days)',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  fontSize: ResponsiveDesign.responsiveFontSize(context, 14),
                                 ),
-                                SizedBox(height: isSmallScreen ? 6 : 8),
-                                Expanded(
-                                  child: LineChart(
-                                    LineChartData(
-                                      gridData: FlGridData(show: false),
-                                      titlesData: FlTitlesData(
-                                        leftTitles: AxisTitles(
-                                          sideTitles: SideTitles(showTitles: false),
-                                        ),
-                                        rightTitles: AxisTitles(
-                                          sideTitles: SideTitles(showTitles: false),
-                                        ),
-                                        topTitles: AxisTitles(
-                                          sideTitles: SideTitles(showTitles: false),
-                                        ),
-                                        bottomTitles: AxisTitles(
-                                          sideTitles: SideTitles(
-                                            showTitles: true,
-                                            getTitlesWidget: (value, meta) {
-                                              const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-                                              return Text(
-                                                days[value.toInt() % 7], 
-                                                style: TextStyle(
-                                                  fontSize: ResponsiveDesign.responsiveFontSize(context, 10),
-                                                ),
-                                              );
-                                            },
-                                            interval: 1,
-                                          ),
+                              ),
+                              SizedBox(height: isSmallScreen ? 6 : 8),
+                              Expanded(
+                                child: LineChart(
+                                  LineChartData(
+                                    gridData: FlGridData(show: false),
+                                    titlesData: FlTitlesData(
+                                      leftTitles: AxisTitles(
+                                        sideTitles: SideTitles(showTitles: false),
+                                      ),
+                                      rightTitles: AxisTitles(
+                                        sideTitles: SideTitles(showTitles: false),
+                                      ),
+                                      topTitles: AxisTitles(
+                                        sideTitles: SideTitles(showTitles: false),
+                                      ),
+                                      bottomTitles: AxisTitles(
+                                        sideTitles: SideTitles(
+                                          showTitles: true,
+                                          getTitlesWidget: (value, meta) {
+                                            const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+                                            return Text(
+                                              days[value.toInt() % 7], 
+                                              style: TextStyle(
+                                                fontSize: ResponsiveDesign.responsiveFontSize(context, 10),
+                                                color: Colors.white,
+                                              ),
+                                            );
+                                          },
+                                          interval: 1,
                                         ),
                                       ),
-                                      borderData: FlBorderData(show: false),
-                                      minX: 0,
-                                      maxX: 6,
-                                      minY: 0,
-                                      maxY: 2500,
-                                      lineBarsData: [
-                                        LineChartBarData(
-                                          spots: [
-                                            FlSpot(0, 1800),
-                                            FlSpot(1, 2000),
-                                            FlSpot(2, 1700),
-                                            FlSpot(3, 2200),
-                                            FlSpot(4, 1900),
-                                            FlSpot(5, 2100),
-                                            FlSpot(6, 1850),
-                                          ],
-                                          isCurved: true,
-                                          color: Colors.green,
-                                          barWidth: 3,
-                                          dotData: FlDotData(show: false),
-                                        ),
-                                      ],
                                     ),
+                                    borderData: FlBorderData(show: false),
+                                    minX: 0,
+                                    maxX: 6,
+                                    minY: 0,
+                                    maxY: 2500,
+                                    lineBarsData: [
+                                      LineChartBarData(
+                                        spots: [
+                                          FlSpot(0, 1800),
+                                          FlSpot(1, 2000),
+                                          FlSpot(2, 1700),
+                                          FlSpot(3, 2200),
+                                          FlSpot(4, 1900),
+                                          FlSpot(5, 2100),
+                                          FlSpot(6, 1850),
+                                        ],
+                                        isCurved: true,
+                                        color: Colors.white,
+                                        barWidth: 3,
+                                        dotData: FlDotData(show: false),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
-                        SizedBox(width: ResponsiveDesign.responsiveSpacing(context)),
-                        // Pie Chart: Macronutrient Breakdown
-                        Expanded(
-                          child: Container(
-                            padding: EdgeInsets.all(isSmallScreen ? 10 : 12),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.08),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
+                      ),
+                      SizedBox(width: ResponsiveDesign.responsiveSpacing(context)),
+                      // Pie Chart: Macronutrient Breakdown
+                      Expanded(
+                        child: Container(
+                          padding: EdgeInsets.all(isSmallScreen ? 10 : 12),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color.fromRGBO(142, 190, 155, 1.0),
+                                Color.fromRGBO(125, 189, 228, 1.0),
                               ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                            height: isSmallScreen ? 160 : 180,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Macros Today',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                    fontSize: ResponsiveDesign.responsiveFontSize(context, 14),
+                            borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.08),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          height: isSmallScreen ? 160 : 180,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Macros Today',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  fontSize: ResponsiveDesign.responsiveFontSize(context, 14),
+                                ),
+                              ),
+                              SizedBox(height: isSmallScreen ? 6 : 8),
+                              Expanded(
+                                child: PieChart(
+                                  PieChartData(
+                                    sections: [
+                                      PieChartSectionData(
+                                        value: 250,
+                                        color: Colors.blueAccent,
+                                        title: 'Carbs',
+                                        radius: isSmallScreen ? 32 : 36,
+                                        titleStyle: TextStyle(
+                                          fontSize: ResponsiveDesign.responsiveFontSize(context, 10), 
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      PieChartSectionData(
+                                        value: 75,
+                                        color: Colors.green,
+                                        title: 'Protein',
+                                        radius: isSmallScreen ? 32 : 36,
+                                        titleStyle: TextStyle(
+                                          fontSize: ResponsiveDesign.responsiveFontSize(context, 10), 
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      PieChartSectionData(
+                                        value: 50,
+                                        color: Colors.orange,
+                                        title: 'Fats',
+                                        radius: isSmallScreen ? 32 : 36,
+                                        titleStyle: TextStyle(
+                                          fontSize: ResponsiveDesign.responsiveFontSize(context, 10), 
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                    sectionsSpace: 2,
+                                    centerSpaceRadius: isSmallScreen ? 16 : 18,
                                   ),
                                 ),
-                                SizedBox(height: isSmallScreen ? 6 : 8),
-                                Expanded(
-                                  child: PieChart(
-                                    PieChartData(
-                                      sections: [
-                                        PieChartSectionData(
-                                          value: 250,
-                                          color: Colors.blueAccent,
-                                          title: 'Carbs',
-                                          radius: isSmallScreen ? 32 : 36,
-                                          titleStyle: TextStyle(
-                                            fontSize: ResponsiveDesign.responsiveFontSize(context, 10), 
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                        PieChartSectionData(
-                                          value: 75,
-                                          color: Colors.green,
-                                          title: 'Protein',
-                                          radius: isSmallScreen ? 32 : 36,
-                                          titleStyle: TextStyle(
-                                            fontSize: ResponsiveDesign.responsiveFontSize(context, 10), 
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                        PieChartSectionData(
-                                          value: 50,
-                                          color: Colors.orange,
-                                          title: 'Fats',
-                                          radius: isSmallScreen ? 32 : 36,
-                                          titleStyle: TextStyle(
-                                            fontSize: ResponsiveDesign.responsiveFontSize(context, 10), 
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ],
-                                      sectionsSpace: 2,
-                                      centerSpaceRadius: isSmallScreen ? 16 : 18,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  ],
-                ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
-            // END DASHBOARD SECTION
-            Expanded(
-              child: _pages[_selectedIndex],
             ),
           ],
-        ),
+          // END DASHBOARD SECTION
+          Expanded(
+            child: _pages[_selectedIndex],
+          ),
+        ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
@@ -389,7 +409,7 @@ class DashboardPage extends StatelessWidget {
             'Features',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.bold,
-              color: Colors.white,
+              color: const Color.fromARGB(255, 8, 8, 8),
               fontSize: ResponsiveDesign.responsiveFontSize(context, 24),
             ),
           ),

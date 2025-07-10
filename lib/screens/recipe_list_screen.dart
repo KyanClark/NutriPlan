@@ -149,7 +149,7 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
     
     return SafeArea(
       child: Container(
-        color: const Color(0xFFF6F6F6),
+        color: const Color(0xFFC1E7AF),
         child: Column(
           children: [
             // Search Bar with Preferences Dialog

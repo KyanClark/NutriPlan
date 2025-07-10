@@ -4,6 +4,7 @@ import 'signup_screen.dart';
 import '../widgets/animated_logo.dart';
 import '../widgets/decorative_auth_background.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:nutriplan/screens/Diet_Type_preference.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -38,10 +39,23 @@ class _LoginScreenState extends State<LoginScreen> {
             await Supabase.instance.client.auth.signOut();
             return;
           }
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const HomePage()),
-          );
+          // Check if user has completed onboarding
+          final prefs = await Supabase.instance.client
+              .from('user_preferences')
+              .select()
+              .eq('user_id', user!.id)
+              .maybeSingle();
+          if (prefs == null) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const DietTypePreferencePage()),
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const HomePage()),
+            );
+          }
         } else {
           // If no user, show a generic error
           ScaffoldMessenger.of(context).showSnackBar(
