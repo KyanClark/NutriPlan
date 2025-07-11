@@ -3,6 +3,7 @@ import 'dart:async';
 import '../models/meal.dart';
 import '../models/meal_plan.dart';
 import '../services/meal_service.dart';
+import 'recipes_page.dart';
 
 class MealPlannerScreen extends StatefulWidget {
 
@@ -166,145 +167,40 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  // Meal Plan button
-                  SizedBox(
-                    height: 56,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _showAddMealDialog(),
-                      icon: const Icon(Icons.add, color: Colors.white, size: 20),
-                      label: const Text(
-                        'Add\nMeal Plan',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        elevation: 4,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
           ),
-          // Feature cards (calories and meals planned)
-          Center(
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 500),
-              margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _StatCard(
-                      title: 'Calories Today',
-                      value: _getTotalCaloriesForDate().toString(),
-                      icon: Icons.local_fire_department,
-                      color: Colors.orange,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _StatCard(
-                      title: 'Meals Planned',
-                      value: _getTotalMealsForDate().toString(),
-                      icon: Icons.calendar_today,
-                      color: Colors.blue,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Meal type categories and meal content container
-          Expanded(
-            child: Center(
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 500),
-                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    // Meal Type Category Selector
-                    SizedBox(
-                      height: 38,
-                      child: Stack(
-                        children: [
-                          // Category text items
-                          ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: mealTypes.length,
-                            separatorBuilder: (_, __) => const SizedBox(width: 24),
-                            itemBuilder: (context, i) {
-                              final isSelected = i == _selectedMealTypeIndex;
-                              return GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _selectedMealTypeIndex = i;
-                                  });
-                                },
+          // Bold 'Meal Plans' text below the calendar container
+          Padding(
+            padding: const EdgeInsets.only(left: 32, top: 0, bottom: 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
                                 child: Text(
-                                  mealTypeLabels[i],
+                'Meal Plans',
                                   style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                    color: isSelected ? Colors.black : Colors.grey[600],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          // Sliding underline
-                          AnimatedPositioned(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                            left: _getMealTypeUnderlinePosition(),
-                            bottom: 0,
-                            child: Container(
-                              height: 2,
-                              width: mealTypeLabels[_selectedMealTypeIndex].length * 9.0,
-                              decoration: BoxDecoration(
-                                color: Colors.blueAccent,
-                                borderRadius: BorderRadius.circular(1),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    // Meal content
-                    Expanded(
-                      child: ListView(
-                        padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
-                        children: [
-                          _buildMealSection(mealTypes[_selectedMealTypeIndex], mealTypeLabels[_selectedMealTypeIndex].toUpperCase()),
-                        ],
-                      ),
-                    ),
-                  ],
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                  letterSpacing: 1.1,
                 ),
               ),
             ),
           ),
+          // Removed white container with meal categories
         ],
+        
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => RecipesPage()),
+          );
+        },
+        icon: Icon(Icons.add),
+        label: Text('Add Meal Plan'),
+        backgroundColor: const Color.fromARGB(255, 66, 223, 74),
       ),
     );
   }
@@ -421,136 +317,51 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
 
   Widget _buildMealTypeOption(MealType mealType) {
     return ListTile(
-      leading: Icon(_getMealTypeIcon(mealType), color: _getMealTypeColor(mealType)),
-      title: Text(_getMealTypeDisplay(mealType)),
+      leading: Icon(
+        _getMealTypeIcon(mealType),
+        color: _getMealTypeColor(mealType),
+      ),
+      title: Text(
+        _getMealTypeDisplay(mealType),
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: _getMealTypeColor(mealType),
+        ),
+      ),
       onTap: () {
-        Navigator.pop(context);
+        Navigator.of(context).pop(); // Close the dialog
         _showMealSuggestions(mealType);
       },
     );
   }
 
   void _showMealSuggestions(MealType mealType) {
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        maxChildSize: 0.9,
-        minChildSize: 0.5,
-        builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              Container(
-                margin: const EdgeInsets.only(top: 12),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Choose ${_getMealTypeDisplay(mealType)}',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+      builder: (context) => AlertDialog(
+        title: Text('Suggestions for ${_getMealTypeDisplay(mealType)}'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: mealSuggestions.isEmpty
+              ? const Text('No suggestions found for this meal type.')
+              : ListView(
+                  shrinkWrap: true,
+                  children: mealSuggestions.map((meal) => ListTile(
+                    leading: Icon(
+                      _getMealTypeIcon(mealType),
+                      color: _getMealTypeColor(mealType),
                     ),
-                    const SizedBox(height: 16),
-                    Expanded(
-                      child: ListView.builder(
-                        controller: scrollController,
-                        itemCount: mealSuggestions.length,
-                        itemBuilder: (context, index) {
-                          final meal = mealSuggestions[index];
-                          return GestureDetector(
+                    title: Text(meal.name),
                             onTap: () {
+                      Navigator.of(context).pop(); // Close the dialog
                               _addMealToPlan(meal, mealType, selectedDate);
-                              Navigator.pop(context);
-                            },
-                            child: Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[50],
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.grey[200]!),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 60,
-                                    height: 60,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(8),
-                                      image: const DecorationImage(
-                                        image: NetworkImage('https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80'),
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          meal.name,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          '${meal.calories} cal • ${meal.cookingTime} min',
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          '₱${meal.cost.toStringAsFixed(2)}',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.green,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+                    },
+                  )).toList(),
           ),
         ),
       ),
     );
   }
-
-
 
   String _formatFullDate(DateTime date) {
     final months = ['January', 'February', 'March', 'April', 'May', 'June',

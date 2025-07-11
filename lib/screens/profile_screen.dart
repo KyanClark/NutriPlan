@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'login_screen.dart';
+import './nutritional_tracking_screen.dart';
+import './dietary_preferences_screen.dart';
+import './meal_plan_history_screen.dart'; // Added import for MealPlanHistoryScreen
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -163,7 +166,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Purple background with back button and profile image
+                  // Purple background with profile image (no back button)
                   Stack(
                     clipBehavior: Clip.none,
                     children: [
@@ -178,15 +181,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                       ),
-                      Positioned(
-                        top: MediaQuery.of(context).padding.top + 16,
-                        left: 16,
-                        child: IconButton(
-                          icon: const Icon(Icons.arrow_back, color: Colors.white, size: 32),
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                      ),
-                      // Removed edit mode icon button
                       // Overlapping large profile avatar at the bottom center
                       Positioned(
                         left: 0,
@@ -237,218 +231,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                   const SizedBox(height: 16),
-                  // Statistics Row
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                    child: Column(
-                      children: [
-                        // Large rectangle stat card for Total Meal Plans Set
-                        Container(
-                          width: double.infinity,
-                          height: 110,
-                          margin: const EdgeInsets.only(bottom: 16),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [
-                                Colors.white,
-                                Color(0xFF4CAF50),
-                              ],
-                              stops: [0.05, 0.4],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              width: 2,
-                              style: BorderStyle.solid,
-                              color: Color(0xFF4CAF50),
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.08),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 24.0),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Text(
-                                  '10',
-                                  style: const TextStyle(
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                    shadows: [Shadow(blurRadius: 2, color: Colors.black26, offset: Offset(0, 1))],
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                const Text(
-                                  'Total Meals Planned',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w500,
-                                    shadows: [Shadow(blurRadius: 2, color: Colors.black26, offset: Offset(0, 1))],
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        // Row for the other two stat cards
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Expanded(child: _buildStatCard('Goals Met', '0')),
-                            const SizedBox(width: 16),
-                            Expanded(child: _buildStatCard('Allergies', _allergies?.length.toString() ?? '0')),
-                          ],
+                  // New: Options List
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  // Personal Details Card
-                  Card(
-                    color: const Color(0xFF4CAF50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    elevation: 2,
-                    child: Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Personal Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                          const SizedBox(height: 16),
-                          // Dietary Preferences
-                          Row(
-                            children: [
-                              const Icon(Icons.restaurant_menu, color: Colors.white),
-                              const SizedBox(width: 8),
-                              const Text('Dietary Preference:', style: TextStyle(color: Colors.white)),
-                              const SizedBox(width: 8),
-                              Text(
-                                _dietType ?? 'Not set',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          // Health Goals
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(Icons.flag, color: Colors.white),
-                              const SizedBox(width: 8),
-                              const Text('Health Goals:', style: TextStyle(color: Colors.white)),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _healthGoals.isEmpty
-                                    ? const Text(
-                                        'No health goals set',
-                                        style: TextStyle(color: Colors.white70),
-                                      )
-                                    : Wrap(
-                                        spacing: 8,
-                                        children: _availableHealthGoals.map((goal) {
-                                          final selected = _healthGoals.contains(goal);
-                                          return FilterChip(
-                                            label: Text(goal, style: TextStyle(color: selected ? Colors.white : Colors.white70)),
-                                            selected: selected,
-                                            selectedColor: Colors.green[700],
-                                            backgroundColor: Colors.green[300],
-                                            checkmarkColor: Colors.white,
-                                            onSelected: null,
-                                          );
-                                        }).toList(),
-                                      ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          // Allergies
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(Icons.warning_amber_rounded, color: Colors.white),
-                              const SizedBox(width: 8),
-                              const Text('Allergies:', style: TextStyle(color: Colors.white)),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: (_allergies == null || _allergies!.isEmpty)
-                                    ? const Text(
-                                        'No allergies recorded',
-                                        style: TextStyle(color: Colors.white70),
-                                      )
-                                    : Wrap(
-                                        spacing: 8,
-                                        children: (_allergies ?? []).map((a) {
-                                          return Chip(
-                                            label: Text(a.toString(), style: const TextStyle(color: Colors.white)),
-                                            backgroundColor: Colors.green[300],
-                                            deleteIconColor: Colors.white,
-                                            onDeleted: null,
-                                          );
-                                        }).toList(),
-                                      ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.logout),
-                        label: const Text('Logout'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Color.fromARGB(255, 247, 59, 42), // Light red
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 20),
-                          textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          elevation: 2,
+                    child: Column(
+                      children: [
+                        ListTile(
+                          title: const Text('Nutritional Tracking', style: TextStyle(fontWeight: FontWeight.bold)),
+                          trailing: const Icon(Icons.arrow_forward_ios, size: 18),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => NutritionalTrackingScreen()),
+                            );
+                          },
                         ),
-                        onPressed: () async {
-                          final shouldLogout = await _showLogoutConfirmation(context);
-                          if (shouldLogout == true) {
-                            try {
-                              await Supabase.instance.client.auth.signOut();
-                              if (!mounted) return;
-                              Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-                                MaterialPageRoute(builder: (context) => const LoginScreen()),
-                                (route) => false,
-                              );
-                            } catch (e) {
-                              if (!mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Logout failed: $e')),
-                              );
-                            }
-                          }
-                        },
-                      ),
+                        Container(height: 1, color: Colors.black),
+                        ListTile(
+                          title: const Text('Dietary Preferences', style: TextStyle(fontWeight: FontWeight.bold)),
+                          trailing: const Icon(Icons.arrow_forward_ios, size: 18),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => DietaryPreferencesScreen()),
+                            );
+                          },
+                        ),
+                        Container(height: 1, color: Colors.black),
+                        ListTile(
+                          title: const Text('Meal Plan History', style: TextStyle(fontWeight: FontWeight.bold)),
+                          trailing: const Icon(Icons.arrow_forward_ios, size: 18),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => MealPlanHistoryScreen()),
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
+      // Removed BottomNavigationBar from ProfileScreen
     );
   }
 

@@ -1,20 +1,10 @@
 import 'package:flutter/material.dart';
+import '../models/recipes.dart';
 
 class RecipeInfoScreen extends StatelessWidget {
-  final String imageUrl;
-  final String title;
-  final String description;
-  final double price;
-  final int timeMinutes;
+  final Recipe recipe;
 
-  const RecipeInfoScreen({
-    super.key,
-    required this.imageUrl,
-    required this.title,
-    required this.description,
-    required this.price,
-    required this.timeMinutes,
-  });
+  const RecipeInfoScreen({Key? key, required this.recipe}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -40,56 +30,78 @@ class RecipeInfoScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          title,
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              recipe.title,
+                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(Icons.local_fire_department, color: Colors.orange, size: 20),
+                          const SizedBox(width: 4),
+                          Text('${recipe.calories} cal', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.orange)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        recipe.shortDescription,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
+                      ),
+                      const SizedBox(height: 16),
+                      if (recipe.dietTypes.isNotEmpty)
+                        Row(
+                          children: [
+                            const Icon(Icons.eco, color: Colors.green, size: 18),
+                            const SizedBox(width: 6),
+                            Text(
+                              recipe.dietTypes.join(', '),
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                            ),
+                          ],
                         ),
-                        const Spacer(),
-                        Icon(Icons.timer_outlined, color: Colors.grey[600], size: 20),
-                        const SizedBox(width: 4),
-                        Text('$timeMinutes mins', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[600])),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      description,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
+                      const SizedBox(height: 16),
+                      if (recipe.macros.isNotEmpty)
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Total Price', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                            const SizedBox(height: 4),
-                            Text(' 24${price.toStringAsFixed(2)}', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: Colors.green[700])),
+                            const Text('Macros', style: TextStyle(fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                _MacroChip(label: 'Fat', value: recipe.macros['fats'].toString()),
+                                _MacroChip(label: 'Protein', value: recipe.macros['protein'].toString()),
+                                _MacroChip(label: 'Fiber', value: recipe.macros['fiber'].toString()),
+                                _MacroChip(label: 'Carbs', value: recipe.macros['carbs'].toString()),
+                              ],
+                            ),
                           ],
                         ),
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.black,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                            elevation: 4,
-                          ),
-                          onPressed: () {},
-                          icon: const Icon(Icons.add_shopping_cart),
-                          label: const Text('Add to Cart'),
+                      const SizedBox(height: 16),
+                      if (recipe.allergyWarning.isNotEmpty)
+                        Row(
+                          children: [
+                            const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 18),
+                            const SizedBox(width: 6),
+                            Text('Allergy: ${recipe.allergyWarning}', style: const TextStyle(color: Colors.red)),
+                          ],
                         ),
-                      ],
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      const Text('Ingredients', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 6),
+                      ...recipe.ingredients.map((ing) => Text('• $ing')).toList(),
+                      const SizedBox(height: 16),
+                      const Text('Instructions', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 6),
+                      ...recipe.instructions.asMap().entries.map((entry) => Text('${entry.key + 1}. ${entry.value}')).toList(),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -112,7 +124,7 @@ class RecipeInfoScreen extends StatelessWidget {
                   ),
                   child: CircleAvatar(
                     radius: 90,
-                    backgroundImage: NetworkImage(imageUrl),
+                    backgroundImage: NetworkImage(recipe.imageUrl),
                   ),
                 ),
               ),
@@ -132,6 +144,24 @@ class RecipeInfoScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _MacroChip extends StatelessWidget {
+  final String label;
+  final String value;
+  const _MacroChip({required this.label, required this.value});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.green[50],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text('$label: $value', style: const TextStyle(fontSize: 13, color: Colors.green)),
     );
   }
 } 

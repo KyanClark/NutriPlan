@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'meal_planner_screen.dart';
-import 'recipe_list_screen.dart';
 import 'profile_screen.dart';
 import '../main.dart'; // Import for ResponsiveDesign utilities
 
@@ -18,7 +17,7 @@ class _HomePageState extends State<HomePage> {
   final List<Widget> _pages = const [
     DashboardPage(),
     MealPlannerScreen(),
-    RecipeListScreen(),
+    ProfileScreen(),
   ];
 
   @override
@@ -46,23 +45,7 @@ class _HomePageState extends State<HomePage> {
               ),
               centerTitle: true,
               actions: [
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ProfileScreen()),
-                    );
-                  },
-                  child: Padding(
-                    padding: EdgeInsets.only(right: isSmallScreen ? 16 : 24, top: 8, bottom: 8),
-                    child: CircleAvatar(
-                      radius: isSmallScreen ? 20 : 22,
-                      backgroundColor: Colors.grey[200],
-                      child: Icon(Icons.person, color: Colors.grey[700]),
-                    ),
-                  ),
-                ),
+                // Removed profile avatar from AppBar actions
               ],
             ),
             // Black bottom border
@@ -94,15 +77,6 @@ class _HomePageState extends State<HomePage> {
                         ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      'Your Analytics',
-                      style: TextStyle(
-                        fontSize: ResponsiveDesign.responsiveFontSize(context, 22),
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
                       ),
                     ),
                   ),
@@ -319,7 +293,14 @@ class _HomePageState extends State<HomePage> {
         items: [
           _buildBottomNavItem(Icons.dashboard, 'Dashboard', 0),
           _buildBottomNavItem(Icons.restaurant_menu, 'Meal Plan', 1),
-          _buildBottomNavItem(Icons.book, 'Recipes', 2),
+          BottomNavigationBarItem(
+            icon: CircleAvatar(
+              radius: isSmallScreen ? 14 : 16,
+              backgroundColor: Colors.grey[200],
+              child: Icon(Icons.person, color: Colors.grey[700], size: isSmallScreen ? 18 : 20),
+            ),
+            label: 'Profile',
+          ),
         ],
       ),
     );
