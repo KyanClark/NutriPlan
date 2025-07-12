@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nutriplan/screens/Diet_Type_preference.dart';
 import 'package:nutriplan/screens/home_page.dart';
 import 'package:nutriplan/screens/login_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -31,7 +32,7 @@ class NutriPlan extends StatelessWidget {
         textTheme: const TextTheme(
           headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
           headlineMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-          headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),  
           titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
           titleMedium: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           titleSmall: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),

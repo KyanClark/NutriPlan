@@ -9,6 +9,7 @@ class Recipe {
   final String allergyWarning;
   final int calories;
   final List<String> dietTypes;
+  final double cost;
 
   Recipe({
     required this.id,
@@ -21,6 +22,7 @@ class Recipe {
     required this.allergyWarning,
     required this.calories,
     required this.dietTypes,
+    required this.cost,
   });
 
   factory Recipe.fromMap(Map<String, dynamic> map) {
@@ -35,6 +37,7 @@ class Recipe {
       allergyWarning: map['allergy_warning'] ?? '',
       calories: map['calories'] is int ? map['calories'] : int.tryParse(map['calories']?.toString() ?? '0') ?? 0,
       dietTypes: List<String>.from(map['diet_types'] ?? []),
+      cost: map['cost'] is double ? map['cost'] : double.tryParse(map['cost']?.toString() ?? '0') ?? 0.0,
     );
   }
 }

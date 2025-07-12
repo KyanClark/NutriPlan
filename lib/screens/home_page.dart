@@ -3,6 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'meal_planner_screen.dart';
 import 'profile_screen.dart';
 import '../main.dart'; // Import for ResponsiveDesign utilities
+import 'favorites_page.dart'; // Added import for FavoritesPage
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -14,10 +15,11 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
 
-  final List<Widget> _pages = const [
-    DashboardPage(),
-    MealPlannerScreen(),
-    ProfileScreen(),
+  final List<Widget> _pages = [
+    const DashboardPage(),
+    const MealPlannerScreen(),
+    FavoritesPage(), // Not const
+    const ProfileScreen(),
   ];
 
   @override
@@ -293,6 +295,7 @@ class _HomePageState extends State<HomePage> {
         items: [
           _buildBottomNavItem(Icons.dashboard, 'Dashboard', 0),
           _buildBottomNavItem(Icons.restaurant_menu, 'Meal Plan', 1),
+          _buildBottomNavItem(Icons.favorite, 'Favorites', 2), // Add this line for Favorites
           BottomNavigationBarItem(
             icon: CircleAvatar(
               radius: isSmallScreen ? 14 : 16,

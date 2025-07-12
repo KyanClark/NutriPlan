@@ -14,4 +14,36 @@ class RecipeService {
         .map((item) => Recipe.fromMap(item as Map<String, dynamic>))
         .toList();
   }
+
+  static Future<List<String>> fetchFavoriteRecipeIds(String userId) async {
+    final response = await Supabase.instance.client
+        .from('meal_favorites')
+        .select('recipe_id')
+        .eq('user_id', userId);
+    return (response as List)
+        .map((item) => item['recipe_id'].toString())
+        .toList();
+  }
+
+  static Future<void> addFavorite(String userId, String recipeId) async {
+    await Supabase.instance.client
+        .from('meal_favorites')
+        .insert({'user_id': userId, 'recipe_id': recipeId});
+  }
+
+  static Future<void> removeFavorite(String userId, String recipeId) async {
+    await Supabase.instance.client
+        .from('meal_favorites')
+        .delete()
+        .eq('user_id', userId)
+        .eq('recipe_id', recipeId);
+  }
+
+  static Future<void> toggleFavorite(String userId, String recipeId, bool isFavorite) async {
+    if (isFavorite) {
+      await removeFavorite(userId, recipeId);
+    } else {
+      await addFavorite(userId, recipeId);
+    }
+  }
 } 

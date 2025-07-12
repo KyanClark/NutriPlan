@@ -191,16 +191,33 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
         ],
         
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => RecipesPage()),
-          );
-        },
-        icon: Icon(Icons.add),
-        label: Text('Add Meal Plan'),
-        backgroundColor: const Color.fromARGB(255, 66, 223, 74),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 16.0),
+        child: FloatingActionButton.extended(
+          onPressed: () {
+            Navigator.of(context).push(
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) => RecipesPage(),
+                transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                  const begin = Offset(0.0, 1.0);
+                  const end = Offset.zero;
+                  const curve = Curves.ease;
+                  final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                  return SlideTransition(
+                    position: animation.drive(tween),
+                    child: child,
+                  );
+                },
+              ),
+            );
+          },
+          icon: const Icon(Icons.add, color: Colors.white),
+          label: const Text(
+            'Create Meal Plan',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: const Color.fromARGB(255, 81, 209, 87),
+        ),
       ),
     );
   }

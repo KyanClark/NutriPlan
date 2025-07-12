@@ -4,6 +4,7 @@ import 'login_screen.dart';
 import './nutritional_tracking_screen.dart';
 import './dietary_preferences_screen.dart';
 import './meal_plan_history_screen.dart'; // Added import for MealPlanHistoryScreen
+import './meal_tracker_screen.dart'; // Add this import for the new page
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -28,7 +29,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final List<String> _availableHealthGoals = [
     'Lose Weight',
     'Build Muscle',
-    'Improve Endurance',
+    'Improve Endurance',  
     'Eat Healthier',
     'Maintain Weight',
   ];
@@ -50,7 +51,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final data = await Supabase.instance.client
             .from('user_preferences')
             .select()
-            .eq('user_id', user.id)
+            .eq('user_id', user.id)  // ← Uses unique user ID
             .maybeSingle();
         if (data != null) {
           setState(() {
@@ -171,7 +172,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     clipBehavior: Clip.none,
                     children: [
                       Container(
-                        height: 200, // Increased height for more overlap room
+                        height: 140, // Increased height for more overlap room
                         width: double.infinity,
                         decoration: const BoxDecoration(
                           color: Color.fromARGB(255, 103, 196, 106), // Main project color
@@ -246,20 +247,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     child: Column(
                       children: [
-                        ListTile(
-                          title: const Text('Nutritional Tracking', style: TextStyle(fontWeight: FontWeight.bold)),
-                          trailing: const Icon(Icons.arrow_forward_ios, size: 18),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => NutritionalTrackingScreen()),
-                            );
-                          },
-                        ),
-                        Container(height: 1, color: Colors.black),
-                        ListTile(
-                          title: const Text('Dietary Preferences', style: TextStyle(fontWeight: FontWeight.bold)),
-                          trailing: const Icon(Icons.arrow_forward_ios, size: 18),
+                        _MinimalOption(
+                          label: 'Dietary Preferences',
                           onTap: () {
                             Navigator.push(
                               context,
@@ -267,10 +256,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             );
                           },
                         ),
-                        Container(height: 1, color: Colors.black),
-                        ListTile(
-                          title: const Text('Meal Plan History', style: TextStyle(fontWeight: FontWeight.bold)),
-                          trailing: const Icon(Icons.arrow_forward_ios, size: 18),
+                        _MinimalDivider(),
+                        _MinimalOption(
+                          label: 'Nutritional Tracking',
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => NutritionalTrackingScreen()),
+                            );
+                          },
+                        ),
+                        _MinimalDivider(),
+                        _MinimalOption(
+                          label: 'Meal Tracker',
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => MealTrackerScreen()),
+                            );
+                          },
+                        ),
+                        _MinimalDivider(),
+                        _MinimalOption(
+                          label: 'Meal Plan History',
                           onTap: () {
                             Navigator.push(
                               context,
@@ -279,6 +287,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           },
                         ),
                       ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Restored Logout Button with more padding
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.logout, color: Colors.white),
+                        label: const Text('Logout', style: TextStyle(color: Colors.white)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () async {
+                          final confirm = await _showLogoutConfirmation(context);
+                          if (confirm == true) {
+                            setState(() {
+                              _shouldLogout = true;
+                            });
+                            _handleLogoutIfNeeded();
+                          }
+                        },
+                      ),
                     ),
                   ),
                 ],
@@ -369,6 +405,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         );
       },
+    );
+  }
+} 
+
+class _MinimalOption extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _MinimalOption({required this.label, required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        child: Row(
+          children: [
+            Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: Colors.black87),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MinimalDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Divider(
+        color: Colors.grey[300],
+        thickness: 1,
+        height: 0,
+      ),
     );
   }
 } 
