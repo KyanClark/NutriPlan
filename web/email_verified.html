@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Email Verified - NutriPlan</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      background: #f6f8fa;
+      font-family: 'Roboto', Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .brand {
+      font-size: 2.8rem;
+      font-weight: bold;
+      color: #388e3c;
+      margin-bottom: 32px;
+      letter-spacing: 2px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 4px 24px rgba(60,60,60,0.08);
+      padding: 40px 32px;
+      text-align: center;
+      max-width: 400px;
+    }
+    .verified {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #388e3c;
+      margin-bottom: 16px;
+    }
+    .message {
+      font-size: 1.1rem;
+      color: #333;
+      margin-bottom: 32px;
+    }
+    .close-btn {
+      background: #388e3c;
+      color: #fff;
+      border: none;
+      border-radius: 30px;
+      padding: 14px 32px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .close-btn:hover {
+      background: #256029;
+    }
+  </style>
+</head>
+<body>
+  <div class="brand">NutriPlan</div>
+  <div class="card">
+    <div class="verified">Email Verified</div>
+    <div class="message">
+      You can now close this tab and proceed to log in to your account.<br>
+      <br>
+      <strong>Thank you for verifying your email!</strong>
+    </div>
+    <button class="close-btn" onclick="window.close()">Close Tab</button>
+  </div>
+</body>
+</html> 

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:nutriplan/screens/verify_screen.dart';
+import 'package:nutriplan/screens/desktop_email_verification_screen.dart';
+import 'package:nutriplan/screens/supabase_test_screen.dart';
 import 'login_screen.dart';
 import '../widgets/animated_logo.dart';
 import '../widgets/decorative_auth_background.dart';
@@ -19,52 +21,38 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
+  // Removed phone controller
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
+  // Remove verification choice dialog and SMS OTP logic
+
+  void _signupWithEmailOtp() async {
+    setState(() { _isLoading = true; });
+    try {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => DesktopEmailVerificationScreen(
+            email: _emailController.text,
+            password: _passwordController.text,
+            fullName: _fullNameController.text,
+            phoneNumber: '', // No phone
+          ),
+        ),
+      );
+    } catch (e) {
+      setState(() { _isLoading = false; });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+
   void _signup() async {
     if (_formKey.currentState!.validate()) {
-      setState(() { _isLoading = true; });
-      try {
-        final response = await Supabase.instance.client.auth.signUp(
-          email: _emailController.text,
-          password: _passwordController.text,
-          data: {'full_name': _fullNameController.text},
-        );
-        setState(() { _isLoading = false; });
-        if (response.user != null) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => VerifyScreen(email: _emailController.text)),
-          );
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('A verification link has been sent. Please verify your email before logging in.')),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Signup failed. Please try again.')),
-          );
-        }
-      } catch (e) {
-        setState(() { _isLoading = false; });
-        String errorMsg = e.toString().toLowerCase();
-        String userMsg;
-        if (errorMsg.contains('already registered')) {
-          userMsg = 'This email is already registered. Please log in or use a different email.';
-        } else if (errorMsg.contains('not verified')) {
-          userMsg = 'This email is registered but not verified. Please check your email for a verification link.';
-        } else if (errorMsg.contains('email')) {
-          userMsg = 'This email is invalid.';
-        } else if (errorMsg.contains('password')) {
-          userMsg = 'Password is invalid or too weak.';
-        } else {
-          userMsg = 'Signup failed: $e';
-        }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(userMsg)),
-        );
-      }
+      _signupWithEmailOtp();
     }
   }
 
@@ -74,6 +62,7 @@ class _SignupScreenState extends State<SignupScreen> {
     _passwordController.dispose();
     _fullNameController.dispose();
     _confirmPasswordController.dispose();
+    // Removed phone controller dispose
     super.dispose();
   }
 
@@ -146,6 +135,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             },
                           ),
                           const SizedBox(height: 16),
+                          // Removed phone number input
                           TextFormField(
                             controller: _passwordController,
                             decoration: InputDecoration(
