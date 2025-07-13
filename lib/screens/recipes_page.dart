@@ -15,18 +15,160 @@ class _RecipesPageState extends State<RecipesPage> {
 
   String? get userId => Supabase.instance.client.auth.currentUser?.id;
 
+  String _sortOption = 'None';
+
   Future<void> _fetchFavorites() async {
     if (userId == null) return;
     final ids = await RecipeService.fetchFavoriteRecipeIds(userId!);
+    if (!mounted) return;
     setState(() {
       favoriteRecipeIds = ids.toSet();
     });
+  }
+
+  void _showFilterSheet(List<Recipe> recipes, void Function(List<Recipe>) onSort) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.attach_money),
+                title: const Text('Price (Low to High)'),
+                onTap: () {
+                  onSort(List.from(recipes)..sort((a, b) => a.cost.compareTo(b.cost)));
+                  setState(() => _sortOption = 'Price (Low to High)');
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.attach_money),
+                title: const Text('Price (High to Low)'),
+                onTap: () {
+                  onSort(List.from(recipes)..sort((a, b) => b.cost.compareTo(a.cost)));
+                  setState(() => _sortOption = 'Price (High to Low)');
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.local_fire_department),
+                title: const Text('Calories (Low to High)'),
+                onTap: () {
+                  onSort(List.from(recipes)..sort((a, b) => a.calories.compareTo(b.calories)));
+                  setState(() => _sortOption = 'Calories (Low to High)');
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.local_fire_department),
+                title: const Text('Calories (High to Low)'),
+                onTap: () {
+                  onSort(List.from(recipes)..sort((a, b) => b.calories.compareTo(a.calories)));
+                  setState(() => _sortOption = 'Calories (High to Low)');
+                  Navigator.pop(context);
+                },
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.timer),
+                title: const Text('Quickest to Prepare'),
+                onTap: () {
+                  // Placeholder
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.star),
+                title: const Text('Most Popular'),
+                onTap: () {
+                  // Placeholder
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.eco),
+                title: const Text('Diet Type'),
+                onTap: () {
+                  // Placeholder
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.fitness_center),
+                title: const Text('Highest Protein'),
+                onTap: () {
+                  onSort(List.from(recipes)..sort((a, b) => ((b.macros['protein'] ?? 0) as num).compareTo((a.macros['protein'] ?? 0) as num)));
+                  setState(() => _sortOption = 'Highest Protein');
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.no_food),
+                title: const Text('Lowest Carbs'),
+                onTap: () {
+                  onSort(List.from(recipes)..sort((a, b) => ((a.macros['carbs'] ?? 0) as num).compareTo((b.macros['carbs'] ?? 0) as num)));
+                  setState(() => _sortOption = 'Lowest Carbs');
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.health_and_safety),
+                title: const Text('Allergy Friendly'),
+                onTap: () {
+                  onSort(List.from(recipes).where((r) => (r.allergyWarning.isEmpty)).toList() as List<Recipe>);
+                  setState(() => _sortOption = 'Allergy Friendly');
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.new_releases),
+                title: const Text('Recently Added'),
+                onTap: () {
+                  // Placeholder
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.format_list_numbered),
+                title: const Text('Fewest Ingredients'),
+                onTap: () {
+                  // Placeholder
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.child_care),
+                title: const Text('Kid Friendly'),
+                onTap: () {
+                  // Placeholder
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.emoji_events),
+                title: const Text('Chef’s Choice'),
+                onTap: () {
+                  // Placeholder
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _toggleFavorite(Recipe recipe) async {
     if (userId == null) return;
     final isFav = favoriteRecipeIds.contains(recipe.id);
     await RecipeService.toggleFavorite(userId!, recipe.id, isFav);
+    if (!mounted) return;
     await _fetchFavorites();
   }
 
@@ -63,7 +205,35 @@ class _RecipesPageState extends State<RecipesPage> {
                 letterSpacing: 1.1,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+            // Filter/Sort button
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.filter_list),
+                  label: const Text('Filter/Sort'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green[100],
+                    foregroundColor: Colors.green[900],
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () {
+                    // Fetch recipes and show filter sheet
+                    RecipeService.fetchRecipes().then((recipes) {
+                      _showFilterSheet(recipes, (sorted) {
+                        setState(() {
+                          // This is a simple demo; in a real app, store sorted recipes in state
+                        });
+                      });
+                    });
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [

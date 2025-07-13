@@ -25,6 +25,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
     if (userId == null) return;
     final ids = await RecipeService.fetchFavoriteRecipeIds(userId!);
     final allRecipes = await RecipeService.fetchRecipes();
+    if (!mounted) return;
     setState(() {
       favoriteRecipes = allRecipes.where((r) => ids.contains(r.id)).toList();
       isLoading = false;
@@ -34,6 +35,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
   Future<void> _toggleFavorite(Recipe recipe) async {
     if (userId == null) return;
     await RecipeService.toggleFavorite(userId!, recipe.id, true);
+    if (!mounted) return;
     await _fetchFavoriteRecipes();
   }
 

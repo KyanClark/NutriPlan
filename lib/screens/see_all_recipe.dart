@@ -14,6 +14,7 @@ class _SeeAllRecipePageState extends State<SeeAllRecipePage> {
   Set<String> favoriteRecipeIds = {};
   String searchQuery = '';
   bool isLoading = true;
+  bool showSearch = false;
 
   String? get userId => Supabase.instance.client.auth.currentUser?.id;
 
@@ -26,8 +27,10 @@ class _SeeAllRecipePageState extends State<SeeAllRecipePage> {
   Future<void> _fetchAll() async {
     setState(() => isLoading = true);
     final recipes = await RecipeService.fetchRecipes();
+    if (!mounted) return;
     if (userId != null) {
       final favs = await RecipeService.fetchFavoriteRecipeIds(userId!);
+      if (!mounted) return;
       setState(() {
         allRecipes = recipes;
         favoriteRecipeIds = favs.toSet();
@@ -45,6 +48,7 @@ class _SeeAllRecipePageState extends State<SeeAllRecipePage> {
     if (userId == null) return;
     final isFav = favoriteRecipeIds.contains(recipe.id);
     await RecipeService.toggleFavorite(userId!, recipe.id, isFav);
+    if (!mounted) return;
     await _fetchAll();
   }
 
@@ -56,24 +60,50 @@ class _SeeAllRecipePageState extends State<SeeAllRecipePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('All Recipes'),
-        backgroundColor: Colors.green,
-      ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Search recipes...',
-                      prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                    onChanged: (val) => setState(() => searchQuery = val),
-                  ),
+                  padding: const EdgeInsets.only(top: 32, left: 8, right: 8, bottom: 8),
+                  child: showSearch
+                      ? Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.arrow_back),
+                              onPressed: () => setState(() => showSearch = false),
+                            ),
+                            Expanded(
+                              child: TextField(
+                                autofocus: true,
+                                decoration: InputDecoration(
+                                  hintText: 'Search recipes...',
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                                ),
+                                onChanged: (val) => setState(() => searchQuery = val),
+                              ),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.arrow_back),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                            const Expanded(
+                              child: Text(
+                                'All Recipes',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.search),
+                              onPressed: () => setState(() => showSearch = true),
+                            ),
+                          ],
+                        ),
                 ),
                 Expanded(
                   child: GridView.builder(

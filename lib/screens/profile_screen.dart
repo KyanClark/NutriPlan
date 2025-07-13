@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'login_screen.dart';
-import './nutritional_tracking_screen.dart';
 import './dietary_preferences_screen.dart';
 import './meal_plan_history_screen.dart'; // Added import for MealPlanHistoryScreen
 import './meal_tracker_screen.dart'; // Add this import for the new page
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -24,6 +27,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _loading = true;
   // Removed edit mode and saving state
   bool _shouldLogout = false;
+  File? _profileImage;
+  String? _profileImagePath;
 
   // Example health goals
   final List<String> _availableHealthGoals = [
@@ -38,6 +43,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _fetchUserProfile();
+    _loadProfileImage();
   }
 
   Future<void> _fetchUserProfile() async {
@@ -53,6 +59,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             .select()
             .eq('user_id', user.id)  // ← Uses unique user ID
             .maybeSingle();
+        if (!mounted) return;
         if (data != null) {
           setState(() {
             _dietType = data['diet_type'] as String?;
@@ -67,6 +74,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         print('Error fetching user preferences: $e');
       }
     }
+    if (!mounted) return;
     setState(() => _loading = false);
   }
 
@@ -136,6 +144,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _handleLogoutIfNeeded() async {
     if (_shouldLogout) {
+      if (!mounted) return;
       setState(() {
         _shouldLogout = false;
       });
@@ -156,6 +165,72 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // Removed _toggleEditMode function
+
+  Future<void> _loadProfileImage() async {
+    final prefs = await SharedPreferences.getInstance();
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+    final key = 'profile_image_path_${user.id}';
+    final path = prefs.getString(key);
+    if (path != null && await File(path).exists()) {
+      setState(() {
+        _profileImagePath = path;
+        _profileImage = File(path);
+      });
+    } else {
+      setState(() {
+        _profileImagePath = null;
+        _profileImage = null;
+      });
+    }
+  }
+
+  Future<void> _saveProfileImagePath(String path) async {
+    final prefs = await SharedPreferences.getInstance();
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+    final key = 'profile_image_path_${user.id}';
+    await prefs.setString(key, path);
+  }
+
+  Future<void> _deleteProfileImage() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+    final key = 'profile_image_path_${user.id}';
+    if (_profileImagePath != null) {
+      final file = File(_profileImagePath!);
+      if (await file.exists()) {
+        await file.delete();
+      }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(key);
+      setState(() {
+        _profileImage = null;
+        _profileImagePath = null;
+      });
+    }
+  }
+
+  Future<void> _pickProfileImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      final directory = await getApplicationDocumentsDirectory();
+      final profileDir = Directory('${directory.path}/profile_pictures');
+      if (!await profileDir.exists()) {
+        await profileDir.create(recursive: true);
+      }
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
+      final fileName = 'profile_${user.id}_${DateTime.now().millisecondsSinceEpoch}.png';
+      final savedImage = await File(pickedFile.path).copy('${profileDir.path}/$fileName');
+      await _saveProfileImagePath(savedImage.path);
+      setState(() {
+        _profileImage = savedImage;
+        _profileImagePath = savedImage.path;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -184,16 +259,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       // Overlapping large profile avatar at the bottom center
                       Positioned(
-                        left: 0,
-                        right: 0,
+                        left: MediaQuery.of(context).size.width / 2 - 70, // Center the avatar
+                        right: null,
                         bottom: -58, // Half of avatar radius to overlap
-                        child: Center(
-                          child: CircleAvatar(
-                            radius: 70,
-                            backgroundColor: Colors.white,
-                            backgroundImage: null, // TODO: Add user image if available
-                            child: Icon(Icons.person, size: 90, color: const Color.fromARGB(255, 97, 212, 86)),
-                          ),
+                        child: CircleAvatar(
+                          radius: 70,
+                          backgroundColor: Colors.white,
+                          backgroundImage: _profileImage != null ? FileImage(_profileImage!) : null,
+                          child: _profileImage == null
+                              ? Icon(Icons.person, size: 90, color: const Color.fromARGB(255, 97, 212, 86))
+                              : null,
                         ),
                       ),
                     ],
@@ -253,16 +328,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(builder: (context) => DietaryPreferencesScreen()),
-                            );
-                          },
-                        ),
-                        _MinimalDivider(),
-                        _MinimalOption(
-                          label: 'Nutritional Tracking',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => NutritionalTrackingScreen()),
                             );
                           },
                         ),

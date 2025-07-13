@@ -13,47 +13,11 @@ class RecipeInfoScreen extends StatelessWidget {
       body: SafeArea(
         child: Stack(
           children: [
-            // Fixed bottom button
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: Container(
-                color: Colors.white,
-                child: SafeArea(
-                  top: false,
-                  child: Container(
-                    height: 70,
-                    width: double.infinity,
-                    alignment: Alignment.center,
-                    child: SizedBox(
-                      width: MediaQuery.of(context).size.width * 0.9,
-                      height: 48,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4CAF50),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        onPressed: () {
-                          // TODO: Add to Meal Plan functionality
-                        },
-                        child: const Text(
-                          'Add to Meal Plan',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
             // Main card (scrollable, image at top, no padding)
             Positioned.fill(
               top: 0,
               child: SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: 90),
+                padding: const EdgeInsets.only(bottom: 80),
                 child: Column(
                   children: [
                     // Full-width square image at the top
@@ -89,7 +53,10 @@ class RecipeInfoScreen extends StatelessWidget {
                         padding: const EdgeInsets.fromLTRB(24, 40, 24, 24),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(32),
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(32),
+                            topRight: Radius.circular(32),
+                          ),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black12,
@@ -176,6 +143,51 @@ class RecipeInfoScreen extends StatelessWidget {
                       ),
                     ),
                   ],
+                ),
+              ),
+            ),
+            // Fixed bottom button (move this to the end so it's always on top)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color.fromARGB(255, 145, 240, 145),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 12,
+                      offset: Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Container(
+                    height: 70,
+                    width: double.infinity,
+                    alignment: Alignment.center,
+                    child: SizedBox(
+                      width: MediaQuery.of(context).size.width * 0.9,
+                      height: 48,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4CAF50),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        onPressed: () {
+                          // TODO: Add to Meal Plan functionality
+                        },
+                        child: const Text(
+                          'Add to Meal Plan',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
