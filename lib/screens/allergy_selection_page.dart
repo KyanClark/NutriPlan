@@ -3,7 +3,7 @@ import 'servings_selection_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AllergySelectionPage extends StatefulWidget {
-  const AllergySelectionPage({Key? key}) : super(key: key);
+  const AllergySelectionPage({super.key});
 
   @override
   State<AllergySelectionPage> createState() => _AllergySelectionPageState();

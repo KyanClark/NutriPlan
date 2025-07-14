@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DietaryPreferencesScreen extends StatefulWidget {
+  const DietaryPreferencesScreen({super.key});
+
   @override
   _DietaryPreferencesScreenState createState() => _DietaryPreferencesScreenState();
 }

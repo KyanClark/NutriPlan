@@ -5,7 +5,7 @@ import 'login_screen.dart';
 
 class VerifyScreen extends StatefulWidget {
   final String email;
-  const VerifyScreen({required this.email, Key? key}) : super(key: key);
+  const VerifyScreen({required this.email, super.key});
 
   @override
   State<VerifyScreen> createState() => _VerifyScreenState();

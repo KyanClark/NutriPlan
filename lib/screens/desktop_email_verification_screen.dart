@@ -16,8 +16,8 @@ class DesktopEmailVerificationScreen extends StatefulWidget {
     required this.password,
     required this.fullName,
     required this.phoneNumber,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   State<DesktopEmailVerificationScreen> createState() => _DesktopEmailVerificationScreenState();

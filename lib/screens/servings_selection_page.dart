@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'diet_type_preference.dart';
 import 'home_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ServingsSelectionPage extends StatefulWidget {
-  const ServingsSelectionPage({Key? key}) : super(key: key);
+  const ServingsSelectionPage({super.key});
 
   @override
   State<ServingsSelectionPage> createState() => _ServingsSelectionPageState();

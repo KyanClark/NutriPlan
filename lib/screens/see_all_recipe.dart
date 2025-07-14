@@ -5,6 +5,9 @@ import '../services/recipe_service.dart';
 import 'recipe_info_screen.dart';
 
 class SeeAllRecipePage extends StatefulWidget {
+  final List<String> addedRecipeIds;
+  const SeeAllRecipePage({super.key, this.addedRecipeIds = const []});
+
   @override
   State<SeeAllRecipePage> createState() => _SeeAllRecipePageState();
 }
@@ -118,13 +121,20 @@ class _SeeAllRecipePageState extends State<SeeAllRecipePage> {
                     itemBuilder: (context, index) {
                       final recipe = filteredRecipes[index];
                       return GestureDetector(
-                        onTap: () {
-                          Navigator.push(
+                        onTap: () async {
+                          final result = await Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => RecipeInfoScreen(recipe: recipe),
+                              builder: (context) => RecipeInfoScreen(
+                                recipe: recipe,
+                                addedRecipeIds: widget.addedRecipeIds,
+                              ),
                             ),
                           );
+                          if (!mounted) return;
+                          if (result is Recipe) {
+                            Navigator.pop(context, result);
+                          }
                         },
                         child: Stack(
                           children: [

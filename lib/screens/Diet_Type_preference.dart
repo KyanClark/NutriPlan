@@ -3,7 +3,7 @@ import 'allergy_selection_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DietTypePreferencePage extends StatefulWidget {
-  const DietTypePreferencePage({Key? key}) : super(key: key);
+  const DietTypePreferencePage({super.key});
 
   @override
   State<DietTypePreferencePage> createState() => _DietTypePreferencePageState();

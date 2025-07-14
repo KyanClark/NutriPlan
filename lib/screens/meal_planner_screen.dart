@@ -4,6 +4,10 @@ import '../models/meal.dart';
 import '../models/meal_plan.dart';
 import '../services/meal_service.dart';
 import 'recipes_page.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'recipe_info_screen.dart';
+import '../models/recipes.dart';
+import 'recipes_page.dart'; // Import _RecipeCard for use in meal planner
 
 class MealPlannerScreen extends StatefulWidget {
 
@@ -17,9 +21,12 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
   List<MealPlan> mealPlans = [];
   List<Meal> mealSuggestions = [];
   DateTime selectedDate = DateTime.now();
-  int _selectedMealTypeIndex = 0;
+  final int _selectedMealTypeIndex = 0;
   Timer? _timer;
   DateTime _currentTime = DateTime.now();
+
+  // Add state for Supabase meal plans
+  List<Map<String, dynamic>> supabaseMealPlans = [];
 
   final List<MealType> mealTypes = [MealType.breakfast, MealType.lunch, MealType.dinner];
   final List<String> mealTypeLabels = ['Breakfast', 'Lunch', 'Dinner'];
@@ -28,6 +35,14 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
   void initState() {
     super.initState();
     _startTimer();
+    _fetchSupabaseMealPlans();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh meal plans every time the screen is shown
+    _fetchSupabaseMealPlans();
   }
 
   @override
@@ -51,6 +66,20 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
     });
   }
 
+  Future<void> _fetchSupabaseMealPlans() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    final response = await Supabase.instance.client
+        .from('meal_plans')
+        .select()
+        .eq('user_id', userId)
+        .order('created_at', ascending: false);
+    if (mounted) {
+      setState(() {
+        supabaseMealPlans = List<Map<String, dynamic>>.from(response);
+      });
+    }
+  }
 
 
   void _addMealToPlan(Meal meal, MealType mealType, DateTime date) {
@@ -98,7 +127,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
           Center(
             child: Container(
               constraints: const BoxConstraints(maxWidth: 500),
-              margin: const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
+              margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
               child: Row(
                 children: [
                   // Calendar container
@@ -187,6 +216,94 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
               ),
             ),
           ),
+          // Display Supabase meal plans below
+          if (supabaseMealPlans.isNotEmpty)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 0.8, // More square, less tall
+                  ),
+                  itemCount: supabaseMealPlans.fold<int>(0, (sum, plan) => (sum ?? 0) + ((plan['meals'] as List?)?.length ?? 0)),
+                  itemBuilder: (context, idx) {
+                    int runningIdx = 0;
+                    for (final plan in supabaseMealPlans) {
+                      final meals = List<Map<String, dynamic>>.from(plan['meals'] ?? []);
+                      for (final meal in meals) {
+                        if (runningIdx == idx) {
+                          final planId = plan['id'];
+                          return Stack(
+                            children: [
+                              _RecipeCard(
+                                recipe: Recipe(
+                                  id: meal['recipe_id'] ?? '',
+                                  title: meal['title'] ?? '',
+                                  imageUrl: meal['image_url'] ?? '',
+                                  calories: 0,
+                                  cost: 0,
+                                  shortDescription: '',
+                                  dietTypes: [],
+                                  macros: {},
+                                  allergyWarning: '',
+                                  ingredients: [],
+                                  instructions: [],
+                                ),
+                                isFavorite: false,
+                                onTap: () async {
+                                  final recipeId = meal['recipe_id'] ?? '';
+                                  if (recipeId.isEmpty) return;
+                                  final response = await Supabase.instance.client
+                                    .from('recipes')
+                                    .select()
+                                    .eq('id', recipeId)
+                                    .maybeSingle();
+                                  if (response == null) return;
+                                  final recipe = Recipe.fromMap(response);
+                                  if (!mounted) return;
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => RecipeInfoScreen(
+                                        recipe: recipe,
+                                        showStartCooking: true,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: IconButton(
+                                  icon: const Icon(Icons.delete, color: Colors.red),
+                                  tooltip: 'Delete Meal Plan',
+                                  onPressed: () async {
+                                    await Supabase.instance.client.from('meal_plans').delete().eq('id', planId);
+                                    if (!mounted) return;
+                                    setState(() {
+                                      supabaseMealPlans.removeWhere((p) => p['id'] == planId);
+                                    });
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Meal Plan deleted')),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                        runningIdx++;
+                      }
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ),
+            ),
           // Removed white container with meal categories
         ],
         
@@ -532,6 +649,79 @@ class _StatCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+} 
+
+// Paste the _RecipeCard widget here for use in meal planner
+class _RecipeCard extends StatelessWidget {
+  final Recipe recipe;
+  final bool isFavorite;
+  final VoidCallback? onFavoriteToggle;
+  final VoidCallback? onTap;
+  const _RecipeCard({required this.recipe, this.isFavorite = false, this.onFavoriteToggle, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cardWidth = constraints.maxWidth < 220 ? constraints.maxWidth : 200.0;
+        return Material(
+          color: Colors.transparent,
+          child: GestureDetector(
+            onTap: onTap,
+            child: Container(
+              width: cardWidth,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(14),
+                          topRight: Radius.circular(14),
+                        ),
+                        child: Image.network(
+                          recipe.imageUrl,
+                          height: 120, // Match see_all_recipe
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Icon(Icons.broken_image),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(10.0), // Match see_all_recipe
+                        child: Text(
+                          recipe.title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: Colors.black87,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 } 

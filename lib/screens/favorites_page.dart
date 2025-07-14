@@ -5,6 +5,8 @@ import '../services/recipe_service.dart';
 import 'recipe_info_screen.dart';
 
 class FavoritesPage extends StatefulWidget {
+  const FavoritesPage({super.key});
+
   @override
   State<FavoritesPage> createState() => _FavoritesPageState();
 }

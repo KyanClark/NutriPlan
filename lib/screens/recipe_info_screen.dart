@@ -1,13 +1,24 @@
 import 'package:flutter/material.dart';
 import '../models/recipes.dart';
 
-class RecipeInfoScreen extends StatelessWidget {
+class RecipeInfoScreen extends StatefulWidget {
   final Recipe recipe;
+  final List<String> addedRecipeIds;
+  final bool showStartCooking;
 
-  const RecipeInfoScreen({Key? key, required this.recipe}) : super(key: key);
+  const RecipeInfoScreen({super.key, required this.recipe, this.addedRecipeIds = const [], this.showStartCooking = false});
+
+  @override
+  State<RecipeInfoScreen> createState() => _RecipeInfoScreenState();
+}
+
+class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
+  bool showMealPlanBar = false;
 
   @override
   Widget build(BuildContext context) {
+    final recipe = widget.recipe;
+    final alreadyAdded = widget.addedRecipeIds.contains(recipe.id);
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F6),
       body: SafeArea(
@@ -133,11 +144,11 @@ class RecipeInfoScreen extends StatelessWidget {
                             const SizedBox(height: 16),
                             const Text('Ingredients', style: TextStyle(fontWeight: FontWeight.bold)),
                             const SizedBox(height: 6),
-                            ...recipe.ingredients.map((ing) => Text('• $ing')).toList(),
+                            ...recipe.ingredients.map((ing) => Text('• $ing')),
                             const SizedBox(height: 16),
                             const Text('Instructions', style: TextStyle(fontWeight: FontWeight.bold)),
                             const SizedBox(height: 6),
-                            ...recipe.instructions.asMap().entries.map((entry) => Text('${entry.key + 1}. ${entry.value}')).toList(),
+                            ...recipe.instructions.asMap().entries.map((entry) => Text('${entry.key + 1}. ${entry.value}')),
                           ],
                         ),
                       ),
@@ -146,7 +157,9 @@ class RecipeInfoScreen extends StatelessWidget {
                 ),
               ),
             ),
-            // Fixed bottom button (move this to the end so it's always on top)
+            // Fixed bottom meal plan bar (appears after Add to Meal Plan is tapped)
+            // (No need for showMealPlanBar logic anymore)
+            // Fixed bottom button (always at the bottom)
             Positioned(
               left: 0,
               right: 0,
@@ -173,17 +186,25 @@ class RecipeInfoScreen extends StatelessWidget {
                       height: 48,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4CAF50),
+                          backgroundColor: widget.showStartCooking ? Colors.orange : (alreadyAdded ? Colors.grey : const Color(0xFF4CAF50)),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
                         ),
-                        onPressed: () {
-                          // TODO: Add to Meal Plan functionality
-                        },
-                        child: const Text(
-                          'Add to Meal Plan',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
+                        onPressed: widget.showStartCooking
+                          ? () {
+                              // Start Cooking logic (could show a message or do nothing)
+                            }
+                          : alreadyAdded
+                            ? null
+                            : () {
+                                Navigator.pop(context, recipe);
+                              },
+                        child: Text(
+                          widget.showStartCooking
+                            ? 'Start Cooking'
+                            : (alreadyAdded ? 'Already Added' : 'Add to Meal Plan'),
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
                         ),
                       ),
                     ),

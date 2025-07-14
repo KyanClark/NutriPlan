@@ -16,8 +16,8 @@ class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
-    const DashboardPage(),
-    const MealPlannerScreen(),
+    const MealPlannerScreen(), // Now first (dashboard)
+    const AnalyticsPage(),    // Now second, was DashboardPage
     FavoritesPage(), // Not const
     const ProfileScreen(),
   ];
@@ -70,197 +70,39 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                    padding: EdgeInsets.all(isSmallScreen ? 20 : 24),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [
-                          Color.fromRGBO(142, 190, 155, 1.0),
-                          Color.fromRGBO(125, 189, 228, 1.0),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                      color: Colors.white.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
-                  ),
-                  SizedBox(height: ResponsiveDesign.responsiveSpacing(context)),
-                  Row(
-                    children: [
-                      // Line Chart: Calorie Intake
-                      Expanded(
-                        child: Container(
-                          padding: EdgeInsets.all(isSmallScreen ? 10 : 12),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [
-                                Color.fromRGBO(142, 190, 155, 1.0),
-                                Color.fromRGBO(125, 189, 228, 1.0),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.08),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          height: isSmallScreen ? 160 : 180,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Calories (7 days)',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  fontSize: ResponsiveDesign.responsiveFontSize(context, 14),
-                                ),
-                              ),
-                              SizedBox(height: isSmallScreen ? 6 : 8),
-                              Expanded(
-                                child: LineChart(
-                                  LineChartData(
-                                    gridData: FlGridData(show: false),
-                                    titlesData: FlTitlesData(
-                                      leftTitles: AxisTitles(
-                                        sideTitles: SideTitles(showTitles: false),
-                                      ),
-                                      rightTitles: AxisTitles(
-                                        sideTitles: SideTitles(showTitles: false),
-                                      ),
-                                      topTitles: AxisTitles(
-                                        sideTitles: SideTitles(showTitles: false),
-                                      ),
-                                      bottomTitles: AxisTitles(
-                                        sideTitles: SideTitles(
-                                          showTitles: true,
-                                          getTitlesWidget: (value, meta) {
-                                            const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-                                            return Text(
-                                              days[value.toInt() % 7], 
-                                              style: TextStyle(
-                                                fontSize: ResponsiveDesign.responsiveFontSize(context, 10),
-                                                color: Colors.white,
-                                              ),
-                                            );
-                                          },
-                                          interval: 1,
-                                        ),
-                                      ),
-                                    ),
-                                    borderData: FlBorderData(show: false),
-                                    minX: 0,
-                                    maxX: 6,
-                                    minY: 0,
-                                    maxY: 2500,
-                                    lineBarsData: [
-                                      LineChartBarData(
-                                        spots: [
-                                          FlSpot(0, 1800),
-                                          FlSpot(1, 2000),
-                                          FlSpot(2, 1700),
-                                          FlSpot(3, 2200),
-                                          FlSpot(4, 1900),
-                                          FlSpot(5, 2100),
-                                          FlSpot(6, 1850),
-                                        ],
-                                        isCurved: true,
-                                        color: Colors.white,
-                                        barWidth: 3,
-                                        dotData: FlDotData(show: false),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Welcome to NutriPlan!',
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                            fontSize: ResponsiveDesign.responsiveFontSize(context, 24),
                           ),
                         ),
-                      ),
-                      SizedBox(width: ResponsiveDesign.responsiveSpacing(context)),
-                      // Pie Chart: Macronutrient Breakdown
-                      Expanded(
-                        child: Container(
-                          padding: EdgeInsets.all(isSmallScreen ? 10 : 12),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [
-                                Color.fromRGBO(142, 190, 155, 1.0),
-                                Color.fromRGBO(125, 189, 228, 1.0),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.08),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          height: isSmallScreen ? 160 : 180,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Macros Today',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  fontSize: ResponsiveDesign.responsiveFontSize(context, 14),
-                                ),
-                              ),
-                              SizedBox(height: isSmallScreen ? 6 : 8),
-                              Expanded(
-                                child: PieChart(
-                                  PieChartData(
-                                    sections: [
-                                      PieChartSectionData(
-                                        value: 250,
-                                        color: Colors.blueAccent,
-                                        title: 'Carbs',
-                                        radius: isSmallScreen ? 32 : 36,
-                                        titleStyle: TextStyle(
-                                          fontSize: ResponsiveDesign.responsiveFontSize(context, 10), 
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      PieChartSectionData(
-                                        value: 75,
-                                        color: Colors.green,
-                                        title: 'Protein',
-                                        radius: isSmallScreen ? 32 : 36,
-                                        titleStyle: TextStyle(
-                                          fontSize: ResponsiveDesign.responsiveFontSize(context, 10), 
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      PieChartSectionData(
-                                        value: 50,
-                                        color: Colors.orange,
-                                        title: 'Fats',
-                                        radius: isSmallScreen ? 32 : 36,
-                                        titleStyle: TextStyle(
-                                          fontSize: ResponsiveDesign.responsiveFontSize(context, 10), 
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ],
-                                    sectionsSpace: 2,
-                                    centerSpaceRadius: isSmallScreen ? 16 : 18,
-                                  ),
-                                ),
-                              ),
-                            ],
+                        SizedBox(height: isSmallScreen ? 6 : 8),
+                        Text(
+                          'Your smart companion for healthy meal planning',
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: Colors.black54,
+                            fontSize: ResponsiveDesign.responsiveFontSize(context, 16),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -293,9 +135,9 @@ class _HomePageState extends State<HomePage> {
           fontSize: ResponsiveDesign.responsiveFontSize(context, 12),
         ),
         items: [
-          _buildBottomNavItem(Icons.dashboard, 'Dashboard', 0),
-          _buildBottomNavItem(Icons.restaurant_menu, 'Meal Plan', 1),
-          _buildBottomNavItem(Icons.favorite, 'Favorites', 2), // Add this line for Favorites
+          _buildBottomNavItem(Icons.restaurant_menu, 'Meal Plan', 0), // Now first
+          _buildBottomNavItem(Icons.analytics, 'Analytics', 1), // Renamed and icon changed
+          _buildBottomNavItem(Icons.favorite, 'Favorites', 2),
           BottomNavigationBarItem(
             icon: CircleAvatar(
               radius: isSmallScreen ? 14 : 16,
@@ -332,9 +174,9 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-// Dashboard page that contains the features grid
-class DashboardPage extends StatelessWidget {
-  const DashboardPage({super.key});
+// Rename DashboardPage to AnalyticsPage
+class AnalyticsPage extends StatelessWidget {
+  const AnalyticsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -346,47 +188,187 @@ class DashboardPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Welcome Section
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.all(isSmallScreen ? 20 : 24),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.9),
-              borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Welcome to NutriPlan!',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                    fontSize: ResponsiveDesign.responsiveFontSize(context, 24),
+          // Analytics Chart Section (moved from MealPlannerScreen)
+          Row(
+            children: [
+              // Line Chart: Calorie Intake
+              Expanded(
+                child: Container(
+                  padding: EdgeInsets.all(isSmallScreen ? 10 : 12),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color.fromRGBO(142, 190, 155, 1.0),
+                        Color.fromRGBO(125, 189, 228, 1.0),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  height: isSmallScreen ? 160 : 180,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Calories (7 days)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontSize: ResponsiveDesign.responsiveFontSize(context, 14),
+                        ),
+                      ),
+                      SizedBox(height: isSmallScreen ? 6 : 8),
+                      Expanded(
+                        child: LineChart(
+                          LineChartData(
+                            gridData: FlGridData(show: false),
+                            titlesData: FlTitlesData(
+                              leftTitles: AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
+                              rightTitles: AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
+                              topTitles: AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  getTitlesWidget: (value, meta) {
+                                    const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+                                    return Text(
+                                      days[value.toInt() % 7], 
+                                      style: TextStyle(
+                                        fontSize: ResponsiveDesign.responsiveFontSize(context, 10),
+                                        color: Colors.white,
+                                      ),
+                                    );
+                                  },
+                                  interval: 1,
+                                ),
+                              ),
+                            ),
+                            borderData: FlBorderData(show: false),
+                            minX: 0,
+                            maxX: 6,
+                            minY: 0,
+                            maxY: 2500,
+                            lineBarsData: [
+                              LineChartBarData(
+                                spots: [
+                                  FlSpot(0, 1800),
+                                  FlSpot(1, 2000),
+                                  FlSpot(2, 1700),
+                                  FlSpot(3, 2200),
+                                  FlSpot(4, 1900),
+                                  FlSpot(5, 2100),
+                                  FlSpot(6, 1850),
+                                ],
+                                isCurved: true,
+                                color: Colors.white,
+                                barWidth: 3,
+                                dotData: FlDotData(show: false),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                SizedBox(height: isSmallScreen ? 6 : 8),
-                Text(
-                  'Your smart companion for healthy meal planning',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.black54,
-                    fontSize: ResponsiveDesign.responsiveFontSize(context, 16),
+              ),
+              SizedBox(width: ResponsiveDesign.responsiveSpacing(context)),
+              // Pie Chart: Macronutrient Breakdown
+              Expanded(
+                child: Container(
+                  padding: EdgeInsets.all(isSmallScreen ? 10 : 12),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color.fromRGBO(142, 190, 155, 1.0),
+                        Color.fromRGBO(125, 189, 228, 1.0),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  height: isSmallScreen ? 160 : 180,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Macros Today',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontSize: ResponsiveDesign.responsiveFontSize(context, 14),
+                        ),
+                      ),
+                      SizedBox(height: isSmallScreen ? 6 : 8),
+                      Expanded(
+                        child: PieChart(
+                          PieChartData(
+                            sections: [
+                              PieChartSectionData(
+                                value: 250,
+                                color: Colors.blueAccent,
+                                title: 'Carbs',
+                                radius: isSmallScreen ? 32 : 36,
+                                titleStyle: TextStyle(
+                                  fontSize: ResponsiveDesign.responsiveFontSize(context, 10), 
+                                  color: Colors.white,
+                                ),
+                              ),
+                              PieChartSectionData(
+                                value: 75,
+                                color: Colors.green,
+                                title: 'Protein',
+                                radius: isSmallScreen ? 32 : 36,
+                                titleStyle: TextStyle(
+                                  fontSize: ResponsiveDesign.responsiveFontSize(context, 10), 
+                                  color: Colors.white,
+                                ),
+                              ),
+                              PieChartSectionData(
+                                value: 50,
+                                color: Colors.orange,
+                                title: 'Fats',
+                                radius: isSmallScreen ? 32 : 36,
+                                titleStyle: TextStyle(
+                                  fontSize: ResponsiveDesign.responsiveFontSize(context, 10), 
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                            sectionsSpace: 2,
+                            centerSpaceRadius: isSmallScreen ? 16 : 18,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          
           SizedBox(height: ResponsiveDesign.responsiveSpacing(context) * 2),
-
-
 
           // Features Grid
           Text(
