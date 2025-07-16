@@ -121,192 +121,213 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFC1E7AF),
 
-      body: Column(
-        children: [
-          // Calendar container and Meal Plan button row
-          Center(
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 500),
-              margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-              child: Row(
-                children: [
-                  // Calendar container
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(28),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.06),
-                            blurRadius: 24,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _fullDate(selectedDate),
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 24.0),
+          child: Column(
+            children: [
+              // Calendar container and Meal Plan button row
+              Center(
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 500),
+                  margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                  child: Row(
+                    children: [
+                      // Calendar container
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(28),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.06),
+                                blurRadius: 24,
+                                offset: const Offset(0, 8),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                _getCurrentTime(),
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey,
-                                  fontWeight: FontWeight.w500,
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _fullDate(selectedDate),
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _getCurrentTime(),
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              IconButton(
+                                onPressed: () async {
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: selectedDate,
+                                    firstDate: DateTime(2020),
+                                    lastDate: DateTime(2100),
+                                  );
+                                  if (picked != null && picked != selectedDate) {
+                                    setState(() {
+                                      selectedDate = picked;
+                                    });
+                                  }
+                                },
+                                icon: const Icon(Icons.calendar_today, color: Colors.blueAccent, size: 22),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: Colors.blueAccent.withOpacity(0.1),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                          IconButton(
-                            onPressed: () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: selectedDate,
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime(2100),
-                              );
-                              if (picked != null && picked != selectedDate) {
-                                setState(() {
-                                  selectedDate = picked;
-                                });
-                              }
-                            },
-                            icon: const Icon(Icons.calendar_today, color: Colors.blueAccent, size: 22),
-                            style: IconButton.styleFrom(
-                              backgroundColor: Colors.blueAccent.withOpacity(0.1),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-          ),
-          // Bold 'Meal Plans' text below the calendar container
-          Padding(
-            padding: const EdgeInsets.only(left: 32, top: 0, bottom: 8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-                                child: Text(
-                'Meal Plans',
-                                  style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                  letterSpacing: 1.1,
                 ),
               ),
-            ),
-          ),
-          // Display Supabase meal plans below
-          if (supabaseMealPlans.isNotEmpty)
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 0.8, // More square, less tall
+              // Centered and padded 'My Meal Plan' text
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 13.0),
+                child: Center(
+                  child: Text(
+                    'My Meal Plan',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                      letterSpacing: 1.1,
+                    ),
                   ),
-                  itemCount: supabaseMealPlans.fold<int>(0, (sum, plan) => (sum ?? 0) + ((plan['meals'] as List?)?.length ?? 0)),
-                  itemBuilder: (context, idx) {
-                    int runningIdx = 0;
-                    for (final plan in supabaseMealPlans) {
-                      final meals = List<Map<String, dynamic>>.from(plan['meals'] ?? []);
-                      for (final meal in meals) {
-                        if (runningIdx == idx) {
-                          final planId = plan['id'];
-                          return Stack(
-                            children: [
-                              _RecipeCard(
-                                recipe: Recipe(
-                                  id: meal['recipe_id'] ?? '',
-                                  title: meal['title'] ?? '',
-                                  imageUrl: meal['image_url'] ?? '',
-                                  calories: 0,
-                                  cost: 0,
-                                  shortDescription: '',
-                                  dietTypes: [],
-                                  macros: {},
-                                  allergyWarning: '',
-                                  ingredients: [],
-                                  instructions: [],
-                                ),
-                                isFavorite: false,
-                                onTap: () async {
-                                  final recipeId = meal['recipe_id'] ?? '';
-                                  if (recipeId.isEmpty) return;
-                                  final response = await Supabase.instance.client
-                                    .from('recipes')
-                                    .select()
-                                    .eq('id', recipeId)
-                                    .maybeSingle();
-                                  if (response == null) return;
-                                  final recipe = Recipe.fromMap(response);
-                                  if (!mounted) return;
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => RecipeInfoScreen(
-                                        recipe: recipe,
-                                        showStartCooking: true,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                              Positioned(
-                                top: 8,
-                                right: 8,
-                                child: IconButton(
-                                  icon: const Icon(Icons.delete, color: Colors.red),
-                                  tooltip: 'Delete Meal Plan',
-                                  onPressed: () async {
-                                    await Supabase.instance.client.from('meal_plans').delete().eq('id', planId);
+                ),
+              ),
+              // Display Supabase meal plans below
+              if (supabaseMealPlans.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: GridView.builder(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 0.8, // More square, less tall
+                    ),
+                    shrinkWrap: true,
+                    physics: NeverScrollableScrollPhysics(),
+                    itemCount: supabaseMealPlans.fold<int>(0, (sum, plan) => (sum ?? 0) + ((plan['meals'] as List?)?.length ?? 0)),
+                    itemBuilder: (context, idx) {
+                      int runningIdx = 0;
+                      for (final plan in supabaseMealPlans) {
+                        final meals = List<Map<String, dynamic>>.from(plan['meals'] ?? []);
+                        for (final meal in meals) {
+                          if (runningIdx == idx) {
+                            final planId = plan['id'];
+                            return Stack(
+                              children: [
+                                _RecipeCard(
+                                  recipe: Recipe(
+                                    id: meal['recipe_id'] ?? '',
+                                    title: meal['title'] ?? '',
+                                    imageUrl: meal['image_url'] ?? '',
+                                    calories: 0,
+                                    cost: 0,
+                                    shortDescription: '',
+                                    dietTypes: [],
+                                    macros: {},
+                                    allergyWarning: '',
+                                    ingredients: [],
+                                    instructions: [],
+                                  ),
+                                  isFavorite: false,
+                                  onTap: () async {
+                                    final recipeId = meal['recipe_id'] ?? '';
+                                    if (recipeId.isEmpty) return;
+                                    final response = await Supabase.instance.client
+                                      .from('recipes')
+                                      .select()
+                                      .eq('id', recipeId)
+                                      .maybeSingle();
+                                    if (response == null) return;
+                                    final recipe = Recipe.fromMap(response);
                                     if (!mounted) return;
-                                    setState(() {
-                                      supabaseMealPlans.removeWhere((p) => p['id'] == planId);
-                                    });
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Meal Plan deleted')),
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => RecipeInfoScreen(
+                                          recipe: recipe,
+                                          showStartCooking: true,
+                                        ),
+                                      ),
                                     );
                                   },
                                 ),
-                              ),
-                            ],
-                          );
+                                Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: IconButton(
+                                    icon: const Icon(Icons.delete, color: Colors.red),
+                                    tooltip: 'Delete Meal Plan',
+                                    onPressed: () async {
+                                      final planMeals = List<Map<String, dynamic>>.from(meals);
+                                      final mealIdToDelete = meal['recipe_id'];
+                                      planMeals.removeWhere((m) => m['recipe_id'] == mealIdToDelete);
+                                      if (planMeals.isEmpty) {
+                                        // Delete the whole meal plan row if no meals left
+                                        await Supabase.instance.client.from('meal_plans').delete().eq('id', planId);
+                                        if (!mounted) return;
+                                        setState(() {
+                                          supabaseMealPlans.removeWhere((p) => p['id'] == planId);
+                                        });
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Meal Plan deleted')),
+                                        );
+                                      } else {
+                                        // Update the meal plan row with the new meals array
+                                        await Supabase.instance.client.from('meal_plans').update({'meals': planMeals}).eq('id', planId);
+                                        if (!mounted) return;
+                                        setState(() {
+                                          final planIdx = supabaseMealPlans.indexWhere((p) => p['id'] == planId);
+                                          if (planIdx != -1) {
+                                            supabaseMealPlans[planIdx]['meals'] = planMeals;
+                                          }
+                                        });
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Meal removed from plan')),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ],
+                            );
+                          }
+                          runningIdx++;
                         }
-                        runningIdx++;
                       }
-                    }
-                    return const SizedBox.shrink();
-                  },
+                      return const SizedBox.shrink();
+                    },
+                  ),
                 ),
-              ),
-            ),
-          // Removed white container with meal categories
-        ],
-        
+            ],
+          ),
+        ),
       ),
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 16.0),

@@ -360,11 +360,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),
                     child: SizedBox(
                       width: double.infinity,
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.logout, color: Colors.white),
-                        label: const Text('Logout', style: TextStyle(color: Colors.white)),
+                      child: ElevatedButton(
+                        child: const Text('Logout', style: TextStyle(color: Colors.white)),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.redAccent,
+                          backgroundColor: Color.fromARGB(255, 224, 83, 83), // Modern blue-gray
                           padding: const EdgeInsets.symmetric(vertical: 18),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),

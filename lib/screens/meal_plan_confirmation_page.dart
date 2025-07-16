@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'home_page.dart'; // Add this import at the top
 
 class MealPlanConfirmationPage extends StatefulWidget {
   const MealPlanConfirmationPage({Key? key}) : super(key: key);
@@ -18,10 +19,10 @@ class _MealPlanConfirmationPageState extends State<MealPlanConfirmationPage> {
   }
 
   void _goToMealPlanner() {
-    Navigator.of(context).popUntil((route) {
-      // Find the first route that is MealPlannerScreen
-      return route.settings.name == '/meal_planner_screen' || route.isFirst;
-    });
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const HomePage()),
+      (route) => false,
+    );
   }
 
   @override

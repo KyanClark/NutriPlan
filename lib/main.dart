@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:nutriplan/screens/home_page.dart';
+import 'package:nutriplan/screens/login_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
@@ -41,7 +42,7 @@ class NutriPlan extends StatelessWidget {
       ),
       initialRoute: '/',
       routes: {
-        '/': (context) => const HomePage(),
+        '/': (context) => const LoginScreen(),
       },
     );
   }

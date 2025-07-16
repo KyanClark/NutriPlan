@@ -12,6 +12,10 @@ class AllergySelectionPage extends StatefulWidget {
 class _AllergySelectionPageState extends State<AllergySelectionPage> {
   final List<Map<String, String>> allergies = [
     {
+      'title': 'None',
+      'desc': 'No allergies or intolerances',
+    },
+    {
       'title': 'Dairy (Milk)',
       'desc': 'Milk, cheese, yogurt, butter',
     },
@@ -117,10 +121,20 @@ class _AllergySelectionPageState extends State<AllergySelectionPage> {
                   return GestureDetector(
                     onTap: () {
                       setState(() {
-                        if (isSelected) {
-                          selectedIndexes.remove(index);
+                        if (index == 0) { // 'None' selected
+                          if (isSelected) {
+                            selectedIndexes.remove(index);
+                          } else {
+                            selectedIndexes.clear();
+                            selectedIndexes.add(0);
+                          }
                         } else {
-                          selectedIndexes.add(index);
+                          if (isSelected) {
+                            selectedIndexes.remove(index);
+                          } else {
+                            selectedIndexes.remove(0); // Deselect 'None'
+                            selectedIndexes.add(index);
+                          }
                         }
                       });
                     },
@@ -142,10 +156,20 @@ class _AllergySelectionPageState extends State<AllergySelectionPage> {
                               value: isSelected,
                               onChanged: (val) {
                                 setState(() {
-                                  if (isSelected) {
-                                    selectedIndexes.remove(index);
+                                  if (index == 0) { // 'None' selected
+                                    if (isSelected) {
+                                      selectedIndexes.remove(index);
+                                    } else {
+                                      selectedIndexes.clear();
+                                      selectedIndexes.add(0);
+                                    }
                                   } else {
-                                    selectedIndexes.add(index);
+                                    if (isSelected) {
+                                      selectedIndexes.remove(index);
+                                    } else {
+                                      selectedIndexes.remove(0); // Deselect 'None'
+                                      selectedIndexes.add(index);
+                                    }
                                   }
                                 });
                               },
@@ -200,7 +224,12 @@ class _AllergySelectionPageState extends State<AllergySelectionPage> {
                     final user = Supabase.instance.client.auth.currentUser;
                     if (user != null) {
                       // Get selected allergy titles
-                      final selectedAllergies = selectedIndexes.map((i) => allergies[i]['title']).toList();
+                      List<String> selectedAllergies;
+                      if (selectedIndexes.contains(0)) {
+                        selectedAllergies = [];
+                      } else {
+                        selectedAllergies = selectedIndexes.map((i) => allergies[i]['title']).whereType<String>().toList();
+                      }
                       await Supabase.instance.client
                         .from('user_preferences')
                         .upsert({

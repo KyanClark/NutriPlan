@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'see_all_recipe.dart';
 import '../screens/meal_summary_page.dart'; // Added import for MealSummaryPage
 import '../screens/meal_plan_confirmation_page.dart'; // Added import for MealPlanConfirmationPage
+import '../screens/home_page.dart'; // Added import for HomePage
 
 class RecipesPage extends StatefulWidget {
   const RecipesPage({super.key});
@@ -439,20 +440,22 @@ class _RecipesPageState extends State<RecipesPage> {
                                   builder: (context) => MealSummaryPage(
                                     meals: _mealsForPlan,
                                     onBuildMealPlan: (mealsWithTime) async {
-                                      // Insert meal plan into Supabase
+                                      // Insert each meal as a separate meal plan row in Supabase
                                       final userId = Supabase.instance.client.auth.currentUser?.id;
                                       if (userId != null) {
-                                        final mealsJson = mealsWithTime.map((m) => {
-                                          'recipe_id': m.recipe.id,
-                                          'title': m.recipe.title,
-                                          'image_url': m.recipe.imageUrl, // Add this line
-                                          'time': m.time?.format(context) ?? '',
-                                        }).toList();
-                                        await Supabase.instance.client.from('meal_plans').insert({
-                                          'user_id': userId,
-                                          'meals': mealsJson,
-                                          'date': DateTime.now().toIso8601String().substring(0, 10),
-                                        });
+                                        for (final m in mealsWithTime) {
+                                          final mealJson = {
+                                            'recipe_id': m.recipe.id,
+                                            'title': m.recipe.title,
+                                            'image_url': m.recipe.imageUrl,
+                                            'time': m.time?.format(context) ?? '',
+                                          };
+                                          await Supabase.instance.client.from('meal_plans').insert({
+                                            'user_id': userId,
+                                            'meals': [mealJson], // Each row has a single meal in the array
+                                            'date': DateTime.now().toIso8601String().substring(0, 10),
+                                          });
+                                        }
                                       }
                                       // Show confirmation page
                                       Navigator.of(context).pushReplacement(
@@ -541,15 +544,44 @@ class _RecipeCard extends StatelessWidget {
                       ),
                       Padding(
                         padding: const EdgeInsets.all(14.0),
-                        child: Text(
-                          recipe.title,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                            color: Colors.black87,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              recipe.title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color: Colors.black87,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Icon(Icons.local_fire_department, color: Colors.orange, size: 16),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    '${recipe.calories} kcal',
+                                    style: TextStyle(fontSize: 13, color: Colors.black54),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Icon(Icons.attach_money, color: Colors.green, size: 16),
+                                const SizedBox(width: 2),
+                                Flexible(
+                                  child: Text(
+                                    recipe.cost.toStringAsFixed(2),
+                                    style: TextStyle(fontSize: 13, color: Colors.black54),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     ],

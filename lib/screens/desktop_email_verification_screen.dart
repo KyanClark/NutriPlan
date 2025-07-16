@@ -190,15 +190,23 @@ class _DesktopEmailVerificationScreenState extends State<DesktopEmailVerificatio
 
       if (user != null && user.emailConfirmedAt != null) {
         print('Email verified! Proceeding to account creation...');
-        
+        // Insert profile row for the user
+        try {
+          await Supabase.instance.client
+            .from('profiles')
+            .insert({
+              'id': user.id,
+              'username': widget.fullName,
+            });
+        } catch (e) {
+          print('Error inserting profile: $e');
+        }
         setState(() {
           _isVerified = true;
           _isLoading = false;
         });
-
         // Sign out immediately since we just wanted to check verification
         await Supabase.instance.client.auth.signOut();
-
         await Future.delayed(const Duration(seconds: 2));
         if (mounted) {
           Navigator.pushAndRemoveUntil(
