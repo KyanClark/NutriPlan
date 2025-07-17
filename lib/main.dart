@@ -42,7 +42,7 @@ class NutriPlan extends StatelessWidget {
       ),
       initialRoute: '/',
       routes: {
-        '/': (context) => const LoginScreen(),
+        '/': (context) => const HomePage(),
       },
     );
   }
@@ -54,21 +54,37 @@ class ResponsiveDesign {
   static const double iPhone11Height = 896.0;
   
   static bool isiPhone11(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    return size.width == iPhone11Width && size.height == iPhone11Height;
+    try {
+      final size = MediaQuery.of(context).size;
+      return size.width == iPhone11Width && size.height == iPhone11Height;
+    } catch (_) {
+      return false;
+    }
   }
   
   static bool isSmallScreen(BuildContext context) {
-    return MediaQuery.of(context).size.width < 400;
+    try {
+      return MediaQuery.of(context).size.width < 400;
+    } catch (_) {
+      return true; // Default to small screen if MediaQuery is unavailable
+    }
   }
   
   static bool isMediumScreen(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    return width >= 400 && width < 600;
+    try {
+      final width = MediaQuery.of(context).size.width;
+      return width >= 400 && width < 600;
+    } catch (_) {
+      return false;
+    }
   }
   
   static bool isLargeScreen(BuildContext context) {
-    return MediaQuery.of(context).size.width >= 600;
+    try {
+      return MediaQuery.of(context).size.width >= 600;
+    } catch (_) {
+      return false;
+    }
   }
   
   // Responsive padding

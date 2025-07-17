@@ -6,7 +6,8 @@ import '../main.dart'; // Import for ResponsiveDesign utilities
 import 'favorites_page.dart'; // Added import for FavoritesPage
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final bool forceMealPlanRefresh;
+  const HomePage({super.key, this.forceMealPlanRefresh = false});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -15,12 +16,30 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
 
-  final List<Widget> _pages = [
-    const MealPlannerScreen(), // Now first (dashboard)
-    const AnalyticsPage(),    // Now second, was DashboardPage
-    FavoritesPage(), // Not const
-    const ProfileScreen(),
-  ];
+  late List<Widget> _pages;
+  bool _didForceRefresh = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _pages = [
+      MealPlannerScreen(forceRefresh: widget.forceMealPlanRefresh),
+      const AnalyticsPage(),
+      FavoritesPage(),
+      const ProfileScreen(),
+    ];
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (widget.forceMealPlanRefresh && !_didForceRefresh) {
+      setState(() {
+        _pages[0] = MealPlannerScreen(forceRefresh: true);
+        _didForceRefresh = true;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

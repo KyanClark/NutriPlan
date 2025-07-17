@@ -182,8 +182,27 @@ class _SeeAllRecipePageState extends State<SeeAllRecipePage> {
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                         const SizedBox(height: 4),
-                                        if (recipe.cost > 0)
-                                          Text('₱${recipe.cost.toStringAsFixed(2)}', style: const TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.w600)),
+                                        Row(
+                                          children: [
+                                            Icon(Icons.local_fire_department, color: Colors.orange, size: 16),
+                                            const SizedBox(width: 4),
+                                            Flexible(
+                                              child: Text(
+                                                '${recipe.calories} kcal',
+                                                style: TextStyle(fontSize: 13, color: Colors.black54),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Flexible(
+                                              child: Text(
+                                                '₱${recipe.cost.toStringAsFixed(2)}',
+                                                style: TextStyle(fontSize: 13, color: Colors.black54),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ],
                                     ),
                                   ),

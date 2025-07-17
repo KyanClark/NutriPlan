@@ -116,7 +116,10 @@ class _MealSummaryPageState extends State<MealSummaryPage> {
           onPressed: () {
             widget.onBuildMealPlan(_mealsWithTime);
           },
-          label: const Text('Build this Meal Plan', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          label: const Text(
+            'Build this Meal Plan',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+          ),
           backgroundColor: Colors.green[600],
         ),
       ),

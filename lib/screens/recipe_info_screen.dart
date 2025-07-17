@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nutriplan/screens/interactive_recipe_page.dart';
 import '../models/recipes.dart';
 
 class RecipeInfoScreen extends StatefulWidget {
@@ -97,7 +98,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                             if (recipe.cost > 0)
                               Padding(
                                 padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
-                                child: Text('Cost: \$${recipe.cost.toStringAsFixed(2)}', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.blueGrey, fontWeight: FontWeight.w600)),
+                                child: Text('Cost: ₱${recipe.cost.toStringAsFixed(2)}', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.blueGrey, fontWeight: FontWeight.w600)),
                               ),
                             Text(
                               recipe.shortDescription,
@@ -192,8 +193,100 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                           ),
                         ),
                         onPressed: widget.showStartCooking
-                          ? () {
-                              // Start Cooking logic (could show a message or do nothing)
+                          ? () async {
+                              final result = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text("Start Cooking"),
+                                  content: const Text('Are you ready to start cooking this meal?'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.of(context).pop(false),
+                                      child: const Text('No'),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () => Navigator.of(context).pop(true),
+                                      child: const Text('Yes'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (result == true) {
+                                // Show summary dialog before proceeding
+                                final summaryResult = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => Dialog(
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(24.0),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Text('Recipe Steps', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                                          const SizedBox(height: 18),
+                                          ...List.generate(recipe.instructions.length, (i) => Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                '${i + 1}. ${recipe.instructions[i]}',
+                                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+                                              ),
+                                              if (i < recipe.instructions.length - 1)
+                                                Padding(
+                                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                                  child: Divider(
+                                                    color: Colors.black12,
+                                                    thickness: 1,
+                                                    height: 1,
+                                                  ),
+                                                ),
+                                            ],
+                                          )),
+                                          const SizedBox(height: 24),
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.end,
+                                            children: [
+                                              TextButton(
+                                                onPressed: () => Navigator.of(context).pop(false),
+                                                child: const Text('Cancel'),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              ElevatedButton(
+                                                onPressed: () => Navigator.of(context).pop(true),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Colors.green[600],
+                                                  foregroundColor: Colors.white,
+                                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                                ),
+                                                child: const Text('Start Cooking', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                                if (summaryResult == true) {
+                                  final finished = await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => InteractiveRecipePage(
+                                        instructions: recipe.instructions,
+                                        recipeId: recipe.id,
+                                        title: recipe.title,
+                                        imageUrl: recipe.imageUrl,
+                                        calories: recipe.calories,
+                                        cost: recipe.cost,
+                                      ),
+                                    ),
+                                  );
+                                  if (finished == true) {
+                                    Navigator.pop(context, true); // Propagate result to MealPlannerScreen
+                                  }
+                                }
+                              }
                             }
                           : alreadyAdded
                             ? null
@@ -202,7 +295,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                               },
                         child: Text(
                           widget.showStartCooking
-                            ? 'Start Cooking'
+                            ? "Let's Cook"
                             : (alreadyAdded ? 'Already Added' : 'Add to Meal Plan'),
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
                         ),

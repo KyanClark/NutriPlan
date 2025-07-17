@@ -21,6 +21,8 @@ class _RecipesPageState extends State<RecipesPage> {
   String? get userId => Supabase.instance.client.auth.currentUser?.id;
 
   String _sortOption = 'None';
+  String searchQuery = '';
+  bool showSearch = false;
 
   // State for recipes added to meal plan (multiple supported)
   final List<Recipe> _mealsForPlan = [];
@@ -37,142 +39,43 @@ class _RecipesPageState extends State<RecipesPage> {
     });
   }
 
-  void _showFilterSheet(List<Recipe> recipes, void Function(List<Recipe>) onSort) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.attach_money),
-                title: const Text('Price (Low to High)'),
-                onTap: () {
-                  onSort(List.from(recipes)..sort((a, b) => a.cost.compareTo(b.cost)));
-                  setState(() => _sortOption = 'Price (Low to High)');
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.attach_money),
-                title: const Text('Price (High to Low)'),
-                onTap: () {
-                  onSort(List.from(recipes)..sort((a, b) => b.cost.compareTo(a.cost)));
-                  setState(() => _sortOption = 'Price (High to Low)');
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.local_fire_department),
-                title: const Text('Calories (Low to High)'),
-                onTap: () {
-                  onSort(List.from(recipes)..sort((a, b) => a.calories.compareTo(b.calories)));
-                  setState(() => _sortOption = 'Calories (Low to High)');
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.local_fire_department),
-                title: const Text('Calories (High to Low)'),
-                onTap: () {
-                  onSort(List.from(recipes)..sort((a, b) => b.calories.compareTo(a.calories)));
-                  setState(() => _sortOption = 'Calories (High to Low)');
-                  Navigator.pop(context);
-                },
-              ),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.timer),
-                title: const Text('Quickest to Prepare'),
-                onTap: () {
-                  // Placeholder
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.star),
-                title: const Text('Most Popular'),
-                onTap: () {
-                  // Placeholder
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.eco),
-                title: const Text('Diet Type'),
-                onTap: () {
-                  // Placeholder
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.fitness_center),
-                title: const Text('Highest Protein'),
-                onTap: () {
-                  onSort(List.from(recipes)..sort((a, b) => ((b.macros['protein'] ?? 0) as num).compareTo((a.macros['protein'] ?? 0) as num)));
-                  setState(() => _sortOption = 'Highest Protein');
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.no_food),
-                title: const Text('Lowest Carbs'),
-                onTap: () {
-                  onSort(List.from(recipes)..sort((a, b) => ((a.macros['carbs'] ?? 0) as num).compareTo((b.macros['carbs'] ?? 0) as num)));
-                  setState(() => _sortOption = 'Lowest Carbs');
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.health_and_safety),
-                title: const Text('Allergy Friendly'),
-                onTap: () {
-                  onSort(List.from(recipes).where((r) => (r.allergyWarning.isEmpty)).toList() as List<Recipe>);
-                  setState(() => _sortOption = 'Allergy Friendly');
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.new_releases),
-                title: const Text('Recently Added'),
-                onTap: () {
-                  // Placeholder
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.format_list_numbered),
-                title: const Text('Fewest Ingredients'),
-                onTap: () {
-                  // Placeholder
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.child_care),
-                title: const Text('Kid Friendly'),
-                onTap: () {
-                  // Placeholder
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.emoji_events),
-                title: const Text('Chef’s Choice'),
-                onTap: () {
-                  // Placeholder
-                  Navigator.pop(context);
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
+  @override
+  void initState() {
+    super.initState();
+    _fetchFavorites();
+  }
+
+  List<Recipe> _applySearchAndSort(List<Recipe> recipes) {
+    List<Recipe> filtered = recipes;
+    if (searchQuery.isNotEmpty) {
+      filtered = filtered.where((r) => r.title.toLowerCase().contains(searchQuery.toLowerCase())).toList();
+    }
+    switch (_sortOption) {
+      case 'Price (Low to High)':
+        filtered.sort((a, b) => a.cost.compareTo(b.cost));
+        break;
+      case 'Price (High to Low)':
+        filtered.sort((a, b) => b.cost.compareTo(a.cost));
+        break;
+      case 'Calories (Low to High)':
+        filtered.sort((a, b) => a.calories.compareTo(b.calories));
+        break;
+      case 'Calories (High to Low)':
+        filtered.sort((a, b) => b.calories.compareTo(a.calories));
+        break;
+      case 'Highest Protein':
+        filtered.sort((a, b) => ((b.macros['protein'] ?? 0) as num).compareTo((a.macros['protein'] ?? 0) as num));
+        break;
+      case 'Lowest Carbs':
+        filtered.sort((a, b) => ((a.macros['carbs'] ?? 0) as num).compareTo((b.macros['carbs'] ?? 0) as num));
+        break;
+      case 'Allergy Friendly':
+        filtered = filtered.where((r) => (r.allergyWarning.isEmpty)).toList();
+        break;
+      default:
+        break;
+    }
+    return filtered;
   }
 
   Future<void> _toggleFavorite(Recipe recipe) async {
@@ -184,17 +87,10 @@ class _RecipesPageState extends State<RecipesPage> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _fetchFavorites();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return ScaffoldMessenger(
       key: _scaffoldMessengerKey,
       child: Scaffold(
-        // Removed AppBar, added custom back button
         body: Stack(
           children: [
             Padding(
@@ -202,61 +98,68 @@ class _RecipesPageState extends State<RecipesPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Custom back button at the top left
-                  Align(
-                    alignment: Alignment.topLeft,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Choose your Meal Plan',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                      letterSpacing: 1.1,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Filter/Sort button
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        ElevatedButton.icon(
-                          icon: const Icon(Icons.filter_list),
-                          label: const Text('Filter/Sort'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green[100],
-                            foregroundColor: Colors.green[900],
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                  // Custom back button and search/sort bar
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
+                    child: showSearch
+                        ? Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.arrow_back),
+                                onPressed: () => setState(() => showSearch = false),
+                              ),
+                              Expanded(
+                                child: TextField(
+                                  autofocus: true,
+                                  decoration: InputDecoration(
+                                    hintText: 'Search recipes...',
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                                  ),
+                                  onChanged: (val) => setState(() => searchQuery = val),
+                                ),
+                              ),
+                            ],
+                          )
+                        : Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.arrow_back),
+                                onPressed: () => Navigator.pop(context),
+                              ),
+                              const Expanded(
+                                child: Text(
+                                  'Choose your Meal Plan',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.search),
+                                onPressed: () => setState(() => showSearch = true),
+                              ),
+                              PopupMenuButton<String>(
+                                icon: const Icon(Icons.sort),
+                                onSelected: (value) => setState(() => _sortOption = value),
+                                itemBuilder: (context) => [
+                                  const PopupMenuItem(value: 'None', child: Text('Default')),
+                                  const PopupMenuItem(value: 'Price (Low to High)', child: Text('Price (Low to High)')),
+                                  const PopupMenuItem(value: 'Price (High to Low)', child: Text('Price (High to Low)')),
+                                  const PopupMenuItem(value: 'Calories (Low to High)', child: Text('Calories (Low to High)')),
+                                  const PopupMenuItem(value: 'Calories (High to Low)', child: Text('Calories (High to Low)')),
+                                  const PopupMenuItem(value: 'Highest Protein', child: Text('Highest Protein')),
+                                  const PopupMenuItem(value: 'Lowest Carbs', child: Text('Lowest Carbs')),
+                                  const PopupMenuItem(value: 'Allergy Friendly', child: Text('Allergy Friendly')),
+                                ],
+                              ),
+                            ],
                           ),
-                          onPressed: () {
-                            // Fetch recipes and show filter sheet
-                            RecipeService.fetchRecipes().then((recipes) {
-                              _showFilterSheet(recipes, (sorted) {
-                                setState(() {
-                                  // This is a simple demo; in a real app, store sorted recipes in state
-                                });
-                              });
-                            });
-                          },
-                        ),
-                      ],
-                    ),
                   ),
                   const SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        'For Breakfast',
+                        'Top Rated',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -321,7 +224,7 @@ class _RecipesPageState extends State<RecipesPage> {
                         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                           return const Center(child: Text('No recipes found.'));
                         }
-                        final recipes = snapshot.data!;
+                        final recipes = _applySearchAndSort(snapshot.data!);
                         return ListView.separated(
                           scrollDirection: Axis.horizontal,
                           itemCount: recipes.length,
@@ -554,7 +457,7 @@ class _RecipeCard extends StatelessWidget {
                                 fontSize: 18,
                                 color: Colors.black87,
                               ),
-                              maxLines: 2,
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 6),
@@ -570,11 +473,9 @@ class _RecipeCard extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(width: 12),
-                                Icon(Icons.attach_money, color: Colors.green, size: 16),
-                                const SizedBox(width: 2),
                                 Flexible(
                                   child: Text(
-                                    recipe.cost.toStringAsFixed(2),
+                                    '₱${recipe.cost.toStringAsFixed(2)}',
                                     style: TextStyle(fontSize: 13, color: Colors.black54),
                                     overflow: TextOverflow.ellipsis,
                                   ),

@@ -122,8 +122,8 @@ class _AllergySelectionPageState extends State<AllergySelectionPage> {
                     onTap: () {
                       setState(() {
                         if (index == 0) { // 'None' selected
-                          if (isSelected) {
-                            selectedIndexes.remove(index);
+                        if (isSelected) {
+                          selectedIndexes.remove(index);
                           } else {
                             selectedIndexes.clear();
                             selectedIndexes.add(0);
@@ -133,7 +133,7 @@ class _AllergySelectionPageState extends State<AllergySelectionPage> {
                             selectedIndexes.remove(index);
                           } else {
                             selectedIndexes.remove(0); // Deselect 'None'
-                            selectedIndexes.add(index);
+                          selectedIndexes.add(index);
                           }
                         }
                       });
@@ -157,8 +157,8 @@ class _AllergySelectionPageState extends State<AllergySelectionPage> {
                               onChanged: (val) {
                                 setState(() {
                                   if (index == 0) { // 'None' selected
-                                    if (isSelected) {
-                                      selectedIndexes.remove(index);
+                                  if (isSelected) {
+                                    selectedIndexes.remove(index);
                                     } else {
                                       selectedIndexes.clear();
                                       selectedIndexes.add(0);
@@ -168,7 +168,7 @@ class _AllergySelectionPageState extends State<AllergySelectionPage> {
                                       selectedIndexes.remove(index);
                                     } else {
                                       selectedIndexes.remove(0); // Deselect 'None'
-                                      selectedIndexes.add(index);
+                                    selectedIndexes.add(index);
                                     }
                                   }
                                 });

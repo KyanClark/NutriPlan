@@ -20,7 +20,7 @@ class _MealPlanConfirmationPageState extends State<MealPlanConfirmationPage> {
 
   void _goToMealPlanner() {
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const HomePage()),
+      MaterialPageRoute(builder: (context) => const HomePage(forceMealPlanRefresh: true)),
       (route) => false,
     );
   }
