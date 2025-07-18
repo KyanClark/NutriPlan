@@ -101,7 +101,6 @@ class _DesktopEmailVerificationScreenState extends State<DesktopEmailVerificatio
         password: widget.password,
         data: {
           'full_name': widget.fullName,
-          'phone_number': widget.phoneNumber,
         },
       );
       

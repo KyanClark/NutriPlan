@@ -163,33 +163,6 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                             const SizedBox(height: 6),
                             ...recipe.instructions.asMap().entries.map((entry) => Text('${entry.key + 1}. ${entry.value}')),
                             const SizedBox(height: 16),
-                            Center(
-                              child: ElevatedButton.icon(
-                                icon: Icon(Icons.menu_book),
-                                label: Text('View Steps'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.orange,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                                ),
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => RecipeStepsSummaryPage(
-                                        instructions: recipe.instructions,
-                                        recipeTitle: recipe.title,
-                                        recipeId: recipe.id,
-                                        imageUrl: recipe.imageUrl,
-                                        calories: recipe.calories,
-                                        cost: recipe.cost,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
                           ],
                         ),
                       ),
@@ -252,79 +225,22 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                                 ),
                               );
                               if (result == true) {
-                                // Show summary dialog before proceeding
-                                final summaryResult = await showDialog<bool>(
-                                  context: context,
-                                  builder: (context) => Dialog(
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(24.0),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Text('Recipe Steps', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-                                          const SizedBox(height: 18),
-                                          ...List.generate(recipe.instructions.length, (i) => Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                '${i + 1}. ${recipe.instructions[i]}',
-                                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
-                                              ),
-                                              if (i < recipe.instructions.length - 1)
-                                                Padding(
-                                                  padding: const EdgeInsets.symmetric(vertical: 10),
-                                                  child: Divider(
-                                                    color: Colors.black12,
-                                                    thickness: 1,
-                                                    height: 1,
-                                                  ),
-                                                ),
-                                            ],
-                                          )),
-                                          const SizedBox(height: 24),
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.end,
-                                            children: [
-                                              TextButton(
-                                                onPressed: () => Navigator.of(context).pop(false),
-                                                child: const Text('Cancel'),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              ElevatedButton(
-                                                onPressed: () => Navigator.of(context).pop(true),
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: Colors.green[600],
-                                                  foregroundColor: Colors.white,
-                                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                                ),
-                                                child: const Text('Start Cooking', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
+                                // Navigate to the steps summary page
+                                final finished = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => RecipeStepsSummaryPage(
+                                      instructions: recipe.instructions,
+                                      recipeTitle: recipe.title,
+                                      recipeId: recipe.id,
+                                      imageUrl: recipe.imageUrl,
+                                      calories: recipe.calories,
+                                      cost: recipe.cost,
                                     ),
                                   ),
                                 );
-                                if (summaryResult == true) {
-                                  final finished = await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => InteractiveRecipePage(
-                                        instructions: recipe.instructions,
-                                        recipeId: recipe.id,
-                                        title: recipe.title,
-                                        imageUrl: recipe.imageUrl,
-                                        calories: recipe.calories,
-                                        cost: recipe.cost,
-                                      ),
-                                    ),
-                                  );
-                                  if (finished == true) {
-                                    Navigator.pop(context, true); // Propagate result to MealPlannerScreen
-                                  }
+                                if (finished == true) {
+                                  Navigator.pop(context, true); // Propagate result to MealPlannerScreen
                                 }
                               }
                             }

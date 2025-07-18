@@ -65,14 +65,15 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
             _handleMealCompletion();
             showDialog(
               context: context,
+              barrierDismissible: false, // Prevent dismiss by tapping outside or back
               builder: (context) => AlertDialog(
                 title: const Text('Congratulations!'),
                 content: const Text('You have completed all the steps. Enjoy your meal!'),
                 actions: [
                   TextButton(
                     onPressed: () {
-                      Navigator.of(context).pop(true); // Pop with result to trigger refresh
-                      Navigator.of(context).popUntil((route) => route.isFirst);
+                      Navigator.of(context).pop(); // Close the dialog
+                      Navigator.of(context).popUntil((route) => route.isFirst); // Go back to meal planner screen
                     },
                     child: const Text('Finish'),
                   ),
@@ -142,14 +143,15 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
       _handleMealCompletion();
       showDialog(
         context: context,
+        barrierDismissible: false, // Prevent dismiss by tapping outside or back
         builder: (context) => AlertDialog(
           title: const Text('Congratulations!'),
           content: const Text('You have completed all the steps. Enjoy your meal!'),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(true); // Pop with result to trigger refresh
-                Navigator.of(context).popUntil((route) => route.isFirst);
+                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).popUntil((route) => route.isFirst); // Go back to meal planner screen
               },
               child: const Text('Finish'),
             ),
