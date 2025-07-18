@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:nutriplan/screens/interactive_recipe_page.dart';
 import '../models/recipes.dart';
+import 'package:nutriplan/screens/recipe_steps_summary_page.dart';
 
 class RecipeInfoScreen extends StatefulWidget {
   final Recipe recipe;
@@ -161,6 +162,34 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                             const Text('Instructions', style: TextStyle(fontWeight: FontWeight.bold)),
                             const SizedBox(height: 6),
                             ...recipe.instructions.asMap().entries.map((entry) => Text('${entry.key + 1}. ${entry.value}')),
+                            const SizedBox(height: 16),
+                            Center(
+                              child: ElevatedButton.icon(
+                                icon: Icon(Icons.menu_book),
+                                label: Text('View Steps'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                ),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => RecipeStepsSummaryPage(
+                                        instructions: recipe.instructions,
+                                        recipeTitle: recipe.title,
+                                        recipeId: recipe.id,
+                                        imageUrl: recipe.imageUrl,
+                                        calories: recipe.calories,
+                                        cost: recipe.cost,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
                           ],
                         ),
                       ),
