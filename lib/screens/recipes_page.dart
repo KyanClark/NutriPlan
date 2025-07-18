@@ -94,10 +94,10 @@ class _RecipesPageState extends State<RecipesPage> {
         body: Stack(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
                   // Custom back button and search/sort bar
                   Padding(
                     padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
@@ -123,12 +123,12 @@ class _RecipesPageState extends State<RecipesPage> {
                         : Row(
                             children: [
                               IconButton(
-                                icon: const Icon(Icons.arrow_back),
-                                onPressed: () => Navigator.pop(context),
-                              ),
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.pop(context),
+              ),
                               const Expanded(
                                 child: Text(
-                                  'Choose your Meal Plan',
+              'Choose your Meal Plan',
                                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
                                   textAlign: TextAlign.center,
                                 ),
@@ -153,20 +153,20 @@ class _RecipesPageState extends State<RecipesPage> {
                               ),
                             ],
                           ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                        'Recently Added',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Top Rated',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      TextButton(
+                ),
+                TextButton(
                         onPressed: () async {
                           final result = await Navigator.of(context).push(
                             MaterialPageRoute(
@@ -200,41 +200,41 @@ class _RecipesPageState extends State<RecipesPage> {
                               }
                             });
                           }
-                        },
-                        child: const Text(
-                          'See All',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blueAccent,
-                          ),
-                        ),
-                      ),
-                    ],
+                  },
+                  child: const Text(
+                    'See All',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blueAccent,
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  SizedBox(
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
                     height: 240,
-                    child: FutureBuilder<List<Recipe>>(
-                      future: RecipeService.fetchRecipes(),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
-                        } else if (snapshot.hasError) {
-                          return Center(child: Text('Error: \\${snapshot.error}'));
-                        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                          return const Center(child: Text('No recipes found.'));
-                        }
+              child: FutureBuilder<List<Recipe>>(
+                future: RecipeService.fetchRecipes(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (snapshot.hasError) {
+                    return Center(child: Text('Error: \\${snapshot.error}'));
+                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(child: Text('No recipes found.'));
+                  }
                         final recipes = _applySearchAndSort(snapshot.data!);
-                        return ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: recipes.length,
-                          separatorBuilder: (context, index) => const SizedBox(width: 24),
-                          itemBuilder: (context, index) {
-                            final recipe = recipes[index];
-                            return _RecipeCard(
-                              recipe: recipe,
-                              isFavorite: favoriteRecipeIds.contains(recipe.id),
-                              onFavoriteToggle: () => _toggleFavorite(recipe),
+                  return ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: recipes.length,
+                    separatorBuilder: (context, index) => const SizedBox(width: 24),
+                    itemBuilder: (context, index) {
+                      final recipe = recipes[index];
+                      return _RecipeCard(
+                        recipe: recipe,
+                        isFavorite: favoriteRecipeIds.contains(recipe.id),
+                        onFavoriteToggle: () => _toggleFavorite(recipe),
                               onTap: () async {
                                 // If the recipe already has an imageUrl, use it directly
                                 Recipe recipeToAdd = recipe;
@@ -281,10 +281,10 @@ class _RecipesPageState extends State<RecipesPage> {
                                   });
                                 }
                               },
-                            );
-                          },
-                        );
-                      },
+                      );
+                    },
+                  );
+                },
                     ),
                   ),
                 ],
@@ -389,8 +389,8 @@ class _RecipesPageState extends State<RecipesPage> {
                       ),
                     ),
                   ),
-                ),
               ),
+            ),
           ],
         ),
       ),
@@ -410,53 +410,53 @@ class _RecipeCard extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final cardWidth = constraints.maxWidth < 220 ? constraints.maxWidth : 200.0;
-        return Material(
-          color: Colors.transparent,
-          child: GestureDetector(
+    return Material(
+      color: Colors.transparent,
+      child: GestureDetector(
             onTap: onTap,
-            child: Container(
+        child: Container(
               width: cardWidth,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
               ),
-              child: Stack(
+            ],
+          ),
+          child: Stack(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(14),
-                          topRight: Radius.circular(14),
-                        ),
-                        child: Image.network(
-                          recipe.imageUrl,
-                          height: 160,
+                  ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(14),
+                      topRight: Radius.circular(14),
+                    ),
+                    child: Image.network(
+                      recipe.imageUrl,
+                      height: 160,
                           width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Icon(Icons.broken_image),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(14.0),
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Icon(Icons.broken_image),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(14.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              recipe.title,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                                color: Colors.black87,
-                              ),
+                      recipe.title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: Colors.black87,
+                      ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -483,26 +483,26 @@ class _RecipeCard extends StatelessWidget {
                               ],
                             ),
                           ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: GestureDetector(
-                      onTap: onFavoriteToggle,
-                      child: Icon(
-                        isFavorite ? Icons.favorite : Icons.favorite_border,
-                        color: Colors.redAccent,
-                        size: 28,
-                      ),
                     ),
                   ),
                 ],
               ),
-            ),
+              Positioned(
+                top: 8,
+                left: 8,
+                child: GestureDetector(
+                  onTap: onFavoriteToggle,
+                  child: Icon(
+                    isFavorite ? Icons.favorite : Icons.favorite_border,
+                    color: Colors.redAccent,
+                    size: 28,
+                  ),
+                ),
+              ),
+            ],
           ),
+        ),
+      ),
         );
       },
     );

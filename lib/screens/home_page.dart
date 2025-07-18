@@ -26,8 +26,8 @@ class _HomePageState extends State<HomePage> {
       MealPlannerScreen(forceRefresh: widget.forceMealPlanRefresh),
       const AnalyticsPage(),
       FavoritesPage(),
-      const ProfileScreen(),
-    ];
+    const ProfileScreen(),
+  ];
   }
 
   @override
@@ -180,16 +180,16 @@ class _HomePageState extends State<HomePage> {
           return LinearGradient(
             colors: index == _selectedIndex
                 ? [
-                    Color.fromRGBO(142, 190, 155, 1.0),
-                    Color.fromRGBO(125, 189, 228, 1.0),
+                          Color.fromRGBO(142, 190, 155, 1.0),
+                          Color.fromRGBO(125, 189, 228, 1.0),
                   ]
                 : [Colors.grey, Colors.grey],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
           ).createShader(bounds);
         },
         child: Icon(icon, color: Colors.white),
-      ),
+                  ),
       label: label,
     );
   }

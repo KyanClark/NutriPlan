@@ -119,16 +119,27 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                             const SizedBox(height: 16),
                             if (recipe.macros.isNotEmpty)
                               Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   const Text('Macros', style: TextStyle(fontWeight: FontWeight.bold)),
                                   const SizedBox(height: 6),
                                   Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      _MacroChip(label: 'Fat', value: recipe.macros['fats'].toString()),
-                                      _MacroChip(label: 'Protein', value: recipe.macros['protein'].toString()),
-                                      _MacroChip(label: 'Fiber', value: recipe.macros['fiber'].toString()),
                                       _MacroChip(label: 'Carbs', value: recipe.macros['carbs'].toString()),
+                                      const SizedBox(width: 8),
+                                      _MacroChip(label: 'Fat', value: recipe.macros['fats'].toString()),
+                                      const SizedBox(width: 8),
+                                      _MacroChip(label: 'Fiber', value: recipe.macros['fiber'].toString()),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      _MacroChip(label: 'Protein', value: recipe.macros['protein'].toString()),
+                                      const SizedBox(width: 8),
+                                      _MacroChip(label: 'Sugar', value: recipe.macros['sugar']?.toString() ?? '0'),
                                     ],
                                   ),
                                 ],

@@ -136,20 +136,20 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
           : _history.isEmpty
               ? const Center(child: Text('No completed meals yet.'))
               : ListView.builder(
-                  padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(20),
                   itemCount: dateKeys.length,
                   itemBuilder: (context, dateIdx) {
                     final date = dateKeys[dateIdx];
                     final meals = grouped[date]!;
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+        children: [
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8.0),
                           child: Text(
                             formatDateHeader(date),
                             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
-                          ),
+          ),
                         ),
                         ...meals.map((meal) {
                           final dt = meal['completed_at'] != null
@@ -158,7 +158,7 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
                           final timeStr = formatTime(dt);
                           return Column(
                             children: [
-                              ListTile(
+          ListTile(
                                 leading: meal['image_url'] != null
                                     ? ClipRRect(
                                         borderRadius: BorderRadius.circular(8),
@@ -175,15 +175,15 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
                                 trailing: meal['calories'] != null
                                     ? Text('${meal['calories']} kcal', style: TextStyle(color: Colors.black54))
                                     : null,
-                              ),
+          ),
                               const Divider(),
-                            ],
+        ],
                           );
                         }).toList(),
                       ],
                     );
                   },
-                ),
+      ),
     );
   }
 } 
