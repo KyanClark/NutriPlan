@@ -236,6 +236,11 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                                       imageUrl: recipe.imageUrl,
                                       calories: recipe.calories,
                                       cost: recipe.cost,
+                                      protein: (recipe.macros['protein'] ?? 0).toDouble(),
+                                      carbs: (recipe.macros['carbs'] ?? 0).toDouble(),
+                                      fat: (recipe.macros['fat'] ?? 0).toDouble(),
+                                      sugar: (recipe.macros['sugar'] ?? 0).toDouble(),
+                                      fiber: (recipe.macros['fiber'] ?? 0).toDouble(),
                                     ),
                                   ),
                                 );

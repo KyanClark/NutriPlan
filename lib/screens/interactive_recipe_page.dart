@@ -9,7 +9,12 @@ class InteractiveRecipePage extends StatefulWidget {
   final String? imageUrl;
   final int? calories;
   final num? cost;
-  const InteractiveRecipePage({Key? key, required this.instructions, this.recipeId, this.title, this.imageUrl, this.calories, this.cost}) : super(key: key);
+  final double? protein;
+  final double? carbs;
+  final double? fat;
+  final double? sugar;
+  final double? fiber;
+  const InteractiveRecipePage({Key? key, required this.instructions, this.recipeId, this.title, this.imageUrl, this.calories, this.cost, this.protein, this.carbs, this.fat, this.sugar, this.fiber}) : super(key: key);
 
   @override
   State<InteractiveRecipePage> createState() => _InteractiveRecipePageState();
@@ -171,6 +176,11 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
       'image_url': widget.imageUrl,
       'calories': widget.calories,
       'cost': widget.cost,
+      'protein': widget.protein,
+      'carbs': widget.carbs,
+      'fat': widget.fat,
+      'sugar': widget.sugar,
+      'fiber': widget.fiber,
       'completed_at': DateTime.now().toIso8601String(),
     });
 

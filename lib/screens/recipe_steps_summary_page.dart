@@ -8,6 +8,11 @@ class RecipeStepsSummaryPage extends StatelessWidget {
   final String imageUrl;
   final int calories;
   final num cost;
+  final double protein;
+  final double carbs;
+  final double fat;
+  final double sugar;
+  final double fiber;
 
   const RecipeStepsSummaryPage({
     Key? key,
@@ -17,6 +22,11 @@ class RecipeStepsSummaryPage extends StatelessWidget {
     required this.imageUrl,
     required this.calories,
     required this.cost,
+    required this.protein,
+    required this.carbs,
+    required this.fat,
+    required this.sugar,
+    required this.fiber,
   }) : super(key: key);
 
   @override
@@ -91,6 +101,11 @@ class RecipeStepsSummaryPage extends StatelessWidget {
                         imageUrl: imageUrl,
                         calories: calories,
                         cost: cost,
+                        protein: protein,
+                        carbs: carbs,
+                        fat: fat,
+                        sugar: sugar,
+                        fiber: fiber,
                       ),
                     ),
                   );
