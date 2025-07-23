@@ -114,60 +114,133 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
   Widget build(BuildContext context) {
     final summary = _getDailySummary(meals);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Meal Tracker'),
-        backgroundColor: Colors.green,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.chevron_left),
-            onPressed: () => _changeDate(-1),
-          ),
-          Center(
-            child: Text(
-              DateFormat('MMM d, yyyy').format(selectedDate),
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+      // Remove the AppBar and use a custom back button
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Custom back button
+            Align(
+              alignment: Alignment.centerLeft,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            onPressed: () => _changeDate(1),
-          ),
-        ],
-      ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+            // Date navigation row (moved below back button)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _NutritionalSummary(
-                    summary: summary,
-                    goals: goals,
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left),
+                    onPressed: () => _changeDate(-1),
                   ),
-                  const SizedBox(height: 12),
-                  if (insights.isNotEmpty)
-                    Card(
-                      color: Colors.green[50],
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Text(insights.first, style: const TextStyle(fontSize: 16)),
-                      ),
-                    ),
-                  Expanded(
-                    child: meals.isEmpty
-                        ? const Center(child: Text('No meals recorded for this day.'))
-                        : ListView.builder(
-                            itemCount: meals.length,
-                            itemBuilder: (context, idx) {
-                              return _MealLogCard(meal: meals[idx]);
-                            },
-                          ),
+                  Text(
+                    DateFormat('MMM d, yyyy').format(selectedDate),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right),
+                    onPressed: () => _changeDate(1),
                   ),
                 ],
               ),
             ),
+            Expanded(
+              child: isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          // Use side-by-side layout if wide enough, else stack vertically
+                          if (constraints.maxWidth > 700) {
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Nutritional summary
+                                SizedBox(
+                                  width: 350,
+                                  child: _NutritionalSummary(
+                                    summary: summary,
+                                    goals: goals,
+                                  ),
+                                ),
+                                const SizedBox(width: 24),
+                                // Finished meals
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      const Text('Finished Meals', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                                      const SizedBox(height: 8),
+                                      if (insights.isNotEmpty)
+                                        Card(
+                                          color: Colors.green[50],
+                                          margin: const EdgeInsets.only(bottom: 12),
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(12.0),
+                                            child: Text(insights.first, style: const TextStyle(fontSize: 16)),
+                                          ),
+                                        ),
+                                      Expanded(
+                                        child: meals.isEmpty
+                                            ? const Center(child: Text('No meals recorded for this day.'))
+                                            : ListView.builder(
+                                                itemCount: meals.length,
+                                                itemBuilder: (context, idx) {
+                                                  return _MealLogCard(meal: meals[idx]);
+                                                },
+                                              ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          } else {
+                            // Stacked layout for mobile
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _NutritionalSummary(
+                                  summary: summary,
+                                  goals: goals,
+                                ),
+                                const SizedBox(height: 12),
+                                const Text('Finished Meals', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                                const SizedBox(height: 8),
+                                if (insights.isNotEmpty)
+                                  Card(
+                                    color: Colors.green[50],
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(12.0),
+                                      child: Text(insights.first, style: const TextStyle(fontSize: 16)),
+                                    ),
+                                  ),
+                                Expanded(
+                                  child: meals.isEmpty
+                                      ? const Center(child: Text('No meals recorded for this day.'))
+                                      : ListView.builder(
+                                          itemCount: meals.length,
+                                          itemBuilder: (context, idx) {
+                                            return _MealLogCard(meal: meals[idx]);
+                                          },
+                                        ),
+                                ),
+                              ],
+                            );
+                          }
+                        },
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -194,23 +267,24 @@ class _NutritionalSummary extends StatelessWidget {
   final UserNutritionGoals? goals;
   const _NutritionalSummary({required this.summary, required this.goals});
 
-  Widget _buildBar(String label, double value, double? goal, Color color) {
-    final percent = (goal != null && goal > 0) ? (value / goal).clamp(0.0, 1.0) : 0.0;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
+  Widget _macroContainer(String label, double value, double? goal, Color color) {
+    return Container(
+      width: 85, // smaller
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      padding: const EdgeInsets.all(8), // smaller
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(8), // smaller radius
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(width: 80, child: Text(label)),
-          Expanded(
-            child: LinearProgressIndicator(
-              value: percent,
-              backgroundColor: color.withOpacity(0.2),
-              valueColor: AlwaysStoppedAnimation<Color>(color),
-              minHeight: 10,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(goal != null ? '${value.toStringAsFixed(0)}/${goal.toStringAsFixed(0)}' : value.toStringAsFixed(0)),
+          Text(label, style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 12)),
+          const SizedBox(height: 2),
+          Text('${value.toStringAsFixed(1)} g', style: TextStyle(fontSize: 13, color: color)),
+          if (goal != null)
+            Text('Goal: ${goal.toStringAsFixed(0)}', style: TextStyle(fontSize: 10, color: color.withOpacity(0.7))),
         ],
       ),
     );
@@ -221,18 +295,40 @@ class _NutritionalSummary extends StatelessWidget {
     return Card(
       elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(8.0), // reduced padding
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Nutritional Summary', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            const SizedBox(height: 8),
-            _buildBar('Calories', summary.calories, goals?.calorieGoal, Colors.orange),
-            _buildBar('Protein', summary.protein, goals?.proteinGoal, Colors.blue),
-            _buildBar('Carbs', summary.carbs, goals?.carbGoal, Colors.purple),
-            _buildBar('Fat', summary.fat, goals?.fatGoal, Colors.red),
-            _buildBar('Sugar', summary.sugar, goals?.sugarGoal, Colors.brown),
-            _buildBar('Fiber', summary.fiber, goals?.fiberGoal, Colors.green),
+            const Text('Nutritional Summary', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), // smaller font
+            const SizedBox(height: 6),
+            // Calories container at the top
+            Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 18), // smaller
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: Colors.orange[100],
+                  borderRadius: BorderRadius.circular(12), // smaller radius
+                ),
+                child: Text(
+                  '${summary.calories.toStringAsFixed(0)} kcal',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.deepOrange), // smaller font
+                ),
+              ),
+            ),
+            // Macros in containers
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              alignment: WrapAlignment.center,
+              children: [
+                _macroContainer('Protein', summary.protein, goals?.proteinGoal, Colors.blue),
+                _macroContainer('Carbs', summary.carbs, goals?.carbGoal, Colors.purple),
+                _macroContainer('Fat', summary.fat, goals?.fatGoal, Colors.red),
+                _macroContainer('Sugar', summary.sugar, goals?.sugarGoal, Colors.brown),
+                _macroContainer('Fiber', summary.fiber, goals?.fiberGoal, Colors.green),
+              ],
+            ),
           ],
         ),
       ),
@@ -296,7 +392,9 @@ class _MealLogCardState extends State<_MealLogCard> {
               ),
               if (expanded) ...[
                 const SizedBox(height: 10),
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     _MacroChip(label: 'Protein', value: meal.protein, color: Colors.blue),
                     _MacroChip(label: 'Carbs', value: meal.carbs, color: Colors.purple),

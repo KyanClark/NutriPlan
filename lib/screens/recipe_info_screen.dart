@@ -129,7 +129,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                                     children: [
                                       _MacroChip(label: 'Carbs', value: recipe.macros['carbs'].toString()),
                                       const SizedBox(width: 8),
-                                      _MacroChip(label: 'Fat', value: recipe.macros['fats'].toString()),
+                                      _MacroChip(label: 'Fat', value: recipe.macros['fat'].toString()),
                                       const SizedBox(width: 8),
                                       _MacroChip(label: 'Fiber', value: recipe.macros['fiber'].toString()),
                                     ],

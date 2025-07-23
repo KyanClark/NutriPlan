@@ -67,7 +67,7 @@ class _DesktopEmailVerificationScreenState extends State<DesktopEmailVerificatio
 
   void _startCheckDelay() {
     setState(() {
-      _checkDelay = 4;
+      _checkDelay = 7;
       _canCheckVerification = false;
     });
     _checkDelayTimer?.cancel();
