@@ -9,19 +9,20 @@ import '../services/recipe_service.dart'; // Import RecipeService for favorite c
 
 class HomePage extends StatefulWidget {
   final bool forceMealPlanRefresh;
-  const HomePage({super.key, this.forceMealPlanRefresh = false});
+  final int initialTab;
+  const HomePage({super.key, this.forceMealPlanRefresh = false, this.initialTab = 0});
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
-  int _selectedIndex = 0;
+  String userName = ""; // Start empty, will fetch from Supabase
+  late int _selectedIndex;
 
-  late List<Widget> _pages;
   bool _didForceRefresh = false;
 
-  int _mealPlanCount = 0;~
+  int _mealPlanCount = 0;
   int _favoriteCount = 0;
   bool _loadingCounts = false;
 
@@ -29,12 +30,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _pages = [
-      MealPlannerScreen(forceRefresh: widget.forceMealPlanRefresh, onChanged: _fetchCounts),
-      const AnalyticsPage(),
-      FavoritesPage(onChanged: _fetchCounts),
-      const ProfileScreen(),
-    ];
+    _selectedIndex = widget.initialTab;
+    _fetchUserName(); // Fetch the user's name from Supabase
     _fetchCounts();
   }
 
@@ -52,9 +49,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Future<void> _fetchCounts() async {
+    if (!mounted) return;
     setState(() => _loadingCounts = true);
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
+      if (!mounted) return;
       setState(() {
         _mealPlanCount = 0;
         _favoriteCount = 0;
@@ -74,6 +73,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
     // Fetch favorite count using RecipeService
     final favoriteIds = await RecipeService.fetchFavoriteRecipeIds(user.id);
+    if (!mounted) return;
     setState(() {
       _mealPlanCount = mealCount;
       _favoriteCount = favoriteIds.length;
@@ -81,12 +81,30 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     });
   }
 
+  Future<void> _fetchUserName() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+    final profile = await Supabase.instance.client
+        .from('profiles')
+        .select('username')
+        .eq('id', user.id)
+        .maybeSingle();
+    if (profile != null && profile['username'] != null) {
+      final fullName = profile['username'] as String;
+      final firstName = fullName.split(' ').first;
+      if (!mounted) return;
+      setState(() {
+        userName = firstName;
+      });
+    }
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (widget.forceMealPlanRefresh && !_didForceRefresh) {
+      if (!mounted) return;
       setState(() {
-        _pages[0] = MealPlannerScreen(forceRefresh: true);
         _didForceRefresh = true;
       });
     }
@@ -96,6 +114,20 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final isSmallScreen = ResponsiveDesign.isSmallScreen(context);
     final isMediumScreen = ResponsiveDesign.isMediumScreen(context);
+    List<Widget> pages = [
+      HomePageContent(
+        userName: userName,
+        onQuickAction: (int tabIndex) {
+          setState(() {
+            _selectedIndex = tabIndex;
+          });
+        },
+      ),
+      MealPlannerScreen(forceRefresh: widget.forceMealPlanRefresh, onChanged: _fetchCounts),
+      const AnalyticsPage(),
+      FavoritesPage(onChanged: _fetchCounts),
+      const ProfileScreen(),
+    ];
     return Scaffold(
       appBar: PreferredSize(
         preferredSize: Size.fromHeight(isSmallScreen ? 70 : 80),
@@ -127,55 +159,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       backgroundColor: const Color.fromARGB(255, 193, 231, 175),
       body: Column(
         children: [
-          if (_selectedIndex == 0) ...[
-            Padding(
-              padding: ResponsiveDesign.responsivePadding(context),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.all(isSmallScreen ? 20 : 24),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Welcome to NutriPlan!',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                            fontSize: ResponsiveDesign.responsiveFontSize(context, 24),
-                          ),
-                        ),
-                        SizedBox(height: isSmallScreen ? 6 : 8),
-                        Text(
-                          'Your smart companion for healthy meal planning',
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Colors.black54,
-                            fontSize: ResponsiveDesign.responsiveFontSize(context, 16),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          Expanded(
-            child: _pages[_selectedIndex],
-          ),
+          if (_selectedIndex == 0)
+            Expanded(child: pages[0])
+          else
+            Expanded(child: pages[_selectedIndex]),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -184,7 +171,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           setState(() {
             _selectedIndex = index;
           });
-          _fetchCounts();
         },
         unselectedItemColor: const Color.fromARGB(255, 136, 136, 136),
         selectedItemColor: Colors.green,
@@ -200,17 +186,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           fontSize: ResponsiveDesign.responsiveFontSize(context, 12),
         ),
         items: [
-          _buildBottomNavItem(Icons.restaurant_menu, 'Meal Plan', 0, badgeCount: _mealPlanCount),
-          _buildBottomNavItem(Icons.analytics, 'Analytics', 1),
-          _buildBottomNavItem(Icons.favorite, 'Favorites', 2, badgeCount: _favoriteCount),
-          BottomNavigationBarItem(
-            icon: CircleAvatar(
-              radius: isSmallScreen ? 14 : 16,
-              backgroundColor: Colors.grey[200],
-              child: Icon(Icons.person, color: Colors.grey[700], size: isSmallScreen ? 18 : 20),
-            ),
-            label: 'Profile',
-          ),
+          _buildBottomNavItem(Icons.home, 'Home', 0),
+          _buildBottomNavItem(Icons.restaurant_menu, 'Meal Plan', 1, badgeCount: _mealPlanCount),
+          _buildBottomNavItem(Icons.analytics, 'Analytics', 2),
+          _buildBottomNavItem(Icons.favorite, 'Favorites', 3, badgeCount: _favoriteCount),
+          _buildBottomNavItem(Icons.person, 'Profile', 4),
         ],
       ),
     );
@@ -239,17 +219,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           ),
           if (badgeCount > 0)
             Positioned(
-              top: -5,
-              right: -10, // Move badge to top-right
+              top: -6,
+              right: -12,
               child: Container(
                 padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
-                  color: const Color.fromARGB(255, 252, 65, 51),
-                  borderRadius: BorderRadius.circular(10),
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(100),
                 ),
                 constraints: const BoxConstraints(
-                  minWidth: 18,
-                  minHeight: 18,
+                  minWidth: 21,
+                  minHeight: 15,
                 ),
                 child: Center(
                   child: Text(
@@ -266,6 +246,287 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         ],
       ),
       label: label,
+    );
+  }
+}
+
+class HomePageContent extends StatelessWidget {
+  final String userName;
+  final void Function(int) onQuickAction;
+  const HomePageContent({super.key, required this.userName, required this.onQuickAction});
+
+  @override
+  Widget build(BuildContext context) {
+    final isSmallScreen = ResponsiveDesign.isSmallScreen(context);
+    return SingleChildScrollView(
+      padding: ResponsiveDesign.responsivePadding(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // WELCOME CARD
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(isSmallScreen ? 20 : 24),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [
+                  Color.fromRGBO(142, 190, 155, 1.0),
+                  Color.fromRGBO(125, 189, 228, 1.0),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(isSmallScreen ? 14 : 20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.emoji_emotions,
+                  size: isSmallScreen ? 40 : 50,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Welcome!',
+                        style: TextStyle(
+                          fontSize: ResponsiveDesign.responsiveFontSize(context, 22),
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Let’s plan healthy meals together.',
+                        style: TextStyle(
+                          fontSize: ResponsiveDesign.responsiveFontSize(context, 14),
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          // Avatar and greeting
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Color.fromRGBO(142, 190, 155, 1),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 28,
+                  backgroundColor: Colors.white,
+                  child: Icon(Icons.person, color: Colors.green, size: 28),
+                ),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Hi, $userName!',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Let’s plan your meals today.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          // Quick Actions
+          Text(
+            'Quick Actions',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              fontSize: ResponsiveDesign.responsiveFontSize(context, 18),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _quickActionCard(Icons.restaurant_menu, 'Start Plan', Colors.green, () => onQuickAction(1)),
+              _quickActionCard(Icons.favorite, 'Favorites', Colors.pink, () => onQuickAction(3)),
+              _quickActionCard(Icons.analytics, 'Progress', Colors.deepPurple, () => onQuickAction(2)),
+            ],
+          ),
+          const SizedBox(height: 24),
+          // Daily Tip or Motivational Quote
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.95),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 6,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.lightbulb_outline, color: Colors.amber),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '“Eat good, feel good.” Start your day with a balanced breakfast!',
+                    style: TextStyle(
+                      fontSize: ResponsiveDesign.responsiveFontSize(context, 14),
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const _StatCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 12),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FeatureCard extends StatelessWidget {
+  final String title;
+  final String description;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _FeatureCard({
+    required this.title,
+    required this.description,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 32),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                title,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                description,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -541,113 +802,39 @@ class AnalyticsPage extends StatelessWidget {
   }
 }
 
-class _StatCard extends StatelessWidget {
-  final String title;
-  final String value;
+class _quickActionCard extends StatelessWidget {
   final IconData icon;
-  final Color color;
-
-  const _StatCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Colors.grey[600],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FeatureCard extends StatelessWidget {
   final String title;
-  final String description;
-  final IconData icon;
   final Color color;
   final VoidCallback onTap;
-
-  const _FeatureCard({
-    required this.title,
-    required this.description,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-  });
+  const _quickActionCard(this.icon, this.title, this.color, this.onTap);
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
+    final isSmallScreen = ResponsiveDesign.isSmallScreen(context);
+    return Expanded(
+      child: GestureDetector(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+        child: Container(
+          padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withOpacity(0.3), width: 1),
+          ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 32),
-              ),
-              const SizedBox(height: 12),
+              Icon(icon, color: color, size: isSmallScreen ? 28 : 32),
+              const SizedBox(height: 8),
               Text(
                 title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                style: TextStyle(
+                  fontSize: ResponsiveDesign.responsiveFontSize(context, 12),
                   fontWeight: FontWeight.bold,
+                  color: color,
                 ),
                 textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                description,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.grey[600],
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),

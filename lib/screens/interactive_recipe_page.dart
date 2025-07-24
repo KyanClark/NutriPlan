@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/scheduler.dart';
 
 class InteractiveRecipePage extends StatefulWidget {
   final List<String> instructions;
@@ -61,31 +62,45 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
             _timerCompleted = true;
           });
           // Automatically proceed to next step if not last
-          if (_currentStep < widget.instructions.length - 1) {
-            setState(() {
-              _currentStep++;
-            });
-            _handleTimerOnStepChange();
-          } else {
-            _handleMealCompletion();
-            showDialog(
-              context: context,
-              barrierDismissible: false, // Prevent dismiss by tapping outside or back
-              builder: (context) => AlertDialog(
-                title: const Text('Congratulations!'),
-                content: const Text('You have completed all the steps. Enjoy your meal!'),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop(); // Close the dialog
-                      Navigator.of(context).pop(true); // Pop InteractiveRecipePage with result true
-                    },
-                    child: const Text('Finish'),
-                  ),
-                ],
-              ),
-            );
-          }
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (!mounted) return;
+            if (_currentStep < widget.instructions.length - 1) {
+              setState(() {
+                _currentStep++;
+              });
+              _handleTimerOnStepChange();
+            } else {
+              showGeneralDialog(
+                context: context,
+                barrierDismissible: false,
+                barrierLabel: 'Completed',
+                transitionDuration: const Duration(milliseconds: 350),
+                pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
+                transitionBuilder: (context, anim1, anim2, child) {
+                  return Transform.scale(
+                    scale: anim1.value,
+                    child: Opacity(
+                      opacity: anim1.value,
+                      child: AlertDialog(
+                        title: const Text('Congratulations!'),
+                        content: const Text('You have completed all the steps. Enjoy your meal!'),
+                        actions: [
+                          TextButton(
+                            onPressed: () async {
+                              await _handleMealCompletion();
+                              Navigator.of(context).pop(); // Close the dialog
+                              Navigator.of(context).pop(true); // Pop InteractiveRecipePage with result true
+                            },
+                            child: const Text('Finish'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            }
+          });
         }
       });
     } else {
@@ -146,29 +161,41 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
       _handleTimerOnStepChange();
     } else {
       _handleMealCompletion();
-      showDialog(
+      showGeneralDialog(
         context: context,
-        barrierDismissible: false, // Prevent dismiss by tapping outside or back
-        builder: (context) => AlertDialog(
-          title: const Text('Congratulations!'),
-          content: const Text('You have completed all the steps. Enjoy your meal!'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
-                Navigator.of(context).popUntil((route) => route.isFirst); // Go back to meal planner screen
-              },
-              child: const Text('Finish'),
+        barrierDismissible: false,
+        barrierLabel: 'Completed',
+        transitionDuration: const Duration(milliseconds: 350),
+        pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
+        transitionBuilder: (context, anim1, anim2, child) {
+          return Transform.scale(
+            scale: anim1.value,
+            child: Opacity(
+              opacity: anim1.value,
+              child: AlertDialog(
+                title: const Text('Congratulations!'),
+                content: const Text('You have completed all the steps. Enjoy your meal!'),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(); // Close the dialog
+                      Navigator.of(context).popUntil((route) => route.isFirst); // Go back to meal planner screen
+                    },
+                    child: const Text('Finish'),
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
+          );
+        },
       );
     }
   }
 
-  void _handleMealCompletion() async {
+  Future<void> _handleMealCompletion() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
+    // Insert into meal history
     await Supabase.instance.client.from('meal_plan_history').insert({
       'user_id': user.id,
       'recipe_id': widget.recipeId,
@@ -183,7 +210,6 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
       'fiber': widget.fiber,
       'completed_at': DateTime.now().toUtc().toIso8601String(),
     });
-
     // Remove only the completed meal from meal_plans
     final mealPlans = await Supabase.instance.client
       .from('meal_plans')
@@ -234,18 +260,28 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
     final showTimer = timerSeconds != null;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Interactive Cooking'),
-        centerTitle: true,
-        backgroundColor: Colors.green[600],
-      ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const SizedBox(height: 30),
+            // Animated progress bar at the top
+            TweenAnimationBuilder<double>(
+              tween: Tween<double>(
+                begin: 0,
+                end: (_currentStep + 1) / widget.instructions.length,
+              ),
+              duration: const Duration(milliseconds: 400),
+              builder: (context, value, child) => LinearProgressIndicator(
+                value: value,
+                minHeight: 10,
+                backgroundColor: Colors.grey[200],
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            const SizedBox(height: 24),
             Center(
               child: Text(
                 'Step ${_currentStep + 1}',
@@ -257,9 +293,15 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
             ),
             const SizedBox(height: 60),
             Expanded(
-              child: Center(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 400),
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: child,
+                ),
                 child: showTimer
                   ? Column(
+                      key: ValueKey(_currentStep),
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
@@ -268,65 +310,107 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
                           style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w500),
                         ),
                         const SizedBox(height: 30),
-                        Text(
-                          _remainingSeconds > 0
-                            ? '${(_remainingSeconds ~/ 60).toString().padLeft(2, '0')}:${(_remainingSeconds % 60).toString().padLeft(2, '0')}'
-                            : '${(timerSeconds! ~/ 60).toString().padLeft(2, '0')}:${(timerSeconds % 60).toString().padLeft(2, '0')}',
-                          style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: Colors.green),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            TweenAnimationBuilder<double>(
+                              tween: Tween<double>(begin: 1, end: _remainingSeconds.toDouble()),
+                              duration: const Duration(milliseconds: 500),
+                              builder: (context, value, child) {
+                                final pulse = (_timerRunning && _remainingSeconds > 0)
+                                    ? (1 + 0.1 * (1 - (_remainingSeconds % 2)))
+                                    : 1.0;
+                                return AnimatedScale(
+                                  scale: pulse,
+                                  duration: const Duration(milliseconds: 200),
+                                  child: Text(
+                                    _remainingSeconds > 0
+                                        ? '${(_remainingSeconds ~/ 60).toString().padLeft(2, '0')}:${(_remainingSeconds % 60).toString().padLeft(2, '0')}'
+                                        : '${(timerSeconds! ~/ 60).toString().padLeft(2, '0')}:${(timerSeconds % 60).toString().padLeft(2, '0')}',
+                                    style: TextStyle(
+                                      fontSize: 48,
+                                      fontWeight: FontWeight.bold,
+                                      color: _timerRunning && _remainingSeconds <= 5 && _remainingSeconds > 0
+                                          ? Colors.red
+                                          : Colors.green,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(width: 16),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _timerRunning ? Colors.orange : Colors.green[700],
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 23),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              onPressed: _timerRunning ? _pauseTimer : _resumeTimer,
+                              child: Text(_timerRunning ? 'Pause' : 'Resume', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 20),
-                        if (_timerRunning)
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 32),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            onPressed: _pauseTimer,
-                            child: const Text('Pause', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          ),
-                        if (!_timerRunning && !_timerCompleted && _remainingSeconds > 0)
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green[700],
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 32),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            onPressed: _resumeTimer,
-                            child: const Text('Resume', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          ),
                         if (_timerCompleted)
                           const Text('Timer complete! You can proceed to the next step.', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
                       ],
                     )
-                  : Text(
-                      instruction,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w500),
+                  : Column(
+                      key: ValueKey(_currentStep),
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          instruction,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w500),
+                        ),
+                      ],
                     ),
               ),
             ),
             const SizedBox(height: 40),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green[600],
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 18),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Subtle Previous Step button
+                TextButton(
+                  onPressed: _currentStep > 0 ? () {
+                    setState(() {
+                      _currentStep--;
+                    });
+                    _handleTimerOnStepChange();
+                  } : null,
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.grey[600],
+                    textStyle: const TextStyle(fontSize: 16),
+                  ),
+                  child: const Text('Previous'),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 8.0),
+                    child: AnimatedScale(
+                      scale: 1.0,
+                      duration: const Duration(milliseconds: 120),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green[600],
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        onPressed: _nextStep,
+                        child: Text(isLastStep ? 'Done' : 'Next Step', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
                   ),
                 ),
-                onPressed: _nextStep,
-                child: Text(isLastStep ? 'Done' : 'Next', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              ),
+              ],
             ),
           ],
         ),

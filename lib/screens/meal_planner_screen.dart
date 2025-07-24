@@ -46,12 +46,19 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
 
   @override
   void dispose() {
-    _timer?.cancel();
+    if (_timer != null) {
+      _timer!.cancel();
+      _timer = null;
+    }
     super.dispose();
   }
 
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
       setState(() {
         _currentTime = DateTime.now();
         // Only update selectedDate if it's today's date (not manually selected)
@@ -164,7 +171,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                                         if (response == null) return;
                                         final recipe = Recipe.fromMap(response);
                                         if (!mounted) return;
-                                        final result = await Navigator.push(
+                                        await Navigator.push(
                                           context,
                                           MaterialPageRoute(
                                             builder: (context) => RecipeInfoScreen(
@@ -173,10 +180,9 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                                             ),
                                           ),
                                         );
-                                        if (result == true) {
-                                          await _fetchSupabaseMealPlans();
-                                          if (widget.onChanged != null) widget.onChanged!();
-                                        }
+                                        // Always refresh after returning from the recipe page
+                                        await _fetchSupabaseMealPlans();
+                                        if (widget.onChanged != null) widget.onChanged!();
                                       },
                                     ),
                                     const SizedBox(height: 8),

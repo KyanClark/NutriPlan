@@ -36,23 +36,29 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
       });
       return;
     }
-    final startOfDay = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
-    final endOfDay = startOfDay.add(const Duration(days: 1));
-    final startOfDayIso = startOfDay.toIso8601String();
-    final endOfDayIso = endOfDay.toIso8601String();
+    // Fetch a 2-day UTC window to ensure we get all possible local meals
+    final startOfWindow = DateTime(selectedDate.year, selectedDate.month, selectedDate.day).subtract(const Duration(hours: 12));
+    final endOfWindow = startOfWindow.add(const Duration(days: 2));
     final mealRes = await Supabase.instance.client
         .from('meal_plan_history')
         .select()
         .eq('user_id', user.id)
-        .gte('completed_at', startOfDayIso)
-        .lt('completed_at', endOfDayIso)
+        .gte('completed_at', startOfWindow.toUtc().toIso8601String())
+        .lt('completed_at', endOfWindow.toUtc().toIso8601String())
         .order('completed_at', ascending: true);
     final prefsRes = await Supabase.instance.client
         .from('user_preferences')
         .select()
         .eq('user_id', user.id)
         .maybeSingle();
-    final mealList = (mealRes as List?)?.map((m) => MealHistoryEntry.fromMap(m)).toList() ?? [];
+    // Filter meals to only those that match the selected local day
+    final startOfDayLocal = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+    final endOfDayLocal = startOfDayLocal.add(const Duration(days: 1));
+    final mealList = (mealRes as List?)?.map((m) => MealHistoryEntry.fromMap(m)).where((meal) {
+      final localCompleted = meal.completedAt.toLocal();
+      return localCompleted.isAfter(startOfDayLocal.subtract(const Duration(microseconds: 1))) &&
+             localCompleted.isBefore(endOfDayLocal);
+    }).toList() ?? [];
     final userGoals = prefsRes != null ? UserNutritionGoals.fromMap(prefsRes) : null;
     final summary = _getDailySummary(mealList);
     final generatedInsights = userGoals != null ? _generateInsights(summary, userGoals) : [];

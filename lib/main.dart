@@ -11,7 +11,7 @@ void main() async {
   );
   runApp(const NutriPlan());
 }
-
+  
 class NutriPlan extends StatelessWidget {
   const NutriPlan({super.key});
 
@@ -42,7 +42,7 @@ class NutriPlan extends StatelessWidget {
       ),
       initialRoute: '/',
       routes: {
-        '/': (context) => const LoginScreen(),
+        '/': (context) => const HomePage(),
       },
     );
   }

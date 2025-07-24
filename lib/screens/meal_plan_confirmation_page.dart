@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'home_page.dart'; // Add this import at the top
+import 'home_page.dart'; // Import HomePage for navigation with tab
+import 'dart:async';
 
 class MealPlanConfirmationPage extends StatefulWidget {
   const MealPlanConfirmationPage({Key? key}) : super(key: key);
@@ -9,18 +10,25 @@ class MealPlanConfirmationPage extends StatefulWidget {
 }
 
 class _MealPlanConfirmationPageState extends State<MealPlanConfirmationPage> {
+  Timer? _redirectTimer;
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 5), () {
+    _redirectTimer = Timer(const Duration(seconds: 5), () {
       if (!mounted) return;
       _goToMealPlanner();
     });
   }
 
+  @override
+  void dispose() {
+    _redirectTimer?.cancel();
+    super.dispose();
+  }
+
   void _goToMealPlanner() {
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const HomePage(forceMealPlanRefresh: true)),
+      MaterialPageRoute(builder: (context) => const HomePage(initialTab: 1, forceMealPlanRefresh: true)),
       (route) => false,
     );
   }
