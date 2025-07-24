@@ -4,7 +4,8 @@ import '../models/recipes.dart';
 class MealSummaryPage extends StatefulWidget {
   final List<Recipe> meals;
   final void Function(List<RecipeWithTime>) onBuildMealPlan;
-  const MealSummaryPage({Key? key, required this.meals, required this.onBuildMealPlan}) : super(key: key);
+  final VoidCallback? onChanged;
+  const MealSummaryPage({Key? key, required this.meals, required this.onBuildMealPlan, this.onChanged}) : super(key: key);
 
   @override
   State<MealSummaryPage> createState() => _MealSummaryPageState();
@@ -115,6 +116,7 @@ class _MealSummaryPageState extends State<MealSummaryPage> {
         child: FloatingActionButton.extended(
           onPressed: () {
             widget.onBuildMealPlan(_mealsWithTime);
+            if (widget.onChanged != null) widget.onChanged!();
           },
           label: const Text(
             'Build this Meal Plan',

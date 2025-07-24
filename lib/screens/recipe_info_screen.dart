@@ -107,14 +107,23 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                             ),
                             const SizedBox(height: 16),
                             if (recipe.dietTypes.isNotEmpty)
-                              Row(
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   const Icon(Icons.eco, color: Colors.green, size: 18),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    recipe.dietTypes.join(', '),
-                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
-                                  ),
+                                  ...recipe.dietTypes.map((type) => Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green[50],
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      type,
+                                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                                    ),
+                                  )),
                                 ],
                               ),
                             const SizedBox(height: 16),
@@ -245,7 +254,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                                   ),
                                 );
                                 if (finished == true) {
-                                  Navigator.pop(context, true); // Propagate result to MealPlannerScreen
+                                  Navigator.of(context).pop(true); // Propagate result to MealPlannerScreen
                                 }
                               }
                             }

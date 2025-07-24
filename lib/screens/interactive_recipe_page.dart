@@ -78,7 +78,7 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
                   TextButton(
                     onPressed: () {
                       Navigator.of(context).pop(); // Close the dialog
-                      Navigator.of(context).popUntil((route) => route.isFirst); // Go back to meal planner screen
+                      Navigator.of(context).pop(true); // Pop InteractiveRecipePage with result true
                     },
                     child: const Text('Finish'),
                   ),
@@ -181,7 +181,7 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
       'fat': widget.fat,
       'sugar': widget.sugar,
       'fiber': widget.fiber,
-      'completed_at': DateTime.now().toIso8601String(),
+      'completed_at': DateTime.now().toUtc().toIso8601String(),
     });
 
     // Remove only the completed meal from meal_plans
@@ -203,18 +203,24 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
         }
       }
     }
+    // Do NOT pop here; let the dialog's Finish button handle it
   }
 
-  // Helper to extract timer duration from instruction (e.g., 'Wait 5 minutes')
+  // Helper to extract timer duration from instruction (e.g., 'Wait 5 minutes', '10-12 min', 'Rest 3 min', '5 mins', etc.)
   int? _extractTimerSeconds(String instruction) {
-    final regex = RegExp(r'(wait|rest|bake|cook|simmer|boil|steam|chill|freeze|let stand|let sit)[^\d]*(\d+)[^\d]*(minute|second)', caseSensitive: false);
+    final regex = RegExp(
+      r'(?:(wait|rest|bake|cook|simmer|boil|steam|chill|freeze|let stand|let sit)[^\d]*)?(\d+)(?:\s*-\s*\d+)?\s*(minute|minutes|min|mins|second|seconds|sec|secs)',
+      caseSensitive: false,
+    );
     final match = regex.firstMatch(instruction);
     if (match != null) {
       final value = int.tryParse(match.group(2) ?? '');
       final unit = match.group(3)?.toLowerCase();
       if (value != null) {
-        if (unit != null && unit.contains('second')) return value;
-        if (unit != null && unit.contains('minute')) return value * 60;
+        if (unit != null && (unit.contains('second') || unit.contains('sec')))
+          return value;
+        if (unit != null && (unit.contains('minute') || unit.contains('min')))
+          return value * 60;
       }
     }
     return null;
@@ -319,7 +325,7 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
                   ),
                 ),
                 onPressed: _nextStep,
-                child: Text(isLastStep ? 'Finish' : 'Next', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                child: Text(isLastStep ? 'Done' : 'Next', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               ),
             ),
           ],

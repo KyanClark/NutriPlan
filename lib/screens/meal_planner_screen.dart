@@ -8,7 +8,8 @@ import 'recipes_page.dart'; // Import _RecipeCard for use in meal planner
 
 class MealPlannerScreen extends StatefulWidget {
   final bool forceRefresh;
-  const MealPlannerScreen({super.key, this.forceRefresh = false});
+  final VoidCallback? onChanged;
+  const MealPlannerScreen({super.key, this.forceRefresh = false, this.onChanged});
 
   @override
   State<MealPlannerScreen> createState() => _MealPlannerScreenState();
@@ -97,84 +98,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
           padding: const EdgeInsets.only(bottom: 24.0),
           child: Column(
         children: [
-          // Calendar container and Meal Plan button row
-          Center(
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 500),
-                  margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-              child: Row(
-                children: [
-                  // Calendar container
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(28),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.06),
-                            blurRadius: 24,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _fullDate(selectedDate),
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                _getCurrentTime(),
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                          IconButton(
-                            onPressed: () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: selectedDate,
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime(2100),
-                              );
-                              if (picked != null && picked != selectedDate) {
-                                setState(() {
-                                  selectedDate = picked;
-                                });
-                              }
-                            },
-                            icon: const Icon(Icons.calendar_today, color: Colors.blueAccent, size: 22),
-                            style: IconButton.styleFrom(
-                              backgroundColor: Colors.blueAccent.withOpacity(0.1),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-              // Centered and padded 'My Meal Plan' text
+          // Centered and padded 'My Meal Plan' text
           Padding(
                 padding: const EdgeInsets.symmetric(vertical: 13.0),
                 child: Center(
@@ -251,6 +175,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                                         );
                                         if (result == true) {
                                           await _fetchSupabaseMealPlans();
+                                          if (widget.onChanged != null) widget.onChanged!();
                                         }
                                       },
                                     ),
@@ -310,6 +235,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                                           const SnackBar(content: Text('Meal removed from plan'), duration: Duration(seconds: 3)),
                                         );
                                       }
+                                      if (widget.onChanged != null) widget.onChanged!();
                                     },
                                   ),
                                 ),
@@ -330,10 +256,10 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 16.0),
         child: FloatingActionButton.extended(
-          onPressed: () {
-            Navigator.of(context).push(
+          onPressed: () async {
+            await Navigator.of(context).push(
               PageRouteBuilder(
-                pageBuilder: (context, animation, secondaryAnimation) => RecipesPage(),
+                pageBuilder: (context, animation, secondaryAnimation) => RecipesPage(onChanged: widget.onChanged),
                 transitionsBuilder: (context, animation, secondaryAnimation, child) {
                   const begin = Offset(0.0, 1.0);
                   const end = Offset.zero;
@@ -346,6 +272,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                 },
               ),
             );
+            if (widget.onChanged != null) widget.onChanged!();
           },
           icon: const Icon(Icons.add, color: Colors.white),
           label: const Text(

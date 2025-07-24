@@ -5,7 +5,8 @@ import '../services/recipe_service.dart';
 import 'recipe_info_screen.dart';
 
 class FavoritesPage extends StatefulWidget {
-  const FavoritesPage({super.key});
+  final VoidCallback? onChanged;
+  const FavoritesPage({super.key, this.onChanged});
 
   @override
   State<FavoritesPage> createState() => _FavoritesPageState();
@@ -39,6 +40,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
     await RecipeService.toggleFavorite(userId!, recipe.id, true);
     if (!mounted) return;
     await _fetchFavoriteRecipes();
+    if (widget.onChanged != null) widget.onChanged!();
   }
 
   @override

@@ -382,7 +382,7 @@ class _MealLogCardState extends State<_MealLogCard> {
                       children: [
                         Text(meal.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                         const SizedBox(height: 4),
-                        Text(DateFormat('h:mm a').format(meal.completedAt), style: const TextStyle(color: Colors.grey)),
+                        Text(DateFormat('h:mm a').format(meal.completedAt.toLocal()), style: const TextStyle(color: Colors.grey)),
                       ],
                     ),
                   ),

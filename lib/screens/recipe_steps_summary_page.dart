@@ -90,8 +90,8 @@ class RecipeStepsSummaryPage extends StatelessWidget {
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                onPressed: () {
-                  Navigator.push(
+                onPressed: () async {
+                  final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => InteractiveRecipePage(
@@ -109,6 +109,9 @@ class RecipeStepsSummaryPage extends StatelessWidget {
                       ),
                     ),
                   );
+                  if (result == true) {
+                    Navigator.of(context).pop(true);
+                  }
                 },
               ),
             ),

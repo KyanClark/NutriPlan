@@ -4,6 +4,8 @@ import 'meal_planner_screen.dart';
 import 'profile_screen.dart';
 import '../main.dart'; // Import for ResponsiveDesign utilities
 import 'favorites_page.dart'; // Added import for FavoritesPage
+import 'package:supabase_flutter/supabase_flutter.dart'; // Added import for Supabase
+import '../services/recipe_service.dart'; // Import RecipeService for favorite count
 
 class HomePage extends StatefulWidget {
   final bool forceMealPlanRefresh;
@@ -13,21 +15,70 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   int _selectedIndex = 0;
 
   late List<Widget> _pages;
   bool _didForceRefresh = false;
 
+  int _mealPlanCount = 0;~
+  int _favoriteCount = 0;
+  bool _loadingCounts = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _pages = [
-      MealPlannerScreen(forceRefresh: widget.forceMealPlanRefresh),
+      MealPlannerScreen(forceRefresh: widget.forceMealPlanRefresh, onChanged: _fetchCounts),
       const AnalyticsPage(),
-      FavoritesPage(),
-    const ProfileScreen(),
-  ];
+      FavoritesPage(onChanged: _fetchCounts),
+      const ProfileScreen(),
+    ];
+    _fetchCounts();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _fetchCounts();
+    }
+  }
+
+  Future<void> _fetchCounts() async {
+    setState(() => _loadingCounts = true);
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      setState(() {
+        _mealPlanCount = 0;
+        _favoriteCount = 0;
+        _loadingCounts = false;
+      });
+      return;
+    }
+    // Fetch meal plan count
+    final mealPlans = await Supabase.instance.client
+        .from('meal_plans')
+        .select()
+        .eq('user_id', user.id);
+    int mealCount = 0;
+    for (final plan in mealPlans) {
+      final meals = List<Map<String, dynamic>>.from(plan['meals'] ?? []);
+      mealCount += meals.length;
+    }
+    // Fetch favorite count using RecipeService
+    final favoriteIds = await RecipeService.fetchFavoriteRecipeIds(user.id);
+    setState(() {
+      _mealPlanCount = mealCount;
+      _favoriteCount = favoriteIds.length;
+      _loadingCounts = false;
+    });
   }
 
   @override
@@ -45,7 +96,6 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final isSmallScreen = ResponsiveDesign.isSmallScreen(context);
     final isMediumScreen = ResponsiveDesign.isMediumScreen(context);
-    
     return Scaffold(
       appBar: PreferredSize(
         preferredSize: Size.fromHeight(isSmallScreen ? 70 : 80),
@@ -65,24 +115,18 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               centerTitle: true,
-              actions: [
-              ],
+              actions: [],
             ),
-
-            // Black bottom border
             Container(
               height: 1,
-              color: Colors.grey.withOpacity(0.25), // Softer, more transparent gray
+              color: Colors.grey.withOpacity(0.25),
             ),
           ],
         ),
       ),
-
-      
       backgroundColor: const Color.fromARGB(255, 193, 231, 175),
       body: Column(
         children: [
-          // DASHBOARD SECTION - Only show when on dashboard tab
           if (_selectedIndex == 0) ...[
             Padding(
               padding: ResponsiveDesign.responsivePadding(context),
@@ -129,7 +173,6 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ],
-          // END DASHBOARD SECTION
           Expanded(
             child: _pages[_selectedIndex],
           ),
@@ -141,6 +184,7 @@ class _HomePageState extends State<HomePage> {
           setState(() {
             _selectedIndex = index;
           });
+          _fetchCounts();
         },
         unselectedItemColor: const Color.fromARGB(255, 136, 136, 136),
         selectedItemColor: Colors.green,
@@ -156,9 +200,9 @@ class _HomePageState extends State<HomePage> {
           fontSize: ResponsiveDesign.responsiveFontSize(context, 12),
         ),
         items: [
-          _buildBottomNavItem(Icons.restaurant_menu, 'Meal Plan', 0), // Now first
-          _buildBottomNavItem(Icons.analytics, 'Analytics', 1), // Renamed and icon changed
-          _buildBottomNavItem(Icons.favorite, 'Favorites', 2),
+          _buildBottomNavItem(Icons.restaurant_menu, 'Meal Plan', 0, badgeCount: _mealPlanCount),
+          _buildBottomNavItem(Icons.analytics, 'Analytics', 1),
+          _buildBottomNavItem(Icons.favorite, 'Favorites', 2, badgeCount: _favoriteCount),
           BottomNavigationBarItem(
             icon: CircleAvatar(
               radius: isSmallScreen ? 14 : 16,
@@ -173,23 +217,54 @@ class _HomePageState extends State<HomePage> {
   }
 
   BottomNavigationBarItem _buildBottomNavItem(
-      IconData icon, String label, int index) {
+      IconData icon, String label, int index, {int badgeCount = 0}) {
     return BottomNavigationBarItem(
-      icon: ShaderMask(
-        shaderCallback: (Rect bounds) {
-          return LinearGradient(
-            colors: index == _selectedIndex
-                ? [
-                          Color.fromRGBO(142, 190, 155, 1.0),
-                          Color.fromRGBO(125, 189, 228, 1.0),
-                  ]
-                : [Colors.grey, Colors.grey],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-          ).createShader(bounds);
-        },
-        child: Icon(icon, color: Colors.white),
+      icon: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          ShaderMask(
+            shaderCallback: (Rect bounds) {
+              return LinearGradient(
+                colors: index == _selectedIndex
+                    ? [
+                        Color.fromRGBO(142, 190, 155, 1.0),
+                        Color.fromRGBO(125, 189, 228, 1.0),
+                      ]
+                    : [Colors.grey, Colors.grey],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ).createShader(bounds);
+            },
+            child: Icon(icon, color: Colors.white),
+          ),
+          if (badgeCount > 0)
+            Positioned(
+              top: -5,
+              right: -10, // Move badge to top-right
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: const Color.fromARGB(255, 252, 65, 51),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                constraints: const BoxConstraints(
+                  minWidth: 18,
+                  minHeight: 18,
+                ),
+                child: Center(
+                  child: Text(
+                    badgeCount.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
+                ),
+              ),
+            ),
+        ],
+      ),
       label: label,
     );
   }
@@ -393,7 +468,7 @@ class AnalyticsPage extends StatelessWidget {
 
           // Features Grid
           Text(
-            'Features',
+            'Features (NO FUNCTIONALITY YET)',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.bold,
               color: const Color.fromARGB(255, 8, 8, 8),
@@ -412,7 +487,7 @@ class AnalyticsPage extends StatelessWidget {
             children: [
               _FeatureCard(
                 title: 'Suggestions',
-                description: 'Discover new meal ideas',
+                description: 'Discover new meals',
                 icon: Icons.lightbulb,
                 color: Colors.amber,
                 onTap: () {

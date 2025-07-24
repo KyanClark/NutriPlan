@@ -9,7 +9,8 @@ import '../screens/meal_plan_confirmation_page.dart'; // Added import for MealPl
 import '../screens/home_page.dart'; // Added import for HomePage
 
 class RecipesPage extends StatefulWidget {
-  const RecipesPage({super.key});
+  final VoidCallback? onChanged;
+  const RecipesPage({super.key, this.onChanged});
 
   @override
   State<RecipesPage> createState() => _RecipesPageState();
@@ -84,6 +85,7 @@ class _RecipesPageState extends State<RecipesPage> {
     await RecipeService.toggleFavorite(userId!, recipe.id, isFav);
     if (!mounted) return;
     await _fetchFavorites();
+    if (widget.onChanged != null) widget.onChanged!();
   }
 
   @override
@@ -194,7 +196,7 @@ class _RecipesPageState extends State<RecipesPage> {
                                 _scaffoldMessengerKey.currentState?.showSnackBar(
                                   SnackBar(
                                     content: Text('${fullRecipe.title} is added to your Meal Plan'),
-                                    duration: const Duration(seconds: 2),
+                                    duration: const Duration(seconds: 1),
                                   ),
                                 );
                               }
@@ -367,6 +369,7 @@ class _RecipesPageState extends State<RecipesPage> {
                                         ),
                                       );
                                     },
+                                    onChanged: widget.onChanged,
                                   ),
                                 ),
                               );
