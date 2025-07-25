@@ -29,6 +29,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _shouldLogout = false;
   File? _profileImage;
   String? _profileImagePath;
+  String? _avatarUrl;
 
   // Example health goals
   final List<String> _availableHealthGoals = [
@@ -55,9 +56,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (user != null) {
       try {
         final data = await Supabase.instance.client
-            .from('user_preferences')
+            .from('profiles')
             .select()
-            .eq('user_id', user.id)  // ← Uses unique user ID
+            .eq('id', user.id)
             .maybeSingle();
         if (!mounted) return;
         if (data != null) {
@@ -65,6 +66,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _dietType = data['diet_type'] as String?;
             _allergies = data['allergies'] as List<dynamic>? ?? [];
             _servings = data['servings'] as int?;
+            _avatarUrl = data['avatar_url'] as String?;
             if (data['health_goals'] != null) {
               _healthGoals = List<String>.from(data['health_goals']);
             }
@@ -232,157 +234,292 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _pickAndUploadProfileImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (pickedFile == null) return;
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+    final fileBytes = await pickedFile.readAsBytes();
+    final fileExt = pickedFile.path.split('.').last;
+    final filePath = 'profile-pictures/${user.id}.$fileExt';
+    final storage = Supabase.instance.client.storage.from('profile_pictures');
+    await storage.uploadBinary(filePath, fileBytes, fileOptions: FileOptions(upsert: true, contentType: 'image/$fileExt'));
+    final publicUrl = storage.getPublicUrl(filePath);
+    // Update avatar_url in profiles
+    await Supabase.instance.client.from('profiles').update({'avatar_url': publicUrl}).eq('id', user.id);
+    setState(() {
+      _avatarUrl = publicUrl;
+    });
+  }
+
+  Future<void> _showProfileImagePicker() async {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Choose from Gallery'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _pickAndUploadProfileImage();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.link),
+                title: const Text('Use Image URL'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _showImageUrlDialog();
+                },
+              ),
+            ],  
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showImageUrlDialog() async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Enter Image URL'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(hintText: 'https://example.com/image.jpg'),
+          keyboardType: TextInputType.url,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final url = controller.text.trim();
+              if (url.startsWith('http')) {
+                Navigator.pop(context, url);
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (result != null && result.isNotEmpty) {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
+      await Supabase.instance.client.from('profiles').update({'avatar_url': result}).eq('id', user.id);
+      setState(() {
+        _avatarUrl = result;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 241, 241, 241),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Purple background with profile image (no back button)
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Container(
-                        height: 140, // Increased height for more overlap room
-                        width: double.infinity,
-                        decoration: const BoxDecoration(
-                          color: Color.fromARGB(255, 103, 196, 106), // Main project color
-                          borderRadius: BorderRadius.only(
-                            bottomLeft: Radius.circular(25),
-                            bottomRight: Radius.circular(25),
-                          ),
-                        ),
-                      ),
-                      // Overlapping large profile avatar at the bottom center
-                      Positioned(
-                        left: MediaQuery.of(context).size.width / 2 - 70, // Center the avatar
-                        right: null,
-                        bottom: -58, // Half of avatar radius to overlap
-                        child: CircleAvatar(
-                          radius: 70,
-                          backgroundColor: Colors.white,
-                          backgroundImage: _profileImage != null ? FileImage(_profileImage!) : null,
-                          child: _profileImage == null
-                              ? Icon(Icons.person, size: 90, color: const Color.fromARGB(255, 97, 212, 86))
-                              : null,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 65), // Reduced spacing between avatar and name/email
-                  // Name and Email
-                  Text(
-                    _fullName ?? 'User',
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  if (_email != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2.0, bottom: 8.0), // Reduced top padding
-                      child: Text(
-                        _email!,
-                        style: const TextStyle(fontSize: 15, color: Colors.black54, fontWeight: FontWeight.w400),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  if (_bio != null && _bio!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8.0),
-                      child: Text(
-                        _bio!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 14, color: Colors.black54),
-                      ),
-                    ),
-                  if (_bio == null || _bio!.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8.0),
-                      child: Text(
-                        'Set your bio to let others know more about you!',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 14, color: Colors.black38),
-                      ),
-                    ),
-                  const SizedBox(height: 16),
-                  // New: Options List
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        _MinimalOption(
-                          label: 'Dietary Preferences',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => DietaryPreferencesScreen()),
-                            );
-                          },
-                        ),
-                        _MinimalDivider(),
-                        _MinimalOption(
-                          label: 'Meal Tracker',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => MealTrackerScreen()),
-                            );
-                          },
-                        ),
-                        _MinimalDivider(),
-                        _MinimalOption(
-                          label: 'Meal Plan History',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => MealPlanHistoryScreen()),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  // Restored Logout Button with more padding
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),
-                    child: SizedBox(
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Header with avatar and camera icon (not in scroll view)
+                Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      height: 140,
                       width: double.infinity,
-                      child: ElevatedButton(
-                        child: const Text('Logout', style: TextStyle(color: Colors.white)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Color.fromARGB(255, 224, 83, 83), // Modern blue-gray
-                          padding: const EdgeInsets.symmetric(vertical: 18),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                      decoration: const BoxDecoration(
+                        color: Color.fromARGB(255, 103, 196, 106),
+                        borderRadius: BorderRadius.only(
+                          bottomLeft: Radius.circular(25),
+                          bottomRight: Radius.circular(25),
                         ),
-                        onPressed: () async {
-                          final confirm = await _showLogoutConfirmation(context);
-                          if (confirm == true) {
-                            setState(() {
-                              _shouldLogout = true;
-                            });
-                            _handleLogoutIfNeeded();
-                          }
-                        },
                       ),
                     ),
+                    // Avatar and camera icon always within bounds
+                    Padding(
+                      padding: const EdgeInsets.only(top: 40),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          CircleAvatar(
+                            radius: 70,
+                            backgroundColor: Colors.white,
+                            backgroundImage: _avatarUrl != null && _avatarUrl!.isNotEmpty
+                                ? NetworkImage(_avatarUrl!)
+                                : null,
+                            child: (_avatarUrl == null || _avatarUrl!.isEmpty)
+                                ? Icon(Icons.person, size: 90, color: const Color.fromARGB(255, 97, 212, 86))
+                                : null,
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: -8,
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () {
+                                print('Camera icon tapped!');
+                                _showProfileImagePicker();
+                              },
+                              child: Material(
+                                color: Colors.transparent,
+                                shape: const CircleBorder(),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.08),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  padding: const EdgeInsets.all(10),
+                                  child: const Icon(Icons.camera_alt, color: Color.fromARGB(255, 97, 212, 86), size: 24),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                // The rest of the profile content is scrollable
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 105), // More space for avatar overlap
+                        // Name and Email
+                        Text(
+                          _fullName ?? 'User',
+                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                        ),
+                        if (_email != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2.0, bottom: 8.0), // Reduced top padding
+                            child: Text(
+                              _email!,
+                              style: const TextStyle(fontSize: 15, color: Colors.black54, fontWeight: FontWeight.w400),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        if (_bio != null && _bio!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8.0),
+                            child: Text(
+                              _bio!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 14, color: Colors.black54),
+                            ),
+                          ),
+                        if (_bio == null || _bio!.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8.0),
+                            child: Text(
+                              'Set your bio to let others know more about you!',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 14, color: Colors.black38),
+                            ),
+                          ),
+                        const SizedBox(height: 16),
+                        // New: Options List
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.04),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              _MinimalOption(
+                                label: 'Dietary Preferences',
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => DietaryPreferencesScreen()),
+                                  );
+                                },
+                              ),
+                              _MinimalDivider(),
+                              _MinimalOption(
+                                label: 'Meal Tracker',
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => MealTrackerScreen()),
+                                  );
+                                },
+                              ),
+                              _MinimalDivider(),
+                              _MinimalOption(
+                                label: 'Meal Plan History',
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => MealPlanHistoryScreen()),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        // Restored Logout Button with more padding
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              child: const Text('Logout', style: TextStyle(color: Colors.white)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Color.fromARGB(255, 224, 83, 83), // Modern blue-gray
+                                padding: const EdgeInsets.symmetric(vertical: 18),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: () async {
+                                final confirm = await _showLogoutConfirmation(context);
+                                if (confirm == true) {
+                                  setState(() {
+                                    _shouldLogout = true;
+                                  });
+                                  _handleLogoutIfNeeded();
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
       // Removed BottomNavigationBar from ProfileScreen
     );
@@ -445,32 +582,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<String?> _showAddAllergyDialog(BuildContext context) async {
-    String allergy = '';
-    return showDialog<String>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Add Allergy'),
-          content: TextField(
-            autofocus: true,
-            decoration: const InputDecoration(hintText: 'Enter allergy'),
-            onChanged: (val) => allergy = val,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, allergy),
-              child: const Text('Add'),
-            ),
-          ],
-        );
-      },
-    );
-  }
 } 
 
 class _MinimalOption extends StatelessWidget {

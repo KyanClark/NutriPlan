@@ -11,7 +11,7 @@ void main() async {
   );
   runApp(const NutriPlan());
 }
-  
+
 class NutriPlan extends StatelessWidget {
   const NutriPlan({super.key});
 
