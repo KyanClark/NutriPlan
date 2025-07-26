@@ -30,6 +30,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   File? _profileImage;
   String? _profileImagePath;
   String? _avatarUrl;
+  bool _uploadingImage = false;
 
   // Example health goals
   final List<String> _availableHealthGoals = [
@@ -40,11 +41,98 @@ class _ProfileScreenState extends State<ProfileScreen> {
     'Maintain Weight',
   ];
 
+  bool _hasShownInitialLoading = false;
+
   @override
   void initState() {
     super.initState();
     _fetchUserProfile();
     _loadProfileImage();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_hasShownInitialLoading && _loading) {
+      _hasShownInitialLoading = true;
+      // Use a microtask to avoid showing dialog during build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _showInitialLoadingDialog();
+        }
+      });
+    }
+  }
+
+  Future<void> _showInitialLoadingDialog() async {
+    // Show loading dialog for initial profile fetch
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return WillPopScope(
+          onWillPop: () async => false,
+          child: Dialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Loading animation (same as meal history)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(3, (i) => AnimatedContainer(
+                      duration: const Duration(milliseconds: 400),
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: const Color.fromARGB(255, 97, 212, 86).withOpacity(i == DateTime.now().second % 3 ? 1 : 0.4),
+                        shape: BoxShape.circle,
+                      ),
+                    )),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Loading Profile...',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Please wait while we load your profile',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.black54,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    // Wait for profile to finish loading
+    while (_loading && mounted) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+    
+    // Close loading dialog
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   Future<void> _fetchUserProfile() async {
@@ -132,11 +220,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _handleLogoutIfNeeded();
-  }
+
 
   @override
   void didUpdateWidget(covariant ProfileScreen oldWidget) {
@@ -175,15 +259,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final key = 'profile_image_path_${user.id}';
     final path = prefs.getString(key);
     if (path != null && await File(path).exists()) {
-      setState(() {
-        _profileImagePath = path;
-        _profileImage = File(path);
-      });
+      if (mounted) {
+        setState(() {
+          _profileImagePath = path;
+          _profileImage = File(path);
+        });
+      }
     } else {
-      setState(() {
-        _profileImagePath = null;
-        _profileImage = null;
-      });
+      if (mounted) {
+        setState(() {
+          _profileImagePath = null;
+          _profileImage = null;
+        });
+      }
     }
   }
 
@@ -206,10 +294,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(key);
-      setState(() {
-        _profileImage = null;
-        _profileImagePath = null;
-      });
+      if (mounted) {
+        setState(() {
+          _profileImage = null;
+          _profileImagePath = null;
+        });
+      }
     }
   }
 
@@ -227,10 +317,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final fileName = 'profile_${user.id}_${DateTime.now().millisecondsSinceEpoch}.png';
       final savedImage = await File(pickedFile.path).copy('${profileDir.path}/$fileName');
       await _saveProfileImagePath(savedImage.path);
-      setState(() {
-        _profileImage = savedImage;
-        _profileImagePath = savedImage.path;
-      });
+      if (mounted) {
+        setState(() {
+          _profileImage = savedImage;
+          _profileImagePath = savedImage.path;
+        });
+      }
     }
   }
 
@@ -240,17 +332,138 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (pickedFile == null) return;
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
-    final fileBytes = await pickedFile.readAsBytes();
-    final fileExt = pickedFile.path.split('.').last;
-    final filePath = 'profile-pictures/${user.id}.$fileExt';
-    final storage = Supabase.instance.client.storage.from('profile_pictures');
-    await storage.uploadBinary(filePath, fileBytes, fileOptions: FileOptions(upsert: true, contentType: 'image/$fileExt'));
-    final publicUrl = storage.getPublicUrl(filePath);
-    // Update avatar_url in profiles
-    await Supabase.instance.client.from('profiles').update({'avatar_url': publicUrl}).eq('id', user.id);
-    setState(() {
-      _avatarUrl = publicUrl;
-    });
+    
+    // Show loading dialog
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return WillPopScope(
+          onWillPop: () async => false, // Prevent closing with back button
+          child: Dialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Loading animation (same as meal history)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(3, (i) => AnimatedContainer(
+                      duration: const Duration(milliseconds: 400),
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: const Color.fromARGB(255, 97, 212, 86).withOpacity(i == DateTime.now().second % 3 ? 1 : 0.4),
+                        shape: BoxShape.circle,
+                      ),
+                    )),
+                  ),
+                  const SizedBox(height: 20),
+                  // Loading text
+                  const Text(
+                    'Uploading Profile Picture...',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Please wait while we upload your image',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.black54,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    
+    // Set loading state
+    if (mounted) {
+      setState(() {
+        _uploadingImage = true;
+      });
+    }
+    
+    try {
+      final fileBytes = await pickedFile.readAsBytes();
+      final fileExt = pickedFile.path.split('.').last;
+      final filePath = 'profile-pictures/${user.id}.$fileExt';
+      final storage = Supabase.instance.client.storage.from('profile-pictures');
+      
+      // Upload the image to Supabase Storage
+      await storage.uploadBinary(
+        filePath, 
+        fileBytes, 
+        fileOptions: FileOptions(upsert: true, contentType: 'image/$fileExt')
+      );
+      
+      // Get the public URL
+      final publicUrl = storage.getPublicUrl(filePath);
+      
+      // Update avatar_url in profiles table
+      await Supabase.instance.client
+          .from('profiles')
+          .update({'avatar_url': publicUrl})
+          .eq('id', user.id);
+      
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+      
+      // Update the UI
+      if (mounted) {
+        setState(() {
+          _avatarUrl = publicUrl;
+          _uploadingImage = false;
+        });
+      }
+      
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile picture updated successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error uploading profile image: $e');
+      
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+      
+      if (mounted) {
+        setState(() {
+          _uploadingImage = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _showProfileImagePicker() async {
@@ -288,6 +501,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _showImageUrlDialog() async {
+    if (!mounted) return;
     final controller = TextEditingController();
     final result = await showDialog<String>(
       context: context,
@@ -318,10 +532,107 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (result != null && result.isNotEmpty) {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) return;
-      await Supabase.instance.client.from('profiles').update({'avatar_url': result}).eq('id', user.id);
-      setState(() {
-        _avatarUrl = result;
-      });
+      
+      // Show loading dialog
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return WillPopScope(
+            onWillPop: () async => false,
+            child: Dialog(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Loading animation (same as meal history)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(3, (i) => AnimatedContainer(
+                        duration: const Duration(milliseconds: 400),
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: const Color.fromARGB(255, 97, 212, 86).withOpacity(i == DateTime.now().second % 3 ? 1 : 0.4),
+                          shape: BoxShape.circle,
+                        ),
+                      )),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Updating Profile Picture...',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Please wait while we update your profile',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.black54,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      );
+      
+      try {
+        await Supabase.instance.client.from('profiles').update({'avatar_url': result}).eq('id', user.id);
+        
+        // Close loading dialog
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+        
+        if (mounted) {
+          setState(() {
+            _avatarUrl = result;
+          });
+        }
+        
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profile picture updated successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        print('Error updating profile image URL: $e');
+        
+        // Close loading dialog
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+        
+        // Show error message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to update profile picture: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -330,7 +641,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 241, 241, 241),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(3, (i) => AnimatedContainer(
+                  duration: const Duration(milliseconds: 400),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: const Color.fromARGB(255, 97, 212, 86).withOpacity(i == DateTime.now().second % 3 ? 1 : 0.4),
+                    shape: BoxShape.circle,
+                  ),
+                )),
+              ),
+            )
           : Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -362,16 +687,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             backgroundImage: _avatarUrl != null && _avatarUrl!.isNotEmpty
                                 ? NetworkImage(_avatarUrl!)
                                 : null,
-                            child: (_avatarUrl == null || _avatarUrl!.isEmpty)
-                                ? Icon(Icons.person, size: 90, color: const Color.fromARGB(255, 97, 212, 86))
-                                : null,
+                            child: _uploadingImage
+                                ? Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: List.generate(3, (i) => AnimatedContainer(
+                                      duration: const Duration(milliseconds: 400),
+                                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        color: const Color.fromARGB(255, 97, 212, 86).withOpacity(i == DateTime.now().second % 3 ? 1 : 0.4),
+                                        shape: BoxShape.circle,
+                                      ),
+                                    )),
+                                  )
+                                : (_avatarUrl == null || _avatarUrl!.isEmpty)
+                                    ? Icon(Icons.person, size: 90, color: const Color.fromARGB(255, 97, 212, 86))
+                                    : null,
                           ),
                           Positioned(
                             bottom: 0,
                             right: -8,
                             child: GestureDetector(
                               behavior: HitTestBehavior.opaque,
-                              onTap: () {
+                              onTap: _uploadingImage ? null : () {
                                 print('Camera icon tapped!');
                                 _showProfileImagePicker();
                               },
@@ -391,7 +730,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     ],
                                   ),
                                   padding: const EdgeInsets.all(10),
-                                  child: const Icon(Icons.camera_alt, color: Color.fromARGB(255, 97, 212, 86), size: 24),
+                                  child: Icon(
+                                    Icons.camera_alt, 
+                                    color: _uploadingImage 
+                                        ? Colors.grey 
+                                        : const Color.fromARGB(255, 97, 212, 86), 
+                                    size: 24
+                                  ),
                                 ),
                               ),
                             ),
@@ -590,18 +935,28 @@ class _MinimalOption extends StatelessWidget {
   const _MinimalOption({required this.label, required this.onTap});
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-        child: Row(
-          children: [
-            Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: Colors.black87),
-            ),
-          ],
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: Colors.black87),
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+                color: Colors.grey[400],
+              ),
+            ],
+          ),
         ),
       ),
     );
