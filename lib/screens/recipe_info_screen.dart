@@ -4,6 +4,7 @@ import '../models/recipes.dart';
 import 'package:nutriplan/screens/recipe_steps_summary_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/feedback_service.dart';
+import 'feedback_thank_you_page.dart';
 
 class RecipeInfoScreen extends StatefulWidget {
   final Recipe recipe;
@@ -55,6 +56,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
     try {
       final response = await FeedbackService.fetchRecipeFeedbacks(widget.recipe.id);
       print('Feedbacks loaded: ${response.length} items');
+      print('Response data: $response');
       
       if (mounted) {
         setState(() {
@@ -63,6 +65,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
           isLoadingFeedbacks = false;
         });
         print('State updated with ${feedbacks.length} feedbacks');
+        print('Feedbacks list: $feedbacks');
       }
     } catch (e) {
       print('Error loading feedbacks: $e');
@@ -93,6 +96,56 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
     final currentUser = Supabase.instance.client.auth.currentUser;
     if (currentUser == null) return false;
     return feedback['user_id'] == currentUser.id;
+  }
+
+  Future<void> _showDeleteConfirmation(Map<String, dynamic> feedback) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Review'),
+        content: const Text('Are you sure you want to delete this review? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true) {
+      await _deleteFeedback(feedback);
+    }
+  }
+
+  Future<void> _deleteFeedback(Map<String, dynamic> feedback) async {
+    try {
+      await FeedbackService.deleteFeedback(feedback['id']);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Review deleted successfully')),
+      );
+
+      // Remove the feedback from the local list
+      if (mounted) {
+        setState(() {
+          feedbacks.removeWhere((f) => f['id'] == feedback['id']);
+          _calculateAverageRating();
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete review: ${e.toString()}')),
+      );
+    }
   }
 
   Future<void> _showAddFeedbackDialog() async {
@@ -186,21 +239,18 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
         comment: comment,
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Thank you for your feedback!')),
-      );
-
-      print('Feedback submitted successfully, updating state...');
+      print('Feedback submitted successfully, navigating to thank you page...');
       
-      // Add the new feedback to the beginning of the list
+      // Navigate to thank you page
       if (mounted) {
-        setState(() {
-          feedbacks.insert(0, newFeedback);
-          _calculateAverageRating();
-        });
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => FeedbackThankYouPage(
+              recipeTitle: widget.recipe.title,
+            ),
+          ),
+        );
       }
-      
-      print('State updated. Total feedbacks: ${feedbacks.length}');
     } catch (e) {
       print('Error submitting feedback: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -365,24 +415,20 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                             ...recipe.instructions.asMap().entries.map((entry) => Text('${entry.key + 1}. ${entry.value}')),
                             const SizedBox(height: 16),
                             
-                            // Feedback Section Header
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Reviews & Ratings', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                                ElevatedButton.icon(
-                                  onPressed: _showAddFeedbackDialog,
-                                  icon: const Icon(Icons.rate_review, size: 18),
-                                  label: const Text('Add Review'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF4CAF50),
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
+                                                        // Feedback Section Header
+                            const Text('Reviews & Ratings', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                            const SizedBox(height: 8),
+                            ElevatedButton.icon(
+                              onPressed: _loadFeedbacks,
+                              icon: const Icon(Icons.refresh, size: 18),
+                              label: const Text('Refresh'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                              ],
+                              ),
                             ),
                             const SizedBox(height: 8),
                             
@@ -431,7 +477,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('Recent Reviews', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                  Text('Recent Reviews (${feedbacks.length})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                                   const SizedBox(height: 8),
                                   ...feedbacks.take(5).map((feedback) => Padding(
                                     padding: const EdgeInsets.only(bottom: 8.0),
@@ -477,6 +523,28 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                                                       fontWeight: FontWeight.bold,
                                                     ),
                                                   ),
+                                                ),
+                                              // Three dots menu for user's own feedback
+                                              if (_isCurrentUserFeedback(feedback))
+                                                PopupMenuButton<String>(
+                                                  icon: const Icon(Icons.more_vert, color: Colors.grey),
+                                                  onSelected: (value) {
+                                                    if (value == 'delete') {
+                                                      _showDeleteConfirmation(feedback);
+                                                    }
+                                                  },
+                                                  itemBuilder: (context) => [
+                                                    const PopupMenuItem<String>(
+                                                      value: 'delete',
+                                                      child: Row(
+                                                        children: [
+                                                          Icon(Icons.delete, color: Colors.red),
+                                                          SizedBox(width: 8),
+                                                          Text('Delete', style: TextStyle(color: Colors.red)),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
                                             ],
                                           ),

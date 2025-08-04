@@ -5,11 +5,32 @@ class FeedbackService {
     try {
       final response = await Supabase.instance.client
           .from('recipe_feedbacks')
-          .select('*, profiles(username)')
+          .select('*')
           .eq('recipe_id', recipeId)
           .order('created_at', ascending: false);
       
-      return List<Map<String, dynamic>>.from(response);
+      // Get user profiles separately
+      final feedbacks = List<Map<String, dynamic>>.from(response);
+      final userIds = feedbacks.map((f) => f['user_id']).toSet().toList();
+      
+      if (userIds.isNotEmpty) {
+        final profilesResponse = await Supabase.instance.client
+            .from('profiles')
+            .select('id, username')
+            .inFilter('id', userIds);
+        
+        final profiles = Map<String, dynamic>.fromEntries(
+          (profilesResponse as List).map((p) => MapEntry(p['id'], p))
+        );
+        
+        // Merge feedback with profile data
+        for (final feedback in feedbacks) {
+          final profile = profiles[feedback['user_id']];
+          feedback['profiles'] = profile ?? {'username': 'Anonymous'};
+        }
+      }
+      
+      return feedbacks;
     } catch (e) {
       throw Exception('Failed to fetch feedbacks: $e');
     }
@@ -36,15 +57,25 @@ class FeedbackService {
             'comment': comment,
           });
 
-      // Fetch the newly created feedback with user profile information
+      // Fetch the newly created feedback
       final response = await Supabase.instance.client
           .from('recipe_feedbacks')
-          .select('*, profiles(username)')
+          .select('*')
           .eq('recipe_id', recipeId)
           .eq('user_id', user.id)
           .order('created_at', ascending: false)
           .limit(1)
           .single();
+
+      // Get user profile information
+      final profileResponse = await Supabase.instance.client
+          .from('profiles')
+          .select('id, username')
+          .eq('id', user.id)
+          .single();
+
+      // Merge feedback with profile data
+      response['profiles'] = profileResponse;
 
       return response;
     } catch (e) {

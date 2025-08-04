@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/feedback_service.dart';
+import 'feedback_thank_you_page.dart';
 import 'package:flutter/scheduler.dart';
 
 class InteractiveRecipePage extends StatefulWidget {
@@ -87,9 +89,11 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
                         actions: [
                           TextButton(
                             onPressed: () async {
+                              print('Finish button clicked - first dialog');
                               await _handleMealCompletion();
                               Navigator.of(context).pop(); // Close the dialog
-                              Navigator.of(context).pop(true); // Pop InteractiveRecipePage with result true
+                              // Show feedback dialog instead of finishing
+                              _showFeedbackDialog();
                             },
                             child: const Text('Finish'),
                           ),
@@ -177,9 +181,12 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
                 content: const Text('You have completed all the steps. Enjoy your meal!'),
                 actions: [
                   TextButton(
-                    onPressed: () {
+                    onPressed: () async {
+                      print('Finish button clicked - second dialog');
+                      await _handleMealCompletion();
                       Navigator.of(context).pop(); // Close the dialog
-                      Navigator.of(context).popUntil((route) => route.isFirst); // Go back to meal planner screen
+                      // Show feedback dialog instead of finishing
+                      _showFeedbackDialog();
                     },
                     child: const Text('Finish'),
                   ),
@@ -230,6 +237,113 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
       }
     }
     // Do NOT pop here; let the dialog's Finish button handle it
+  }
+
+  Future<void> _showFeedbackDialog() async {
+    print('_showFeedbackDialog called');
+    // Check if user is authenticated first
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      print('User not authenticated, popping');
+      Navigator.of(context).pop(true); // Pop InteractiveRecipePage with result true
+      return;
+    }
+    print('User authenticated: ${user.id}');
+
+    double rating = 0;
+    final commentController = TextEditingController();
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Rate Your Experience'),
+        content: StatefulBuilder(
+          builder: (context, setState) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('How would you rate this recipe?'),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        rating = index + 1;
+                      });
+                    },
+                    child: Icon(
+                      index < rating ? Icons.star : Icons.star_border,
+                      color: Colors.amber,
+                      size: 32,
+                    ),
+                  );
+                }),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: commentController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  hintText: 'Share your experience with this recipe...',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pop(true); // Pop InteractiveRecipePage with result true
+            },
+            child: const Text('Skip'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (rating > 0) {
+                Navigator.of(context).pop({
+                  'rating': rating,
+                  'comment': commentController.text.trim(),
+                });
+              }
+            },
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null) {
+      try {
+        await FeedbackService.addFeedback(
+          recipeId: widget.recipeId ?? '',
+          rating: result['rating'],
+          comment: result['comment'],
+        );
+
+        // Navigate to thank you page
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => FeedbackThankYouPage(
+                recipeTitle: widget.title ?? 'Recipe',
+              ),
+            ),
+          );
+        }
+      } catch (e) {
+        // If feedback submission fails, just go back to home
+        if (mounted) {
+          Navigator.of(context).pop(true); // Pop InteractiveRecipePage with result true
+        }
+      }
+    } else {
+      // User skipped feedback, go back to home
+      Navigator.of(context).pop(true); // Pop InteractiveRecipePage with result true
+    }
   }
 
   // Helper to extract timer duration from instruction (e.g., 'Wait 5 minutes', '10-12 min', 'Rest 3 min', '5 mins', etc.)
