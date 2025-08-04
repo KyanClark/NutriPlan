@@ -3,10 +3,10 @@ import 'package:fl_chart/fl_chart.dart';
 import 'meal_planner_screen.dart';
 import 'profile_screen.dart';
 import 'analytics_page.dart';
-import '../main.dart'; // Import for ResponsiveDesign utilities
-import 'favorites_page.dart'; // Added import for FavoritesPage
-import 'package:supabase_flutter/supabase_flutter.dart'; // Added import for Supabase
-import '../services/recipe_service.dart'; // Import RecipeService for favorite count
+import '../utils/responsive_design.dart'; 
+import 'favorites_page.dart'; 
+import 'package:supabase_flutter/supabase_flutter.dart'; 
+import '../services/recipe_service.dart'; 
 
 class HomePage extends StatefulWidget {
   final bool forceMealPlanRefresh;

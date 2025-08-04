@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:nutriplan/screens/interactive_recipe_page.dart';
 import '../models/recipes.dart';
 import 'package:nutriplan/screens/recipe_steps_summary_page.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/feedback_service.dart';
 
 class RecipeInfoScreen extends StatefulWidget {
   final Recipe recipe;
@@ -16,6 +18,196 @@ class RecipeInfoScreen extends StatefulWidget {
 
 class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
   bool showMealPlanBar = false;
+  List<Map<String, dynamic>> feedbacks = [];
+  bool isLoadingFeedbacks = true;
+  double averageRating = 0.0;
+  int totalFeedbacks = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFeedbacks();
+    _checkDatabaseTable();
+  }
+
+  Future<void> _checkDatabaseTable() async {
+    try {
+      print('Checking if recipe_feedbacks table exists...');
+      final result = await Supabase.instance.client
+          .from('recipe_feedbacks')
+          .select('count')
+          .limit(1);
+      print('Table exists and is accessible');
+    } catch (e) {
+      print('Error accessing recipe_feedbacks table: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Database table not found: $e')),
+      );
+    }
+  }
+
+  Future<void> _loadFeedbacks() async {
+    print('Loading feedbacks for recipe: ${widget.recipe.id}');
+    setState(() {
+      isLoadingFeedbacks = true;
+    });
+
+    try {
+      final response = await FeedbackService.fetchRecipeFeedbacks(widget.recipe.id);
+      print('Feedbacks loaded: ${response.length} items');
+      
+      if (mounted) {
+        setState(() {
+          feedbacks = response;
+          _calculateAverageRating();
+          isLoadingFeedbacks = false;
+        });
+        print('State updated with ${feedbacks.length} feedbacks');
+      }
+    } catch (e) {
+      print('Error loading feedbacks: $e');
+      if (mounted) {
+        setState(() {
+          isLoadingFeedbacks = false;
+        });
+      }
+    }
+  }
+
+  void _calculateAverageRating() {
+    if (feedbacks.isEmpty) {
+      averageRating = 0.0;
+      totalFeedbacks = 0;
+      return;
+    }
+
+    double totalRating = 0.0;
+    for (final feedback in feedbacks) {
+      totalRating += (feedback['rating'] ?? 0).toDouble();
+    }
+    averageRating = totalRating / feedbacks.length;
+    totalFeedbacks = feedbacks.length;
+  }
+
+  bool _isCurrentUserFeedback(Map<String, dynamic> feedback) {
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    if (currentUser == null) return false;
+    return feedback['user_id'] == currentUser.id;
+  }
+
+  Future<void> _showAddFeedbackDialog() async {
+    // Check if user is authenticated first
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to leave feedback')),
+      );
+      return;
+    }
+
+    print('User authenticated: ${user.id}');
+    print('Recipe ID: ${widget.recipe.id}');
+
+    double rating = 0;
+    final commentController = TextEditingController();
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rate this Recipe'),
+        content: StatefulBuilder(
+          builder: (context, setState) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('How would you rate this recipe?'),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        rating = index + 1;
+                      });
+                    },
+                    child: Icon(
+                      index < rating ? Icons.star : Icons.star_border,
+                      color: Colors.amber,
+                      size: 32,
+                    ),
+                  );
+                }),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: commentController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  hintText: 'Share your experience with this recipe...',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (rating > 0) {
+                Navigator.of(context).pop({
+                  'rating': rating,
+                  'comment': commentController.text.trim(),
+                });
+              }
+            },
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null) {
+      await _submitFeedback(result['rating'], result['comment']);
+    }
+  }
+
+  Future<void> _submitFeedback(double rating, String comment) async {
+    try {
+      print('Submitting feedback for recipe: ${widget.recipe.id}');
+      print('Rating: $rating, Comment: $comment');
+      
+      final newFeedback = await FeedbackService.addFeedback(
+        recipeId: widget.recipe.id,
+        rating: rating,
+        comment: comment,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Thank you for your feedback!')),
+      );
+
+      print('Feedback submitted successfully, updating state...');
+      
+      // Add the new feedback to the beginning of the list
+      if (mounted) {
+        setState(() {
+          feedbacks.insert(0, newFeedback);
+          _calculateAverageRating();
+        });
+      }
+      
+      print('State updated. Total feedbacks: ${feedbacks.length}');
+    } catch (e) {
+      print('Error submitting feedback: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to submit feedback: ${e.toString()}')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -171,6 +363,131 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                             const Text('Instructions', style: TextStyle(fontWeight: FontWeight.bold)),
                             const SizedBox(height: 6),
                             ...recipe.instructions.asMap().entries.map((entry) => Text('${entry.key + 1}. ${entry.value}')),
+                            const SizedBox(height: 16),
+                            
+                            // Feedback Section Header
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Reviews & Ratings', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                                ElevatedButton.icon(
+                                  onPressed: _showAddFeedbackDialog,
+                                  icon: const Icon(Icons.rate_review, size: 18),
+                                  label: const Text('Add Review'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF4CAF50),
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            
+                            // Average Rating Display
+                            if (isLoadingFeedbacks)
+                              const Center(child: CircularProgressIndicator())
+                            else if (totalFeedbacks > 0)
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF8E1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.star, color: Colors.amber, size: 24),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      '${averageRating.toStringAsFixed(1)}/5.0',
+                                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text('($totalFeedbacks reviews)', style: const TextStyle(color: Color(0xFF757575))),
+                                  ],
+                                ),
+                              )
+                            else
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF5F5F5),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Center(
+                                  child: Text(
+                                    'No reviews yet. Be the first to share your experience!',
+                                    style: TextStyle(color: Colors.grey),
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: 16),
+                            
+                            // Individual Feedback Cards
+                            if (feedbacks.isNotEmpty)
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Recent Reviews', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                  const SizedBox(height: 8),
+                                  ...feedbacks.take(5).map((feedback) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 8.0),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF5F5F5),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Row(
+                                                  children: [
+                                                    Text(feedback['profiles']['username'] ?? 'Anonymous', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                                    const SizedBox(width: 8),
+                                                    Row(
+                                                      children: List.generate(5, (index) => Icon(
+                                                        index < (feedback['rating'] ?? 0) ? Icons.star : Icons.star_border,
+                                                        color: Colors.amber,
+                                                        size: 16,
+                                                      )),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              // Show "You" badge if it's the current user's feedback
+                                              if (_isCurrentUserFeedback(feedback))
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFF4CAF50),
+                                                    borderRadius: BorderRadius.circular(12),
+                                                  ),
+                                                  child: const Text(
+                                                    'You',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(feedback['comment'] ?? 'No comment', style: const TextStyle(color: Color(0xFF616161))),
+                                        ],
+                                      ),
+                                    ),
+                                  )),
+                                ],
+                              ),
                             const SizedBox(height: 16),
                           ],
                         ),

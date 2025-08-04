@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../main.dart';
+import '../utils/responsive_design.dart';
 
 class AnalyticsPage extends StatelessWidget {
   const AnalyticsPage({super.key});

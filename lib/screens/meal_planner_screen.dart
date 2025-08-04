@@ -4,7 +4,6 @@ import 'recipes_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'recipe_info_screen.dart';
 import '../models/recipes.dart';
-import 'recipes_page.dart'; // Import _RecipeCard for use in meal planner
 
 class MealPlannerScreen extends StatefulWidget {
   final bool forceRefresh;
