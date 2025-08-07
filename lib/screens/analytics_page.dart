@@ -8,7 +8,6 @@ class AnalyticsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isSmallScreen = ResponsiveDesign.isSmallScreen(context);
-    final isMediumScreen = ResponsiveDesign.isMediumScreen(context);
     
     return SingleChildScrollView(
       padding: ResponsiveDesign.responsivePadding(context),

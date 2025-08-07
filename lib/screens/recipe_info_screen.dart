@@ -174,14 +174,21 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) return;
 
-      // Add to meal_plans table
+      // Create meal object in the correct format
+      final mealJson = {
+        'recipe_id': widget.recipe.id,
+        'title': widget.recipe.title,
+        'image_url': widget.recipe.imageUrl,
+        'time': '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
+      };
+
+      // Add to meal_plans table with correct structure
       await Supabase.instance.client
           .from('meal_plans')
           .insert({
             'user_id': user.id,
-            'recipe_id': widget.recipe.id,
-            'meal_time': '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
-            'created_at': DateTime.now().toIso8601String(),
+            'meals': [mealJson], // Array with single meal
+            'date': DateTime.now().toIso8601String().substring(0, 10),
           });
 
       // Show success snackbar

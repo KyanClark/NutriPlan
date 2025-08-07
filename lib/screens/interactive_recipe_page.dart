@@ -164,7 +164,6 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
       });
       _handleTimerOnStepChange();
     } else {
-      _handleMealCompletion();
       showGeneralDialog(
         context: context,
         barrierDismissible: false,

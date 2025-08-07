@@ -348,13 +348,23 @@ class _RecipesPageState extends State<RecipesPage> {
                                       // Insert each meal as a separate meal plan row in Supabase
                                       final userId = Supabase.instance.client.auth.currentUser?.id;
                                       if (userId != null) {
+                                        print('Total meals to save: ${mealsWithTime.length}');
                                         for (final m in mealsWithTime) {
+                                          print('Saving meal: ${m.recipe.title}');
+                                          print('Meal type: ${m.mealType}');
+                                          print('Meal time: ${m.time?.format(context)}');
+                                          print('Meal type is null: ${m.mealType == null}');
+                                          print('Meal type is empty: ${m.mealType?.isEmpty}');
+                                          
                                           final mealJson = {
                                             'recipe_id': m.recipe.id,
                                             'title': m.recipe.title,
                                             'image_url': m.recipe.imageUrl,
-                                            'time': m.time?.format(context) ?? '',
+                                            'meal_type': m.mealType,
+                                            'time': m.time?.format(context),
                                           };
+                                          
+                                          print('Meal JSON: $mealJson');
                                           await Supabase.instance.client.from('meal_plans').insert({
                                             'user_id': userId,
                                             'meals': [mealJson], // Each row has a single meal in the array

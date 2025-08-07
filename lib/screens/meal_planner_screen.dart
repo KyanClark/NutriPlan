@@ -140,6 +140,9 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                         for (final meal in meals) {
                           if (runningIdx == idx) {
                             final planId = plan['id'];
+                            print('Meal data: $meal'); // Debug print
+                            print('Meal type: ${meal['meal_type']}'); // Debug print
+                            print('Meal time: ${meal['time']}'); // Debug print
                             return Stack(
                               children: [
                                 Column(
@@ -158,6 +161,8 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                                         ingredients: [],
                                         instructions: [],
                                       ),
+                                      mealType: meal['meal_type'],
+                                      mealTime: meal['time'],
                                       isFavorite: false,
                                       onTap: () async {
                                         final recipeId = meal['recipe_id'] ?? '';
@@ -335,13 +340,23 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
 // Paste the _RecipeCard widget here for use in meal planner
 class _RecipeCard extends StatelessWidget {
   final Recipe recipe;
+  final String? mealType;
+  final String? mealTime;
   final bool isFavorite;
   final VoidCallback? onFavoriteToggle;
   final VoidCallback? onTap;
-  const _RecipeCard({required this.recipe, this.isFavorite = false, this.onFavoriteToggle, this.onTap});
+  const _RecipeCard({
+    required this.recipe, 
+    this.mealType, 
+    this.mealTime, 
+    this.isFavorite = false, 
+    this.onFavoriteToggle, 
+    this.onTap
+  });
 
   @override
   Widget build(BuildContext context) {
+    print('RecipeCard - mealType: $mealType, mealTime: $mealTime'); // Debug print
     return LayoutBuilder(
       builder: (context, constraints) {
         final cardWidth = constraints.maxWidth < 220 ? constraints.maxWidth : 200.0;
@@ -381,18 +396,69 @@ class _RecipeCard extends StatelessWidget {
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.all(10.0), // Match see_all_recipe
-                        child: Text(
-                          recipe.title,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                            color: Colors.black87,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-            ),
-          ),
+                        padding: const EdgeInsets.all(10.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              recipe.title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color: Colors.black87,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (mealType != null && mealType!.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: _getMealTypeColor(mealType!),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  mealType!.capitalize(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            if (mealTime != null && mealTime!.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    mealTime!,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                            if ((mealType == null || mealType!.isEmpty) && (mealTime == null || mealTime!.isEmpty)) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'No meal type/time set',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[500],
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
         ],
       ),
                 ],
@@ -402,5 +468,24 @@ class _RecipeCard extends StatelessWidget {
         );
       },
     );
+  }
+
+  Color _getMealTypeColor(String mealType) {
+    switch (mealType) {
+      case 'breakfast':
+        return Colors.orange;
+      case 'lunch':
+        return Colors.amber;
+      case 'dinner':
+        return Colors.indigo;
+      default:
+        return Colors.grey;
+    }
+  }
+}
+
+extension StringExtension on String {
+  String capitalize() {
+    return "${this[0].toUpperCase()}${substring(1)}";
   }
 } 

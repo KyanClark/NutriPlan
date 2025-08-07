@@ -675,7 +675,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   // Avatar positioned below the green container
                   Transform.translate(
-                    offset: const Offset(0, -100), // Reduced overlap for better spacing
+                    offset: const Offset(0, -120), // Increased overlap to bring username closer
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: [
@@ -742,20 +742,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   // Profile content with proper spacing
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          // Name and Email
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: Text(
-                              _fullName ?? 'User',
-                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                              textAlign: TextAlign.center,
+                  Transform.translate(
+                    offset: const Offset(0, -40), // Move content up more to be much closer to avatar
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // Name and Email
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              child: Text(
+                                _fullName ?? 'User',
+                                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                                textAlign: TextAlign.center,
+                              ),
                             ),
-                          ),
                           if (_email != null)
                             Padding(
                               padding: const EdgeInsets.only(top: 2.0, bottom: 8.0, left: 16, right: 16),
@@ -862,6 +864,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                     ),
+                  ),
                 ],
               ),
             ),
