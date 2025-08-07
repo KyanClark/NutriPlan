@@ -46,6 +46,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFC1E7AF),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : favoriteRecipes.isEmpty

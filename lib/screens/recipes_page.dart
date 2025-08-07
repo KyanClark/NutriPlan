@@ -130,7 +130,7 @@ class _RecipesPageState extends State<RecipesPage> {
               ),
                               const Expanded(
                                 child: Text(
-              'Choose your Meal Plan',
+                                    'Choose your \n Meal Plan',
                                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
                                   textAlign: TextAlign.center,
                                 ),

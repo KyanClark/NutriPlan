@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/recipes.dart';
+import 'recipe_info_screen.dart';
 
 class MealPlanHistoryScreen extends StatefulWidget {
   const MealPlanHistoryScreen({super.key});
@@ -36,6 +38,24 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
       _history = List<Map<String, dynamic>>.from(response);
       _loading = false;
     });
+  }
+
+
+
+  Recipe _createRecipeFromMeal(Map<String, dynamic> meal) {
+    return Recipe(
+      id: meal['recipe_id'] ?? '',
+      title: meal['title'] ?? 'Unknown Recipe',
+      imageUrl: meal['image_url'] ?? '',
+      shortDescription: meal['description'] ?? '',
+      ingredients: List<String>.from(meal['ingredients'] ?? []),
+      instructions: List<String>.from(meal['instructions'] ?? []),
+      macros: Map<String, dynamic>.from(meal['macros'] ?? {}),
+      allergyWarning: meal['allergy_warning'] ?? '',
+      calories: meal['calories'] ?? 0,
+      dietTypes: List<String>.from(meal['diet_types'] ?? []),
+      cost: (meal['cost'] ?? 0.0).toDouble(),
+    );
   }
 
   @override
@@ -158,26 +178,47 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
                           final timeStr = formatTime(dt);
                           return Column(
                             children: [
-          ListTile(
-                                leading: meal['image_url'] != null
-                                    ? ClipRRect(
-                                        borderRadius: BorderRadius.circular(8),
-                                        child: Image.network(
-                                          meal['image_url'],
-                                          width: 48,
-                                          height: 48,
-                                          fit: BoxFit.cover,
+                              Card(
+                                margin: const EdgeInsets.symmetric(vertical: 4),
+                                child: ListTile(
+                                  leading: meal['image_url'] != null
+                                      ? ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Image.network(
+                                            meal['image_url'],
+                                            width: 48,
+                                            height: 48,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        )
+                                      : Icon(Icons.restaurant, color: Colors.green),
+                                  title: Text(meal['title'] ?? 'Meal'),
+                                  subtitle: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(timeStr, style: const TextStyle(fontSize: 15)),
+                                      if (meal['calories'] != null)
+                                        Text('${meal['calories']} kcal', style: TextStyle(color: Colors.black54)),
+                                    ],
+                                  ),
+                                  onTap: () {
+                                    // Navigate to recipe info screen
+                                    final recipe = _createRecipeFromMeal(meal);
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => RecipeInfoScreen(
+                                          recipe: recipe,
+                                          addedRecipeIds: [],
+                                          showStartCooking: false,
+                                          isFromMealHistory: true,
                                         ),
-                                      )
-                                    : Icon(Icons.restaurant, color: Colors.green),
-                                title: Text(meal['title'] ?? 'Meal'),
-                                subtitle: Text(timeStr, style: const TextStyle(fontSize: 15)),
-                                trailing: meal['calories'] != null
-                                    ? Text('${meal['calories']} kcal', style: TextStyle(color: Colors.black54))
-                                    : null,
-          ),
-                              const Divider(),
-        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
                           );
                         }).toList(),
                       ],

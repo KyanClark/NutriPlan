@@ -5,13 +5,21 @@ import 'package:nutriplan/screens/recipe_steps_summary_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/feedback_service.dart';
 import 'feedback_thank_you_page.dart';
+import 'package:intl/intl.dart';
 
 class RecipeInfoScreen extends StatefulWidget {
   final Recipe recipe;
   final List<String> addedRecipeIds;
   final bool showStartCooking;
+  final bool isFromMealHistory;
 
-  const RecipeInfoScreen({super.key, required this.recipe, this.addedRecipeIds = const [], this.showStartCooking = false});
+  const RecipeInfoScreen({
+    super.key, 
+    required this.recipe, 
+    this.addedRecipeIds = const [], 
+    this.showStartCooking = false,
+    this.isFromMealHistory = false,
+  });
 
   @override
   State<RecipeInfoScreen> createState() => _RecipeInfoScreenState();
@@ -98,12 +106,112 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
     return feedback['user_id'] == currentUser.id;
   }
 
+  Future<void> _showReAddConfirmation() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Re-add Meal Plan'),
+        content: Text('Would you like to add "${widget.recipe.title}" back to your meal plan?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            child: const Text('Yes', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await _showTimeSelection();
+    }
+  }
+
+  Future<void> _showTimeSelection() async {
+    final result = await showDialog<TimeOfDay>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Set Meal Time'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('What time would you like to set for this meal?'),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () async {
+                final time = await showTimePicker(
+                  context: context,
+                  initialTime: TimeOfDay.now(),
+                );
+                if (time != null) {
+                  Navigator.of(context).pop(time);
+                }
+              },
+              child: const Text('Select Time'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null) {
+      await _addToMealPlan(result);
+    }
+  }
+
+  Future<void> _addToMealPlan(TimeOfDay time) async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
+
+      // Add to meal_plans table
+      await Supabase.instance.client
+          .from('meal_plans')
+          .insert({
+            'user_id': user.id,
+            'recipe_id': widget.recipe.id,
+            'meal_time': '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
+            'created_at': DateTime.now().toIso8601String(),
+          });
+
+      // Show success snackbar
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${widget.recipe.title} was added back to your meal plan!'),
+            duration: const Duration(milliseconds: 1500),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to add meal: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _showDeleteConfirmation(Map<String, dynamic> feedback) async {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Review'),
-        content: const Text('Are you sure you want to delete this review? This action cannot be undone.'),
+        content: const Text('Are you sure you want to delete your review? This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -333,9 +441,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                Icon(Icons.local_fire_department, color: Colors.orange, size: 20),
-                                const SizedBox(width: 4),
-                                Text('${recipe.calories} cal', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.orange)),
+                                Text('🍽️ ${recipe.calories} kcal', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.orange)),
                               ],
                             ),
                             if (recipe.cost > 0)
@@ -373,7 +479,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  const Text('Macros', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  const Text('Macronutrients Breakdown', style: TextStyle(fontWeight: FontWeight.bold)),
                                   const SizedBox(height: 6),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
@@ -398,11 +504,23 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                               ),
                             const SizedBox(height: 16),
                             if (recipe.allergyWarning.isNotEmpty)
-                              Row(
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 18),
-                                  const SizedBox(width: 6),
-                                  Text('Allergy: ${recipe.allergyWarning}', style: const TextStyle(color: Colors.red)),
+                                  ...recipe.allergyWarning.split(', ').map((allergy) => Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red[50],
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      allergy.trim(),
+                                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                                    ),
+                                  )),
                                 ],
                               ),
                             const SizedBox(height: 16),
@@ -493,11 +611,18 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                                           Row(
                                             children: [
                                               Expanded(
-                                                child: Row(
+                                                child: Wrap(
+                                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                                  spacing: 8,
                                                   children: [
                                                     Text(feedback['profiles']['username'] ?? 'Anonymous', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                                    const SizedBox(width: 8),
-                                                    Row(
+                                                    if (feedback['created_at'] != null)
+                                                      Text(
+                                                        DateFormat('MMM d, yyyy').format(DateTime.tryParse(feedback['created_at']) ?? DateTime.now()),
+                                                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                                      ),
+                                                    Wrap(
+                                                      spacing: 2,
                                                       children: List.generate(5, (index) => Icon(
                                                         index < (feedback['rating'] ?? 0) ? Icons.star : Icons.star_border,
                                                         color: Colors.amber,
@@ -643,15 +768,19 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                                 }
                               }
                             }
-                          : alreadyAdded
-                            ? null
-                            : () {
-                                Navigator.pop(context, recipe);
-                              },
+                          : widget.isFromMealHistory
+                            ? () => _showReAddConfirmation()
+                            : alreadyAdded
+                              ? null
+                              : () {
+                                  Navigator.pop(context, recipe);
+                                },
                         child: Text(
                           widget.showStartCooking
                             ? "Let's Cook"
-                            : (alreadyAdded ? 'Already Added' : 'Add to Meal Plan'),
+                            : widget.isFromMealHistory
+                              ? 'Re-add Meal Plan'
+                              : (alreadyAdded ? 'Already Added' : 'Add to Meal Plan'),
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
                         ),
                       ),
@@ -680,7 +809,7 @@ class _MacroChip extends StatelessWidget {
         color: Colors.green[50],
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text('$label: $value', style: const TextStyle(fontSize: 13, color: Colors.green)),
+      child: Text('$label: ${value}g', style: const TextStyle(fontSize: 13, color: Colors.green)),
     );
   }
 } 

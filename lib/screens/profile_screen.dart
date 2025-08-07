@@ -8,6 +8,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+// Removed login history service import - only needed in login screen
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -656,217 +657,214 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 )),
               ),
             )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Header with avatar and camera icon (not in scroll view)
-                Stack(
-                  clipBehavior: Clip.none,
-                  alignment: Alignment.center,
-                  children: [
-                    Container(
-                      height: 140,
-                      width: double.infinity,
-                      decoration: const BoxDecoration(
-                        color: Color.fromARGB(255, 103, 196, 106),
-                        borderRadius: BorderRadius.only(
-                          bottomLeft: Radius.circular(25),
-                          bottomRight: Radius.circular(25),
-                        ),
+          : SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Green header container (fixed position)
+                  Container(
+                    height: 160,
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      color: Color.fromARGB(255, 103, 196, 106),
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(25),
+                        bottomRight: Radius.circular(25),
                       ),
                     ),
-                    // Avatar and camera icon always within bounds
-                    Padding(
-                      padding: const EdgeInsets.only(top: 40),
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          CircleAvatar(
-                            radius: 70,
-                            backgroundColor: Colors.white,
-                            backgroundImage: _avatarUrl != null && _avatarUrl!.isNotEmpty
-                                ? NetworkImage(_avatarUrl!)
-                                : null,
-                            child: _uploadingImage
-                                ? Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: List.generate(3, (i) => AnimatedContainer(
-                                      duration: const Duration(milliseconds: 400),
-                                      margin: const EdgeInsets.symmetric(horizontal: 2),
-                                      width: 8,
-                                      height: 8,
-                                      decoration: BoxDecoration(
-                                        color: const Color.fromARGB(255, 97, 212, 86).withOpacity(i == DateTime.now().second % 3 ? 1 : 0.4),
-                                        shape: BoxShape.circle,
-                                      ),
-                                    )),
-                                  )
-                                : (_avatarUrl == null || _avatarUrl!.isEmpty)
-                                    ? Icon(Icons.person, size: 90, color: const Color.fromARGB(255, 97, 212, 86))
-                                    : null,
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: -8,
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: _uploadingImage ? null : () {
-                                print('Camera icon tapped!');
-                                _showProfileImagePicker();
-                              },
-                              child: Material(
-                                color: Colors.transparent,
-                                shape: const CircleBorder(),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.08),
-                                        blurRadius: 4,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  padding: const EdgeInsets.all(10),
-                                  child: Icon(
-                                    Icons.camera_alt, 
-                                    color: _uploadingImage 
-                                        ? Colors.grey 
-                                        : const Color.fromARGB(255, 97, 212, 86), 
-                                    size: 24
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                // The rest of the profile content is scrollable
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                  ),
+                  // Avatar positioned below the green container
+                  Transform.translate(
+                    offset: const Offset(0, -100), // Reduced overlap for better spacing
+                    child: Stack(
+                      clipBehavior: Clip.none,
                       children: [
-                        const SizedBox(height: 105), // More space for avatar overlap
-                        // Name and Email
-                        Text(
-                          _fullName ?? 'User',
-                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                        CircleAvatar(
+                          radius: 70,
+                          backgroundColor: Colors.white,
+                          backgroundImage: _avatarUrl != null && _avatarUrl!.isNotEmpty
+                              ? NetworkImage(_avatarUrl!)
+                              : null,
+                          child: _uploadingImage
+                              ? Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: List.generate(3, (i) => AnimatedContainer(
+                                    duration: const Duration(milliseconds: 400),
+                                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: const Color.fromARGB(255, 97, 212, 86).withOpacity(i == DateTime.now().second % 3 ? 1 : 0.4),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  )),
+                                )
+                              : (_avatarUrl == null || _avatarUrl!.isEmpty)
+                                  ? Icon(Icons.person, size: 75, color: const Color.fromARGB(255, 97, 212, 86))
+                                  : null,
                         ),
-                        if (_email != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2.0, bottom: 8.0), // Reduced top padding
-                            child: Text(
-                              _email!,
-                              style: const TextStyle(fontSize: 15, color: Colors.black54, fontWeight: FontWeight.w400),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        if (_bio != null && _bio!.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8.0),
-                            child: Text(
-                              _bio!,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 14, color: Colors.black54),
-                            ),
-                          ),
-                        if (_bio == null || _bio!.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 8.0),
-                            child: Text(
-                              'Set your bio to let others know more about you!',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 14, color: Colors.black38),
-                            ),
-                          ),
-                        const SizedBox(height: 16),
-                        // New: Options List
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.04),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            children: [
-                              _MinimalOption(
-                                label: 'Dietary Preferences',
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => DietaryPreferencesScreen()),
-                                  );
-                                },
-                              ),
-                              _MinimalDivider(),
-                              _MinimalOption(
-                                label: 'Meal Tracker',
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => MealTrackerScreen()),
-                                  );
-                                },
-                              ),
-                              _MinimalDivider(),
-                              _MinimalOption(
-                                label: 'Meal Plan History',
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => MealPlanHistoryScreen()),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        // Restored Logout Button with more padding
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              child: const Text('Logout', style: TextStyle(color: Colors.white)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Color.fromARGB(255, 224, 83, 83), // Modern blue-gray
-                                padding: const EdgeInsets.symmetric(vertical: 18),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                        Positioned(
+                          bottom: 15,
+                          right: -8,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: _uploadingImage ? null : () {
+                              _showProfileImagePicker();
+                            },
+                            child: Material(
+                              color: Colors.transparent,
+                              shape: const CircleBorder(),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.08),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                padding: const EdgeInsets.all(10),
+                                child: Icon(
+                                  Icons.camera_alt, 
+                                  color: _uploadingImage 
+                                      ? Colors.grey 
+                                      : const Color.fromARGB(255, 97, 212, 86), 
+                                  size: 24
                                 ),
                               ),
-                              onPressed: () async {
-                                final confirm = await _showLogoutConfirmation(context);
-                                if (confirm == true) {
-                                  setState(() {
-                                    _shouldLogout = true;
-                                  });
-                                  _handleLogoutIfNeeded();
-                                }
-                              },
                             ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
-              ],
+                  // Profile content with proper spacing
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Name and Email
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Text(
+                              _fullName ?? 'User',
+                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          if (_email != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2.0, bottom: 8.0, left: 16, right: 16),
+                              child: Text(
+                                _email!,
+                                style: const TextStyle(fontSize: 15, color: Colors.black54, fontWeight: FontWeight.w400),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          if (_bio != null && _bio!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16),
+                              child: Text(
+                                _bio!,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(fontSize: 14, color: Colors.black54),
+                              ),
+                            ),
+                          if (_bio == null || _bio!.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16),
+                              child: Text(
+                                'Set your bio to let others know more about you!',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 14, color: Colors.black38),
+                              ),
+                            ),
+                          const SizedBox(height: 16),
+                          // Options List
+                          Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.04),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              children: [
+                                _MinimalOption(
+                                  label: 'Dietary Preferences',
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (context) => DietaryPreferencesScreen()),
+                                    );
+                                  },
+                                ),
+                                _MinimalDivider(),
+                                _MinimalOption(
+                                  label: 'Meal Tracker',
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (context) => MealTrackerScreen()),
+                                    );
+                                  },
+                                ),
+                                _MinimalDivider(),
+                                _MinimalOption(
+                                  label: 'Meal Plan History',
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (context) => MealPlanHistoryScreen()),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          // Logout Button
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 0.0),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                child: const Text('Logout', style: TextStyle(color: Colors.white)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Color.fromARGB(255, 224, 83, 83),
+                                  padding: const EdgeInsets.symmetric(vertical: 18),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                onPressed: () async {
+                                  final confirm = await _showLogoutConfirmation(context);
+                                  if (confirm == true) {
+                                    setState(() {
+                                      _shouldLogout = true;
+                                    });
+                                    _handleLogoutIfNeeded();
+                                  }
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
             ),
-      // Removed BottomNavigationBar from ProfileScreen
     );
   }
 
@@ -950,11 +948,7 @@ class _MinimalOption extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: Colors.black87),
                 ),
               ),
-              Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-                color: Colors.grey[400],
-              ),
+              // Removed trailing arrow icon
             ],
           ),
         ),

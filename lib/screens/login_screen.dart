@@ -5,6 +5,7 @@ import '../widgets/animated_logo.dart';
 import '../widgets/decorative_auth_background.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:nutriplan/screens/Diet_Type_preference.dart';
+import '../services/login_history_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,11 +20,16 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  List<String> _emailSuggestions = [];
+  bool _showSuggestions = false;
 
   void _login() async {
     if (_formKey.currentState!.validate()) {
       setState(() { _isLoading = true; });
       try {
+        // Save email to login history on successful login
+        await LoginHistoryService.saveEmailToHistory(_emailController.text);
+        
         final response = await Supabase.instance.client.auth.signInWithPassword(
           email: _emailController.text,
           password: _passwordController.text,
@@ -82,6 +88,32 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  /// Load email suggestions based on current input
+  Future<void> _loadEmailSuggestions(String input) async {
+    final suggestions = await LoginHistoryService.getFilteredHistory(input);
+    setState(() {
+      _emailSuggestions = suggestions;
+      _showSuggestions = suggestions.isNotEmpty && input.isNotEmpty;
+    });
+  }
+
+  /// Handle email selection from suggestions
+  void _selectEmail(String email) {
+    setState(() {
+      _emailController.text = email;
+      _showSuggestions = false;
+    });
+    // Move focus to password field
+    FocusScope.of(context).nextFocus();
+  }
+
+  /// Hide suggestions
+  void _hideSuggestions() {
+    setState(() {
+      _showSuggestions = false;
+    });
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -123,27 +155,94 @@ class _LoginScreenState extends State<LoginScreen> {
                       elevation: 8,
                       child: Padding(
                         padding: const EdgeInsets.all(20.0),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
+                        child: GestureDetector(
+                          onTap: _hideSuggestions,
+                          child: Form(
+                            key: _formKey,
+                            child: Column(
                             children: [
-                              TextFormField(
-                                controller: _emailController,
-                                decoration: InputDecoration(
-                                  labelText: 'Email address',
-                                  prefixIcon: const Icon(Icons.email),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
-                                ),
-                                keyboardType: TextInputType.emailAddress,
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Please enter your email';
-                                  }
-                                  if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+').hasMatch(value)) {
-                                    return 'Please enter a valid email';
-                                  }
-                                  return null;
-                                },
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  TextFormField(
+                                    controller: _emailController,
+                                    decoration: InputDecoration(
+                                      labelText: 'Email address',
+                                      prefixIcon: const Icon(Icons.email),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
+                                    ),
+                                    keyboardType: TextInputType.emailAddress,
+                                    onChanged: (value) {
+                                      _loadEmailSuggestions(value);
+                                    },
+                                    onTap: () {
+                                      if (_emailController.text.isNotEmpty) {
+                                        _loadEmailSuggestions(_emailController.text);
+                                      }
+                                    },
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Please enter your email';
+                                      }
+                                      if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+').hasMatch(value)) {
+                                        return 'Please enter a valid email';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  // Email suggestions dropdown
+                                  if (_showSuggestions && _emailSuggestions.isNotEmpty)
+                                    Container(
+                                      margin: const EdgeInsets.only(top: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(12),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.1),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Column(
+                                        children: _emailSuggestions.map((email) => 
+                                          Material(
+                                            color: Colors.transparent,
+                                            child: InkWell(
+                                              onTap: () => _selectEmail(email),
+                                              borderRadius: BorderRadius.circular(12),
+                                              child: Padding(
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 16,
+                                                  vertical: 12,
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    const Icon(
+                                                      Icons.email_outlined,
+                                                      size: 20,
+                                                      color: Colors.grey,
+                                                    ),
+                                                    const SizedBox(width: 12),
+                                                    Expanded(
+                                                      child: Text(
+                                                        email,
+                                                        style: const TextStyle(
+                                                          fontSize: 14,
+                                                          color: Colors.black87,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ).toList(),
+                                      ),
+                                    ),
+                                ],
                               ),
                               const SizedBox(height: 16),
                               TextFormField(
@@ -186,6 +285,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     ),
                             ],
+                          ),
                           ),
                         ),
                       ),
