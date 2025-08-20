@@ -23,10 +23,24 @@ class _LoginScreenState extends State<LoginScreen> {
   List<String> _emailSuggestions = [];
   bool _showSuggestions = false;
 
+  @override
+  void initState() {
+    super.initState();
+  }
+
   void _login() async {
     if (_formKey.currentState!.validate()) {
       setState(() { _isLoading = true; });
+      
+      // Store context before async operations
+      final navigatorContext = context;
+      
       try {
+        // Check if Supabase client is properly initialized
+        if (Supabase.instance.client.auth.currentUser != null) {
+          await Supabase.instance.client.auth.signOut();
+        }
+        
         // Save email to login history on successful login
         await LoginHistoryService.saveEmailToHistory(_emailController.text);
         
@@ -34,54 +48,72 @@ class _LoginScreenState extends State<LoginScreen> {
           email: _emailController.text,
           password: _passwordController.text,
         );
+        
+        if (!mounted) return;
         setState(() { _isLoading = false; });
+        
         if (response.user != null) {
           final user = response.user;
+          
           if (user?.emailConfirmedAt == null) {
             // Email not verified
-            ScaffoldMessenger.of(context).showSnackBar(
+            ScaffoldMessenger.of(navigatorContext).showSnackBar(
               const SnackBar(content: Text('Please verify your email before logging in.')),
             );
             await Supabase.instance.client.auth.signOut();
             return;
           }
+          
           // Check if user has completed onboarding
           final prefs = await Supabase.instance.client
               .from('user_preferences')
               .select()
               .eq('user_id', user!.id)
               .maybeSingle();
+              
+          if (!mounted) return;
+          
           if (prefs == null) {
-            Navigator.pushReplacement(
-              context,
+            // Navigate to onboarding
+            await Navigator.pushReplacement(
+              navigatorContext,
               MaterialPageRoute(builder: (context) => const DietTypePreferencePage()),
             );
           } else {
-            Navigator.pushReplacement(
-              context,
+            // Navigate to home
+            await Navigator.pushReplacement(
+              navigatorContext,
               MaterialPageRoute(builder: (context) => const HomePage()),
             );
           }
         } else {
           // If no user, show a generic error
-          ScaffoldMessenger.of(context).showSnackBar(
+          ScaffoldMessenger.of(navigatorContext).showSnackBar(
             const SnackBar(content: Text('Login failed. Please try again.')),
           );
         }
       } catch (e) {
+        if (!mounted) return;
         setState(() { _isLoading = false; });
+        
         String errorMsg = e.toString().toLowerCase();
         String userMsg;
+        
         if (errorMsg.contains('invalid login credentials')) {
           userMsg = 'Incorrect email or password. Please try again.';
         } else if (errorMsg.contains('email')) {
           userMsg = 'This email is not registered.';
         } else if (errorMsg.contains('password')) {
           userMsg = 'Incorrect password. Please try again.';
+        } else if (errorMsg.contains('network')) {
+          userMsg = 'Network error. Please check your connection.';
+        } else if (errorMsg.contains('timeout')) {
+          userMsg = 'Request timeout. Please try again.';
         } else {
           userMsg = 'Login failed: $e';
         }
-        ScaffoldMessenger.of(context).showSnackBar(
+        
+        ScaffoldMessenger.of(navigatorContext).showSnackBar(
           SnackBar(content: Text(userMsg)),
         );
       }
@@ -199,7 +231,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                         borderRadius: BorderRadius.circular(12),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Colors.black.withOpacity(0.1),
+                                            color: Colors.black.withValues(alpha: 0.1),
                                             blurRadius: 8,
                                             offset: const Offset(0, 2),
                                           ),

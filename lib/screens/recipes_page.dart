@@ -6,7 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'see_all_recipe.dart';
 import '../screens/meal_summary_page.dart'; // Added import for MealSummaryPage
 import '../screens/meal_plan_confirmation_page.dart'; // Added import for MealPlanConfirmationPage
-import '../screens/home_page.dart'; // Added import for HomePage
+// Added import for HomePage
 
 class RecipesPage extends StatefulWidget {
   final VoidCallback? onChanged;

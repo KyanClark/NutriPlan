@@ -220,7 +220,7 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
                               ),
                             ],
                           );
-                        }).toList(),
+                        }),
                       ],
                     );
                   },

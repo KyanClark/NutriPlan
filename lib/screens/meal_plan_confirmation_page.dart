@@ -3,7 +3,7 @@ import 'home_page.dart'; // Import HomePage for navigation with tab
 import 'dart:async';
 
 class MealPlanConfirmationPage extends StatefulWidget {
-  const MealPlanConfirmationPage({Key? key}) : super(key: key);
+  const MealPlanConfirmationPage({super.key});
 
   @override
   State<MealPlanConfirmationPage> createState() => _MealPlanConfirmationPageState();

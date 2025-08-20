@@ -15,7 +15,7 @@ class RecipeStepsSummaryPage extends StatelessWidget {
   final double fiber;
 
   const RecipeStepsSummaryPage({
-    Key? key,
+    super.key,
     required this.instructions,
     required this.recipeTitle,
     required this.recipeId,
@@ -27,7 +27,7 @@ class RecipeStepsSummaryPage extends StatelessWidget {
     required this.fat,
     required this.sugar,
     required this.fiber,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -91,8 +91,9 @@ class RecipeStepsSummaryPage extends StatelessWidget {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: () async {
+                  final navigatorContext = context;
                   final result = await Navigator.push(
-                    context,
+                    navigatorContext,
                     MaterialPageRoute(
                       builder: (context) => InteractiveRecipePage(
                         instructions: instructions,
@@ -109,8 +110,8 @@ class RecipeStepsSummaryPage extends StatelessWidget {
                       ),
                     ),
                   );
-                  if (result == true) {
-                    Navigator.of(context).pop(true);
+                  if (result == true && navigatorContext.mounted) {
+                    Navigator.of(navigatorContext).pop(true);
                   }
                 },
               ),

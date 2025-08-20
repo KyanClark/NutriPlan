@@ -5,7 +5,7 @@ class MealSummaryPage extends StatefulWidget {
   final List<Recipe> meals;
   final void Function(List<RecipeWithTime>) onBuildMealPlan;
   final VoidCallback? onChanged;
-  const MealSummaryPage({Key? key, required this.meals, required this.onBuildMealPlan, this.onChanged}) : super(key: key);
+  const MealSummaryPage({super.key, required this.meals, required this.onBuildMealPlan, this.onChanged});
 
   @override
   State<MealSummaryPage> createState() => _MealSummaryPageState();
@@ -122,7 +122,7 @@ class _MealSummaryPageState extends State<MealSummaryPage> {
     if (startHour == 0) {
       startTime = '12:00 AM';
     } else if (startHour < 12) {
-      startTime = '${startHour}:00 AM';
+      startTime = '$startHour:00 AM';
     } else if (startHour == 12) {
       startTime = '12:00 PM';
     } else {
@@ -132,7 +132,7 @@ class _MealSummaryPageState extends State<MealSummaryPage> {
     if (endHour == 0) {
       endTime = '12:00 AM';
     } else if (endHour < 12) {
-      endTime = '${endHour}:00 AM';
+      endTime = '$endHour:00 AM';
     } else if (endHour == 12) {
       endTime = '12:00 PM';
     } else {

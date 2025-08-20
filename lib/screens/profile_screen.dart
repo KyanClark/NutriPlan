@@ -841,7 +841,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             child: SizedBox(
                               width: double.infinity,
                               child: ElevatedButton(
-                                child: const Text('Logout', style: TextStyle(color: Colors.white)),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Color.fromARGB(255, 224, 83, 83),
                                   padding: const EdgeInsets.symmetric(vertical: 18),
@@ -858,6 +857,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     _handleLogoutIfNeeded();
                                   }
                                 },
+                                child: const Text('Logout', style: TextStyle(color: Colors.white)),
                               ),
                             ),
                           ),

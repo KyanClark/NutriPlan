@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/feedback_service.dart';
 import 'feedback_thank_you_page.dart';
-import 'package:flutter/scheduler.dart';
+import 'home_page.dart'; // Added import for HomePage
 
 class InteractiveRecipePage extends StatefulWidget {
   final List<String> instructions;
@@ -17,7 +17,21 @@ class InteractiveRecipePage extends StatefulWidget {
   final double? fat;
   final double? sugar;
   final double? fiber;
-  const InteractiveRecipePage({Key? key, required this.instructions, this.recipeId, this.title, this.imageUrl, this.calories, this.cost, this.protein, this.carbs, this.fat, this.sugar, this.fiber}) : super(key: key);
+  
+  const InteractiveRecipePage({
+    super.key, 
+    required this.instructions, 
+    this.recipeId, 
+    this.title, 
+    this.imageUrl, 
+    this.calories, 
+    this.cost, 
+    this.protein, 
+    this.carbs, 
+    this.fat, 
+    this.sugar, 
+    this.fiber,
+  });
 
   @override
   State<InteractiveRecipePage> createState() => _InteractiveRecipePageState();
@@ -89,11 +103,14 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
                         actions: [
                           TextButton(
                             onPressed: () async {
+                              final navigatorContext = context;
                               print('Finish button clicked - first dialog');
                               await _handleMealCompletion();
-                              Navigator.of(context).pop(); // Close the dialog
-                              // Show feedback dialog instead of finishing
-                              _showFeedbackDialog();
+                              if (navigatorContext.mounted) {
+                                Navigator.of(navigatorContext).pop(); // Close the dialog
+                                // Show feedback dialog instead of finishing
+                                _showFeedbackDialog();
+                              }
                             },
                             child: const Text('Finish'),
                           ),
@@ -181,11 +198,14 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
                 actions: [
                   TextButton(
                     onPressed: () async {
+                      final navigatorContext = context;
                       print('Finish button clicked - second dialog');
                       await _handleMealCompletion();
-                      Navigator.of(context).pop(); // Close the dialog
-                      // Show feedback dialog instead of finishing
-                      _showFeedbackDialog();
+                      if (navigatorContext.mounted) {
+                        Navigator.of(navigatorContext).pop(); // Close the dialog
+                        // Show feedback dialog instead of finishing
+                        _showFeedbackDialog();
+                      }
                     },
                     child: const Text('Finish'),
                   ),
@@ -294,9 +314,17 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pop(true); // Pop InteractiveRecipePage with result true
+            onPressed: () async {
+              Navigator.of(context).pop(); // Close feedback dialog
+              // Navigate back to home page
+              if (mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder: (context) => const HomePage(),
+                  ),
+                  (route) => false,
+                );
+              }
             },
             child: const Text('Skip'),
           ),
@@ -336,12 +364,24 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
       } catch (e) {
         // If feedback submission fails, just go back to home
         if (mounted) {
-          Navigator.of(context).pop(true); // Pop InteractiveRecipePage with result true
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (context) => const HomePage(),
+            ),
+            (route) => false,
+          );
         }
       }
     } else {
       // User skipped feedback, go back to home
-      Navigator.of(context).pop(true); // Pop InteractiveRecipePage with result true
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => const HomePage(),
+          ),
+          (route) => false,
+        );
+      }
     }
   }
 
@@ -356,10 +396,12 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
       final value = int.tryParse(match.group(2) ?? '');
       final unit = match.group(3)?.toLowerCase();
       if (value != null) {
-        if (unit != null && (unit.contains('second') || unit.contains('sec')))
+        if (unit != null && (unit.contains('second') || unit.contains('sec'))) {
           return value;
-        if (unit != null && (unit.contains('minute') || unit.contains('min')))
+        }
+        if (unit != null && (unit.contains('minute') || unit.contains('min'))) {
           return value * 60;
+        }
       }
     }
     return null;
@@ -439,7 +481,7 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
                                   child: Text(
                                     _remainingSeconds > 0
                                         ? '${(_remainingSeconds ~/ 60).toString().padLeft(2, '0')}:${(_remainingSeconds % 60).toString().padLeft(2, '0')}'
-                                        : '${(timerSeconds! ~/ 60).toString().padLeft(2, '0')}:${(timerSeconds % 60).toString().padLeft(2, '0')}',
+                                        : '${(timerSeconds ~/ 60).toString().padLeft(2, '0')}:${(timerSeconds % 60).toString().padLeft(2, '0')}',
                                     style: TextStyle(
                                       fontSize: 48,
                                       fontWeight: FontWeight.bold,

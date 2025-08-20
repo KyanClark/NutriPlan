@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:nutriplan/screens/interactive_recipe_page.dart';
 import '../models/recipes.dart';
 import 'package:nutriplan/screens/recipe_steps_summary_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -752,8 +751,9 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                               );
                               if (result == true) {
                                 // Navigate to the steps summary page
+                                final navigatorContext = context;
                                 final finished = await Navigator.push(
-                                  context,
+                                  navigatorContext,
                                   MaterialPageRoute(
                                     builder: (context) => RecipeStepsSummaryPage(
                                       instructions: recipe.instructions,
@@ -763,15 +763,15 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                                       calories: recipe.calories,
                                       cost: recipe.cost,
                                       protein: (recipe.macros['protein'] ?? 0).toDouble(),
-                                      carbs: (recipe.macros['carbs'] ?? 0).toDouble(),
+                                      carbs: (recipe.macros['carb'] ?? 0).toDouble(),
                                       fat: (recipe.macros['fat'] ?? 0).toDouble(),
                                       sugar: (recipe.macros['sugar'] ?? 0).toDouble(),
                                       fiber: (recipe.macros['fiber'] ?? 0).toDouble(),
                                     ),
                                   ),
                                 );
-                                if (finished == true) {
-                                  Navigator.of(context).pop(true); // Propagate result to MealPlannerScreen
+                                if (finished == true && navigatorContext.mounted) {
+                                  Navigator.of(navigatorContext).pop(true); // Propagate result to MealPlannerScreen
                                 }
                               }
                             }

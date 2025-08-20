@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'meal_planner_screen.dart';
 import 'profile_screen.dart';
 import 'analytics_page.dart';
