@@ -3,9 +3,9 @@ import 'meal_planner_screen.dart';
 import 'profile_screen.dart';
 import 'analytics_page.dart';
 import '../utils/responsive_design.dart'; 
-import 'favorites_page.dart'; 
-import 'package:supabase_flutter/supabase_flutter.dart'; 
-import '../services/recipe_service.dart'; 
+import 'meal_tracker_screen.dart'; 
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../widgets/bottom_navigation.dart'; 
 
 class HomePage extends StatefulWidget {
   final bool forceMealPlanRefresh;
@@ -23,8 +23,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   bool _didForceRefresh = false;
 
   int _mealPlanCount = 0;
-  int _favoriteCount = 0;
   bool _loadingCounts = false;
+
+  // Scroll controller for transparency effect
+  late ScrollController _scrollController;
+  double _scrollOffset = 0.0;
+  static const double _maxScrollOffset = 100.0; // Distance to reach full transparency
 
   @override
   void initState() {
@@ -33,12 +37,35 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     _selectedIndex = widget.initialTab;
     _fetchUserName(); // Fetch the user's name from Supabase
     _fetchCounts();
+    
+    // Initialize scroll controller
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    setState(() {
+      _scrollOffset = _scrollController.offset;
+    });
+  }
+
+  // Calculate opacity based on scroll position
+  double get _appBarOpacity {
+    final progress = (_scrollOffset / _maxScrollOffset).clamp(0.0, 1.0);
+    return 1.0 - (progress * 0.8); // Start at 1.0, go down to 0.2
+  }
+
+  double get _bottomNavOpacity {
+    final progress = (_scrollOffset / _maxScrollOffset).clamp(0.0, 1.0);
+    return 1.0 - (progress * 0.6); // Start at 1.0, go down to 0.4
   }
 
   @override
@@ -56,27 +83,19 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       if (!mounted) return;
       setState(() {
         _mealPlanCount = 0;
-        _favoriteCount = 0;
         _loadingCounts = false;
       });
       return;
     }
-    // Fetch meal plan count
+    // Fetch meal plan count - each record is now a separate meal
     final mealPlans = await Supabase.instance.client
         .from('meal_plans')
         .select()
         .eq('user_id', user.id);
-    int mealCount = 0;
-    for (final plan in mealPlans) {
-      final meals = List<Map<String, dynamic>>.from(plan['meals'] ?? []);
-      mealCount += meals.length;
-    }
-    // Fetch favorite count using RecipeService
-    final favoriteIds = await RecipeService.fetchFavoriteRecipeIds(user.id);
+    int mealCount = mealPlans.length; // Each record is a meal
     if (!mounted) return;
     setState(() {
       _mealPlanCount = mealCount;
-      _favoriteCount = favoriteIds.length;
       _loadingCounts = false;
     });
   }
@@ -113,139 +132,98 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final isSmallScreen = ResponsiveDesign.isSmallScreen(context);
-    final isMediumScreen = ResponsiveDesign.isMediumScreen(context);
-    List<Widget> pages = [
-      HomePageContent(
-        userName: userName,
-        onQuickAction: (int tabIndex) {
-          setState(() {
-            _selectedIndex = tabIndex;
-          });
-        },
-      ),
-      MealPlannerScreen(forceRefresh: widget.forceMealPlanRefresh, onChanged: _fetchCounts),
-      AnalyticsPage(),
-      FavoritesPage(onChanged: _fetchCounts),
-      const ProfileScreen(),
-    ];
-    return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(isSmallScreen ? 70 : 80),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppBar(
-              backgroundColor: Colors.white,
-              elevation: 0,
-              automaticallyImplyLeading: false,
-              title: Text(
-                'NutriPlan',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: ResponsiveDesign.responsiveFontSize(context, 20),
-                  color: Colors.black87,
-                ),
-              ),
-              centerTitle: true,
-              actions: [],
-            ),
-            Container(
-              height: 1,
-              color: Colors.grey.withOpacity(0.25),
-            ),
-          ],
-        ),
-      ),
-      backgroundColor: const Color.fromARGB(255, 193, 231, 175),
-      body: Column(
-        children: [
-          if (_selectedIndex == 0)
-            Expanded(child: pages[0])
-          else
-            Expanded(child: pages[_selectedIndex]),
-        ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-        unselectedItemColor: const Color.fromARGB(255, 136, 136, 136),
-        selectedItemColor: Colors.green,
-        iconSize: isSmallScreen ? 22 : 24,
-        type: BottomNavigationBarType.fixed,
-        showSelectedLabels: true,
-        showUnselectedLabels: true,
-        selectedLabelStyle: TextStyle(
-          fontSize: ResponsiveDesign.responsiveFontSize(context, 12),
-          fontWeight: FontWeight.bold,
-        ),
-        unselectedLabelStyle: TextStyle(
-          fontSize: ResponsiveDesign.responsiveFontSize(context, 12),
-        ),
-        items: [
-          _buildBottomNavItem(Icons.home, 'Home', 0),
-          _buildBottomNavItem(Icons.restaurant_menu, 'Meal Plan', 1, badgeCount: _mealPlanCount),
-          _buildBottomNavItem(Icons.analytics, 'Analytics', 2),
-          _buildBottomNavItem(Icons.favorite, 'Favorites', 3, badgeCount: _favoriteCount),
-          _buildBottomNavItem(Icons.person, 'Profile', 4),
-        ],
-      ),
-    );
-  }
 
-  BottomNavigationBarItem _buildBottomNavItem(
-      IconData icon, String label, int index, {int badgeCount = 0}) {
-    return BottomNavigationBarItem(
-      icon: Stack(
-        clipBehavior: Clip.none,
+
+  List<Widget> pages = [
+    HomePageContent(
+      userName: userName,
+      onQuickAction: (int tabIndex) {
+        setState(() {
+          _selectedIndex = tabIndex;
+        });
+      },
+    ),
+    MealPlannerScreen(
+      forceRefresh: widget.forceMealPlanRefresh,
+      onChanged: _fetchCounts,
+    ),
+    AnalyticsPage(),
+    const MealTrackerScreen(),
+    const ProfileScreen(),
+  ];
+
+  return Scaffold(
+    appBar: PreferredSize(
+      preferredSize: Size.fromHeight(isSmallScreen ? 70 : 80),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          ShaderMask(
-            shaderCallback: (Rect bounds) {
-              return LinearGradient(
-                colors: index == _selectedIndex
-                    ? [
-                        Color.fromRGBO(142, 190, 155, 1.0),
-                        Color.fromRGBO(125, 189, 228, 1.0),
-                      ]
-                    : [Colors.grey, Colors.grey],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ).createShader(bounds);
-            },
-            child: Icon(icon, color: Colors.white),
-          ),
-          if (badgeCount > 0)
-            Positioned(
-              top: -6,
-              right: -12,
-              child: Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  color: Colors.red,
-                  borderRadius: BorderRadius.circular(100),
-                ),
-                constraints: const BoxConstraints(
-                  minWidth: 21,
-                  minHeight: 15,
-                ),
-                child: Center(
-                  child: Text(
-                    badgeCount.toString(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
+          AnimatedOpacity(
+            duration: const Duration(milliseconds: 300),
+            opacity: _appBarOpacity,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: _appBarOpacity),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1 * _appBarOpacity),
+                    blurRadius: 8 * _appBarOpacity,
+                    offset: Offset(0, 2 * _appBarOpacity),
+                  ),
+                ],
+              ),
+              child: AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                automaticallyImplyLeading: false,
+                title: Text(
+                  'NutriPlan',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize:
+                        ResponsiveDesign.responsiveFontSize(context, 20),
+                    color: Colors.black87,
                   ),
                 ),
+                centerTitle: true,
+                actions: [],
               ),
             ),
+          ),
+          Container(
+            height: 1,
+            color: Colors.grey.withValues(alpha: 0.25),
+          ),
         ],
       ),
-      label: label,
-    );
-  }
+    ),
+    backgroundColor: Colors.grey[50],
+    body: Column(
+      children: [
+        Expanded(
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              if (notification is ScrollUpdateNotification) {
+                _onScroll();
+              }
+              return false;
+            },
+            child: pages[_selectedIndex],
+          ),
+        ),
+      ],
+    ),
+    bottomNavigationBar: BottomNavigation(
+      selectedIndex: _selectedIndex,
+      onTap: (index) {
+        setState(() {
+          _selectedIndex = index;
+        });
+      },
+      mealPlanCount: _mealPlanCount,
+      opacity: _bottomNavOpacity,
+      isSmallScreen: isSmallScreen,
+    ),
+  );
+}
 }

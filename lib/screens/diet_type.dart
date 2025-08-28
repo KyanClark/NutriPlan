@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'allergy_selection_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class DietTypePreferencePage extends StatefulWidget {
-  const DietTypePreferencePage({super.key});
+class DietTypePage extends StatefulWidget {
+  const DietTypePage({super.key});
 
   @override
-  State<DietTypePreferencePage> createState() => _DietTypePreferencePageState();
+  State<DietTypePage> createState() => _DietTypePreferencePageState();
 }
 
-class _DietTypePreferencePageState extends State<DietTypePreferencePage> {
+class _DietTypePreferencePageState extends State<DietTypePage> {
   final List<Map<String, String>> dietTypes = [
     {
       'title': 'Balance Diet',
@@ -75,6 +75,10 @@ class _DietTypePreferencePageState extends State<DietTypePreferencePage> {
         title: const Text('Welcome!'),
         centerTitle: true,
         backgroundColor: const Color(0xFF4CAF50),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),

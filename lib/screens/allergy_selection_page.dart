@@ -80,6 +80,10 @@ class _AllergySelectionPageState extends State<AllergySelectionPage> {
         title: const Text('Allergies'),
         centerTitle: true,
         backgroundColor: const Color(0xFF4CAF50),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),

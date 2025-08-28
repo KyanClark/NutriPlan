@@ -3,12 +3,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'login_screen.dart';
 import './dietary_preferences_screen.dart';
 import './meal_plan_history_screen.dart'; // Added import for MealPlanHistoryScreen
-import './meal_tracker_screen.dart'; // Add this import for the new page
+
+import './favorites_page.dart'; // Added import for FavoritesPage
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-// Removed login history service import - only needed in login screen
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -20,7 +20,6 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   String? _email;
   String? _fullName;
-  String? _bio;
   String? _dietType;
   List<dynamic>? _allergies;
   int? _servings;
@@ -141,7 +140,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = Supabase.instance.client.auth.currentUser;
     _email = user?.email;
     _fullName = user?.userMetadata?['full_name'] as String?;
-    _bio = user?.userMetadata?['bio'] as String?;
     if (user != null) {
       try {
         final data = await Supabase.instance.client
@@ -640,7 +638,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 241, 241, 241),
+      backgroundColor: Colors.grey[50],
       body: _loading
           ? Center(
               child: Row(
@@ -663,7 +661,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   // Green header container (fixed position)
                   Container(
-                    height: 160,
+                     height: 120, // Reduced from 160 to 120
                     width: double.infinity,
                     decoration: const BoxDecoration(
                       color: Color.fromARGB(255, 103, 196, 106),
@@ -675,7 +673,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   // Avatar positioned below the green container
                   Transform.translate(
-                    offset: const Offset(0, -120), // Increased overlap to bring username closer
+                     offset: const Offset(0, -80), // Reduced from -120 to -80
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: [
@@ -743,13 +741,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   // Profile content with proper spacing
                   Transform.translate(
-                    offset: const Offset(0, -40), // Move content up more to be much closer to avatar
+                     offset: const Offset(0, -10), // Reduced from -20 to -10 to bring content closer
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            // Name and Email
+                            // Name and Email - closer to avatar
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 8),
                               child: Text(
@@ -760,32 +758,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           if (_email != null)
                             Padding(
-                              padding: const EdgeInsets.only(top: 2.0, bottom: 8.0, left: 16, right: 16),
+                               padding: const EdgeInsets.only(top: 4.0, bottom: 8.0, left: 16, right: 16), // Reduced bottom padding from 16 to 8
                               child: Text(
                                 _email!,
                                 style: const TextStyle(fontSize: 15, color: Colors.black54, fontWeight: FontWeight.w400),
                                 textAlign: TextAlign.center,
                               ),
                             ),
-                          if (_bio != null && _bio!.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16),
-                              child: Text(
-                                _bio!,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(fontSize: 14, color: Colors.black54),
-                              ),
-                            ),
-                          if (_bio == null || _bio!.isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16),
-                              child: Text(
-                                'Set your bio to let others know more about you!',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(fontSize: 14, color: Colors.black38),
-                              ),
-                            ),
-                          const SizedBox(height: 16),
+                           const SizedBox(height: 8), // Reduced from 16 to 8
                           // Options List
                           Container(
                             width: double.infinity,
@@ -811,17 +791,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     );
                                   },
                                 ),
-                                _MinimalDivider(),
                                 _MinimalOption(
-                                  label: 'Meal Tracker',
+                                  label: 'Favorites',
                                   onTap: () {
                                     Navigator.push(
                                       context,
-                                      MaterialPageRoute(builder: (context) => MealTrackerScreen()),
+                                      MaterialPageRoute(builder: (context) => FavoritesPage()),
                                     );
                                   },
                                 ),
-                                _MinimalDivider(),
                                 _MinimalOption(
                                   label: 'Meal Plan History',
                                   onTap: () {

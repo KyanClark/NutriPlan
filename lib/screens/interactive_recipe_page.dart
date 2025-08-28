@@ -17,6 +17,8 @@ class InteractiveRecipePage extends StatefulWidget {
   final double? fat;
   final double? sugar;
   final double? fiber;
+  final double? sodium;
+  final double? cholesterol;
   
   const InteractiveRecipePage({
     super.key, 
@@ -31,6 +33,8 @@ class InteractiveRecipePage extends StatefulWidget {
     this.fat, 
     this.sugar, 
     this.fiber,
+    this.sodium,
+    this.cholesterol,
   });
 
   @override
@@ -221,7 +225,23 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
   Future<void> _handleMealCompletion() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
-    // Insert into meal history
+    
+    // Determine meal category based on current time
+    final now = DateTime.now();
+    final hour = now.hour;
+    String mealCategory;
+    
+    if (hour >= 5 && hour < 11) {
+      mealCategory = 'breakfast';
+    } else if (hour >= 11 && hour < 16) {
+      mealCategory = 'lunch';
+    } else if (hour >= 16 && hour < 22) {
+      mealCategory = 'dinner';
+    } else {
+      mealCategory = 'snack';
+    }
+    
+    // Insert into meal history with available nutrition data
     await Supabase.instance.client.from('meal_plan_history').insert({
       'user_id': user.id,
       'recipe_id': widget.recipeId,
@@ -234,25 +254,36 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
       'fat': widget.fat,
       'sugar': widget.sugar,
       'fiber': widget.fiber,
+      'sodium': widget.sodium ?? 0.0,
+      'cholesterol': widget.cholesterol ?? 0.0,
+      'meal_category': mealCategory,
       'completed_at': DateTime.now().toUtc().toIso8601String(),
     });
-    // Remove only the completed meal from meal_plans
+    
+    // Remove the completed meal from meal_plans (handle both old and new formats)
     final mealPlans = await Supabase.instance.client
       .from('meal_plans')
       .select()
       .eq('user_id', user.id);
+      
     for (final plan in mealPlans) {
-      final meals = List<Map<String, dynamic>>.from(plan['meals'] ?? []);
-      final planId = plan['id'];
-      final updatedMeals = meals.where((m) => m['recipe_id'] != widget.recipeId).toList();
-      if (updatedMeals.length != meals.length) {
-        if (updatedMeals.isEmpty) {
-          // Delete the whole meal plan row if no meals left
-          await Supabase.instance.client.from('meal_plans').delete().eq('id', planId);
-        } else {
-          // Update the meal plan row with the new meals array
-          await Supabase.instance.client.from('meal_plans').update({'meals': updatedMeals}).eq('id', planId);
+      if (plan['meals'] != null && plan['meals'] is List) {
+        // Legacy format: meals stored as array within a single record
+        final meals = List<Map<String, dynamic>>.from(plan['meals'] ?? []);
+        final planId = plan['id'];
+        final updatedMeals = meals.where((m) => m['recipe_id'] != widget.recipeId).toList();
+        if (updatedMeals.length != meals.length) {
+          if (updatedMeals.isEmpty) {
+            // Delete the whole meal plan row if no meals left
+            await Supabase.instance.client.from('meal_plans').delete().eq('id', planId);
+          } else {
+            // Update the meal plan row with the new meals array
+            await Supabase.instance.client.from('meal_plans').update({'meals': updatedMeals}).eq('id', planId);
+          }
         }
+      } else if (plan['recipe_id'] == widget.recipeId) {
+        // New format: delete individual meal record
+        await Supabase.instance.client.from('meal_plans').delete().eq('id', plan['id']);
       }
     }
     // Do NOT pop here; let the dialog's Finish button handle it

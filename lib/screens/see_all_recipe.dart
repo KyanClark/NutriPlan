@@ -6,7 +6,8 @@ import 'recipe_info_screen.dart';
 
 class SeeAllRecipePage extends StatefulWidget {
   final List<String> addedRecipeIds;
-  const SeeAllRecipePage({super.key, this.addedRecipeIds = const []});
+  final Function(Recipe)? onAddToMealPlan;
+  const SeeAllRecipePage({super.key, this.addedRecipeIds = const [], this.onAddToMealPlan});
 
   @override
   State<SeeAllRecipePage> createState() => _SeeAllRecipePageState();
@@ -73,7 +74,7 @@ class _SeeAllRecipePageState extends State<SeeAllRecipePage> {
                       ? Row(
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.arrow_back),
+                              icon: const Icon(Icons.arrow_back_ios),
                               onPressed: () => setState(() => showSearch = false),
                             ),
                             Expanded(
@@ -91,7 +92,7 @@ class _SeeAllRecipePageState extends State<SeeAllRecipePage> {
                       : Row(
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.arrow_back),
+                              icon: const Icon(Icons.arrow_back_ios),
                               onPressed: () => Navigator.pop(context),
                             ),
                             const Expanded(
@@ -122,19 +123,17 @@ class _SeeAllRecipePageState extends State<SeeAllRecipePage> {
                       final recipe = filteredRecipes[index];
                       return GestureDetector(
                         onTap: () async {
-                          final result = await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => RecipeInfoScreen(
-                                recipe: recipe,
-                                addedRecipeIds: widget.addedRecipeIds,
+                          // Navigate directly to recipe info
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => RecipeInfoScreen(
+                                            recipe: recipe,
+                                            addedRecipeIds: widget.addedRecipeIds,
+                                 onAddToMealPlan: widget.onAddToMealPlan,
                               ),
                             ),
                           );
-                          if (!mounted) return;
-                          if (result is Recipe) {
-                            Navigator.pop(context, result);
-                          }
                         },
                         child: Stack(
                           children: [
@@ -221,6 +220,7 @@ class _SeeAllRecipePageState extends State<SeeAllRecipePage> {
                                 ),
                               ),
                             ),
+
                           ],
                         ),
                       );

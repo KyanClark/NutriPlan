@@ -377,7 +377,7 @@ class _MealSummaryPageState extends State<MealSummaryPage> {
                       Container(
                         margin: const EdgeInsets.only(left: 8),
                         child: IconButton(
-                          icon: const Icon(Icons.arrow_back, size: 24),
+                          icon: const Icon(Icons.arrow_back_ios, size: 24),
                         onPressed: () => Navigator.pop(context),
                           style: IconButton.styleFrom(
                             padding: const EdgeInsets.all(8),

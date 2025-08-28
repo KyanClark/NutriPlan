@@ -21,25 +21,37 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
   // Add state for Supabase meal plans
   List<Map<String, dynamic>> supabaseMealPlans = [];
 
-  // Flattened list of meals for GridView
+  // Handle both old format (meals array) and new format (individual records)
   List<Map<String, dynamic>> get _flattenedMeals {
-    List<Map<String, dynamic>> meals = [];
+    List<Map<String, dynamic>> allMeals = [];
+    
     for (final plan in supabaseMealPlans) {
-      final planMeals = List<Map<String, dynamic>>.from(plan['meals'] ?? []);
-      for (final meal in planMeals) {
-        meals.add({
-          ...meal,
-          'plan_id': plan['id'],
+      if (plan['meals'] != null && plan['meals'] is List) {
+        // Old format: meals stored as array within a single record
+        final meals = List<Map<String, dynamic>>.from(plan['meals']);
+        for (final meal in meals) {
+          allMeals.add({
+            ...meal,
+            'plan_id': plan['id'], // Use parent plan ID for deletion
+            'is_legacy_format': true,
+          });
+        }
+      } else if (plan['recipe_id'] != null) {
+        // New format: each meal is a separate record
+        allMeals.add({
+          ...plan,
+          'plan_id': plan['id'], // Use the meal's own ID as plan_id for deletion
+          'is_legacy_format': false,
         });
       }
     }
-    return meals;
+    
+    return allMeals;
   }
 
   @override
   void initState() {
     super.initState();
-    _startTimer();
     if (widget.forceRefresh) {
       _fetchSupabaseMealPlans();
     } else {
@@ -63,36 +75,24 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
     super.dispose();
   }
 
-  void _startTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      setState(() {
-        // Only update selectedDate if it's today's date (not manually selected)
-        final now = DateTime.now();
-        if (selectedDate.year == now.year && 
-            selectedDate.month == now.month && 
-            selectedDate.day == now.day) {
-          selectedDate = now;
-        }
-      });
-    });
-  }
-
   Future<void> _fetchSupabaseMealPlans() async {
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) return;
-    final response = await Supabase.instance.client
-        .from('meal_plans')
-        .select()
-        .eq('user_id', userId)
-        .order('created_at', ascending: false);
-    if (mounted) {
-    setState(() {
-        supabaseMealPlans = List<Map<String, dynamic>>.from(response);
-      });
+    
+    try {
+      final response = await Supabase.instance.client
+          .from('meal_plans')
+          .select()
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+      
+      if (mounted) {
+        setState(() {
+          supabaseMealPlans = List<Map<String, dynamic>>.from(response);
+        });
+      }
+    } catch (e) {
+      print('Error fetching meal plans: $e');
     }
   }
 
@@ -155,24 +155,32 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                           children: [
                             Column(
                               children: [
-                                _RecipeCard(
+                                                                                                  _RecipeCard(
                                   recipe: Recipe(
                                     id: meal['recipe_id'] ?? '',
                                     title: meal['title'] ?? '',
                                     imageUrl: meal['image_url'] ?? '',
-                                    calories: 0,
-                                    cost: 0,
+                                    calories: meal['calories'] ?? 0,
+                                    cost: meal['cost']?.toDouble() ?? 0.0,
                                     shortDescription: '',
                                     dietTypes: [],
-                                    macros: {},
+                                    macros: {
+                                      'protein': meal['protein'] ?? 0.0,
+                                      'carbs': meal['carbs'] ?? 0.0,
+                                      'fat': meal['fat'] ?? 0.0,
+                                      'fiber': meal['fiber'] ?? 0.0,
+                                      'sugar': meal['sugar'] ?? 0.0,
+                                      'sodium': meal['sodium'] ?? 0.0,
+                                      'cholesterol': meal['cholesterol'] ?? 0.0,
+                                    },
                                     allergyWarning: '',
-                                    ingredients: [],
-                                    instructions: [],
-                                  ),
-                                  mealType: meal['meal_type'],
-                                  mealTime: meal['time'],
-                                  isFavorite: false,
-                                  isSmallScreen: isSmallScreen,
+                                      ingredients: [],
+                                      instructions: [],
+                                    ),
+                                    mealType: meal['meal_type'],
+                                    mealTime: meal['meal_time'],
+                                    isFavorite: false,
+                                    isSmallScreen: isSmallScreen,
                                   onTap: () async {
                                     final recipeId = meal['recipe_id'] ?? '';
                                     if (recipeId.isEmpty) return;
@@ -240,33 +248,34 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                                       ),
                                     );
                                     if (confirm != true) return;
-                                    final planMeals = List<Map<String, dynamic>>.from(supabaseMealPlans.firstWhere((p) => p['id'] == planId)['meals'] ?? []);
-                                    final mealIdToDelete = meal['recipe_id'];
-                                    planMeals.removeWhere((m) => m['recipe_id'] == mealIdToDelete);
-                                    if (planMeals.isEmpty) {
-                                      // Delete the whole meal plan row if no meals left
-                                      await Supabase.instance.client.from('meal_plans').delete().eq('id', planId);
-                                      if (!mounted) return;
-                                      setState(() {
-                                        supabaseMealPlans.removeWhere((p) => p['id'] == planId);
-                                      });
-                                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                                        const SnackBar(content: Text('Meal Plan deleted'), duration: Duration(seconds: 3)),
-                                      );
+                                    
+                                    final meal = _flattenedMeals[idx];
+                                    final isLegacyFormat = meal['is_legacy_format'] == true;
+                                    
+                                    if (isLegacyFormat) {
+                                      // Legacy format: Remove meal from the meals array
+                                      final parentPlan = supabaseMealPlans.firstWhere((p) => p['id'] == planId);
+                                      final meals = List<Map<String, dynamic>>.from(parentPlan['meals'] ?? []);
+                                      final updatedMeals = meals.where((m) => m['recipe_id'] != meal['recipe_id']).toList();
+                                      
+                                      if (updatedMeals.isEmpty) {
+                                        // Delete the whole meal plan if no meals left
+                                        await Supabase.instance.client.from('meal_plans').delete().eq('id', planId);
+                                      } else {
+                                        // Update the meal plan with remaining meals
+                                        await Supabase.instance.client.from('meal_plans').update({'meals': updatedMeals}).eq('id', planId);
+                                      }
                                     } else {
-                                      // Update the meal plan row with the new meals array
-                                      await Supabase.instance.client.from('meal_plans').update({'meals': planMeals}).eq('id', planId);
-                                      if (!mounted) return;
-                                      setState(() {
-                                        final planIdx = supabaseMealPlans.indexWhere((p) => p['id'] == planId);
-                                        if (planIdx != -1) {
-                                          supabaseMealPlans[planIdx]['meals'] = planMeals;
-                                        }
-                                      });
-                                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                                        const SnackBar(content: Text('Meal removed from plan'), duration: Duration(seconds: 3)),
-                                      );
+                                      // New format: Delete the individual meal record
+                                      await Supabase.instance.client.from('meal_plans').delete().eq('id', planId);
                                     }
+                                    
+                                    if (!mounted) return;
+                                    // Refresh meal plans after deletion
+                                    await _fetchSupabaseMealPlans();
+                                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                                      const SnackBar(content: Text('Meal removed from plan'), duration: Duration(seconds: 3)),
+                                    );
                                     if (widget.onChanged != null) widget.onChanged!();
                                   },
                                 ),
@@ -275,6 +284,46 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                           ],
                         );
                       },
+                    ),
+                  )
+                // Show empty state when no meal plans
+                else
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isSmallScreen ? 12.0 : 16.0,
+                      vertical: 32.0,
+                    ),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.restaurant_menu_outlined,
+                            size: 64,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No Meal Plans Added',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                                                      Text(
+                              'Start planning your meals by adding recipes to your meal planner',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[500],
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                                                     const SizedBox(height: 24),
+                        ],
+                      ),
                     ),
                   ),
               ],

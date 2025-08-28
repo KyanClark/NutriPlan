@@ -4,7 +4,7 @@ import 'signup_screen.dart';
 import '../widgets/animated_logo.dart';
 import '../widgets/decorative_auth_background.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:nutriplan/screens/Diet_Type_preference.dart';
+import 'diet_type.dart';
 import '../services/login_history_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -77,7 +77,7 @@ class _LoginScreenState extends State<LoginScreen> {
             // Navigate to onboarding
             await Navigator.pushReplacement(
               navigatorContext,
-              MaterialPageRoute(builder: (context) => const DietTypePreferencePage()),
+              MaterialPageRoute(builder: (context) => const DietTypePage()),
             );
           } else {
             // Navigate to home

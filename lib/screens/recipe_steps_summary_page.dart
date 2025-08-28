@@ -13,6 +13,8 @@ class RecipeStepsSummaryPage extends StatelessWidget {
   final double fat;
   final double sugar;
   final double fiber;
+  final double sodium;
+  final double cholesterol;
 
   const RecipeStepsSummaryPage({
     super.key,
@@ -27,6 +29,8 @@ class RecipeStepsSummaryPage extends StatelessWidget {
     required this.fat,
     required this.sugar,
     required this.fiber,
+    required this.sodium,
+    required this.cholesterol,
   });
 
   @override
@@ -36,6 +40,10 @@ class RecipeStepsSummaryPage extends StatelessWidget {
         title: Text('Recipe Steps'),
         backgroundColor: Colors.orange,
         foregroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -107,6 +115,8 @@ class RecipeStepsSummaryPage extends StatelessWidget {
                         fat: fat,
                         sugar: sugar,
                         fiber: fiber,
+                        sodium: sodium,
+                        cholesterol: cholesterol,
                       ),
                     ),
                   );

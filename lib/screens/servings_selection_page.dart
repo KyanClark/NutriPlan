@@ -41,6 +41,10 @@ class _ServingsSelectionPageState extends State<ServingsSelectionPage> {
         title: const Text('Servings'),
         centerTitle: true,
         backgroundColor: const Color(0xFF4CAF50),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       body: Center(
         child: ConstrainedBox(

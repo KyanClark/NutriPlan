@@ -1,3 +1,12 @@
+import 'package:flutter/material.dart';
+
+enum MealCategory {
+  breakfast,
+  lunch,
+  dinner,
+  snack,
+}
+
 class MealHistoryEntry {
   final String id;
   final String recipeId;
@@ -9,7 +18,10 @@ class MealHistoryEntry {
   final double fat;
   final double sugar;
   final double fiber;
+  final double sodium;
+  final double cholesterol;
   final DateTime completedAt;
+  final MealCategory category;
 
   MealHistoryEntry({
     required this.id,
@@ -22,7 +34,10 @@ class MealHistoryEntry {
     required this.fat,
     required this.sugar,
     required this.fiber,
+    required this.sodium,
+    required this.cholesterol,
     required this.completedAt,
+    required this.category,
   });
 
   factory MealHistoryEntry.fromMap(Map<String, dynamic> map) {
@@ -45,7 +60,51 @@ class MealHistoryEntry {
       fat: parseNum(map['fat']),
       sugar: parseNum(map['sugar']),
       fiber: parseNum(map['fiber']),
+      sodium: parseNum(map['sodium']),
+      cholesterol: parseNum(map['cholesterol']),
       completedAt: DateTime.parse(map['completed_at']),
+      category: _parseMealCategory(map['meal_category'] ?? 'dinner'),
     );
+  }
+
+  static MealCategory _parseMealCategory(String category) {
+    switch (category.toLowerCase()) {
+      case 'breakfast':
+        return MealCategory.breakfast;
+      case 'lunch':
+        return MealCategory.lunch;
+      case 'dinner':
+        return MealCategory.dinner;
+      case 'snack':
+        return MealCategory.snack;
+      default:
+        return MealCategory.dinner; // Default fallback
+    }
+  }
+
+  String get categoryDisplayName {
+    switch (category) {
+      case MealCategory.breakfast:
+        return 'Breakfast';
+      case MealCategory.lunch:
+        return 'Lunch';
+      case MealCategory.dinner:
+        return 'Dinner';
+      case MealCategory.snack:
+        return 'Snack';
+    }
+  }
+
+  Color get categoryColor {
+    switch (category) {
+      case MealCategory.breakfast:
+        return Colors.orange;
+      case MealCategory.lunch:
+        return Colors.green;
+      case MealCategory.dinner:
+        return Colors.purple;
+      case MealCategory.snack:
+        return Colors.blue;
+    }
   }
 } 
