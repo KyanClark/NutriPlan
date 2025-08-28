@@ -20,15 +20,9 @@ NutriPlan is a feature-rich nutrition and meal planning application that leverag
 - **Realistic Calculations**: Conservative quantity estimation and validation ranges
 - **Complete Dish Matching**: Priority-based nutrition calculation for common Filipino dishes
 
-### 🤖 **AI-Powered Meal Suggestions**
-- **Personalized Recommendations**: Multi-factor scoring algorithm based on user preferences
-- **Eating Pattern Analysis**: Machine learning-based meal timing and frequency optimization
-- **Nutritional Gap Filling**: Intelligent suggestions to meet dietary requirements
-- **Context-Aware Recommendations**: Meal suggestions based on time, mood, and availability
-
 ### 📊 **Comprehensive Meal Tracking**
 - **Meal Categorization**: Breakfast, lunch, dinner, and snacks with detailed tracking
-- **Nutritional Analytics**: Daily, weekly, and monthly trend analysis
+- **Nutritional Analytics**: Daily, weekly, and monthly analysis
 - **Goal Management**: Customizable nutrition targets and progress monitoring
 - **Meal History**: Complete record of dietary intake with search and filtering
 
