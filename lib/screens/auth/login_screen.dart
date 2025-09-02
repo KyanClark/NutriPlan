@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:nutriplan/screens/home_page.dart';
+import 'package:nutriplan/screens/home/home_page.dart';
 import 'signup_screen.dart';
-import '../widgets/animated_logo.dart';
-import '../widgets/decorative_auth_background.dart';
+import '../../widgets/animated_logo.dart';
+import '../../widgets/decorative_auth_background.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'diet_type.dart';
-import '../services/login_history_service.dart';
+import '../onboarding/diet_type.dart';
+import '../../services/login_history_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

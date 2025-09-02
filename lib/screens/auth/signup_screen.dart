@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:nutriplan/screens/desktop_email_verification_screen.dart';
+import 'package:nutriplan/screens/auth/desktop_email_verification_screen.dart';
 import 'login_screen.dart';
-import '../widgets/animated_logo.dart';
-import '../widgets/decorative_auth_background.dart';
+import '../../widgets/animated_logo.dart';
+import '../../widgets/decorative_auth_background.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});

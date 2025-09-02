@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'meal_planner_screen.dart';
-import 'profile_screen.dart';
-import 'analytics_page.dart';
-import '../utils/responsive_design.dart'; 
-import 'meal_tracker_screen.dart'; 
+import '../meal_plan/meal_planner_screen.dart';
+import '../profile/profile_screen.dart';
+import '../../utils/responsive_design.dart'; 
+import '../tracking/meal_tracker_screen.dart'; 
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../widgets/bottom_navigation.dart'; 
+import '../../widgets/bottom_navigation.dart'; 
 
 class HomePage extends StatefulWidget {
   final bool forceMealPlanRefresh;
@@ -25,8 +24,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   int _mealPlanCount = 0;
   bool _loadingCounts = false;
 
-  // Scroll controller for transparency effect
-  late ScrollController _scrollController;
+  // Scroll offset for transparency effect
   double _scrollOffset = 0.0;
   static const double _maxScrollOffset = 100.0; // Distance to reach full transparency
 
@@ -37,23 +35,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     _selectedIndex = widget.initialTab;
     _fetchUserName(); // Fetch the user's name from Supabase
     _fetchCounts();
-    
-    // Initialize scroll controller
-    _scrollController = ScrollController();
-    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
     super.dispose();
   }
 
-  void _onScroll() {
+  void _onScroll(double offset) {
     setState(() {
-      _scrollOffset = _scrollController.offset;
+      _scrollOffset = offset;
     });
   }
 
@@ -129,25 +121,183 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
   }
 
+  Widget _buildHomeContent() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Welcome back, $userName!',
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 20),
+          _buildQuickActions(),
+          const SizedBox(height: 20),
+          _buildRecentActivity(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Quick Actions',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildQuickActionCard(
+                'Create Meal Plan',
+                Icons.restaurant_menu,
+                Colors.green,
+                () => setState(() => _selectedIndex = 1),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildQuickActionCard(
+                'Track Meals',
+                Icons.track_changes,
+                Colors.blue,
+                () => setState(() => _selectedIndex = 2),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActionCard(String title, IconData icon, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 32),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecentActivity() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Recent Activity',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.restaurant_menu,
+                  color: Colors.green,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Meal Plans',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      '$_mealPlanCount active meals',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                color: Colors.grey[400],
+                size: 16,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isSmallScreen = ResponsiveDesign.isSmallScreen(context);
 
 
   List<Widget> pages = [
-    HomePageContent(
-      userName: userName,
-      onQuickAction: (int tabIndex) {
-        setState(() {
-          _selectedIndex = tabIndex;
-        });
-      },
-    ),
+    _buildHomeContent(),
     MealPlannerScreen(
       forceRefresh: widget.forceMealPlanRefresh,
       onChanged: _fetchCounts,
     ),
-    AnalyticsPage(),
     const MealTrackerScreen(),
     const ProfileScreen(),
   ];
@@ -204,7 +354,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           child: NotificationListener<ScrollNotification>(
             onNotification: (notification) {
               if (notification is ScrollUpdateNotification) {
-                _onScroll();
+                _onScroll(notification.metrics.pixels);
               }
               return false;
             },

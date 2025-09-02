@@ -202,7 +202,7 @@ class _MealLogCardState extends State<MealLogCard> {
                     _MacroChip(
                       label: 'Sodium',
                       value: meal.sodium,
-                      color: Colors.red,
+                      color: const Color(0xFFFF6961),
                       unit: 'mg',
                     ),
                     _MacroChip(

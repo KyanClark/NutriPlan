@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'servings_selection_page.dart';
+import '../meal_plan/servings_selection_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AllergySelectionPage extends StatefulWidget {

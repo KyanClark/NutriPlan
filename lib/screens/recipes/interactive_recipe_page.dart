@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../services/feedback_service.dart';
-import 'feedback_thank_you_page.dart';
-import 'home_page.dart'; // Added import for HomePage
+import '../../services/feedback_service.dart';
+import '../feedback/feedback_thank_you_page.dart';
+import '../home/home_page.dart'; // Added import for HomePage
 
 class InteractiveRecipePage extends StatefulWidget {
   final List<String> instructions;
@@ -517,7 +517,7 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
                                       fontSize: 48,
                                       fontWeight: FontWeight.bold,
                                       color: _timerRunning && _remainingSeconds <= 5 && _remainingSeconds > 0
-                                          ? Colors.red
+                                          ? const Color(0xFFFF6961)
                                           : Colors.green,
                                     ),
                                   ),

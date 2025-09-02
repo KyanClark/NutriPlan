@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'home_page.dart'; // Import HomePage for navigation with tab
+import '../home/home_page.dart'; // Import HomePage for navigation with tab
 import 'dart:async';
 
 class MealPlanConfirmationPage extends StatefulWidget {

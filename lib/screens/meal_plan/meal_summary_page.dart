@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/recipes.dart';
+import '../../models/recipes.dart';
 
 class MealSummaryPage extends StatefulWidget {
   final List<Recipe> meals;

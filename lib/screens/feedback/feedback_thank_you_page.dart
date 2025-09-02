@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'home_page.dart';
+import '../home/home_page.dart';
 
 class FeedbackThankYouPage extends StatefulWidget {
   final String recipeTitle;

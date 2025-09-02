@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:nutriplan/screens/login_screen.dart';
+import 'package:nutriplan/screens/auth/login_screen.dart';
+import 'package:nutriplan/screens/home/home_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import '../models/recipes.dart';
-import '../services/recipe_service.dart';
-import '../screens/recipe_info_screen.dart';
+import '../../models/recipes.dart';
+import '../../services/recipe_service.dart';
+import 'package:nutriplan/screens/recipes/recipe_info_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'see_all_recipe.dart';
-import '../screens/meal_summary_page.dart';
-import '../screens/meal_plan_confirmation_page.dart';
+import 'package:nutriplan/screens/meal_plan/meal_summary_page.dart';
+import 'package:nutriplan/screens/meal_plan/meal_plan_confirmation_page.dart';
+// import 'package:nutriplan/screens/home/home_page.dart';
 
 class RecipesPage extends StatefulWidget {
   final VoidCallback? onChanged;
@@ -137,7 +138,7 @@ class _RecipesPageState extends State<RecipesPage> {
           '${recipe.title} removed from meal plan',
           style: const TextStyle(fontFamily: 'Geist'),
         ),
-        backgroundColor: Colors.red[400],
+                       backgroundColor: const Color(0xFFFF6961),
         action: SnackBarAction(
           label: 'Undo',
           textColor: Colors.white,
@@ -323,7 +324,7 @@ class _RecipesPageState extends State<RecipesPage> {
                                   ),
                                   child: Icon(
                                     isFavorite ? Icons.favorite : Icons.favorite_border,
-                                    color: isFavorite ? Colors.red : Colors.grey,
+                                    color: isFavorite ? const Color(0xFFFF6961) : Colors.grey,
                                     size: 25,
                                   ),
                               ),
@@ -395,7 +396,7 @@ class _RecipesPageState extends State<RecipesPage> {
                           child: Text(
                             recipe.title,
                             style: const TextStyle(
-                              fontSize: 14,
+                              fontSize: 16,
                               fontWeight: FontWeight.w600,
                               color: Colors.black,
                               fontFamily: 'Geist',
@@ -695,7 +696,7 @@ class _RecipesPageState extends State<RecipesPage> {
           if (_mealsForPlan.isNotEmpty)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
                 color: Colors.white,
                 boxShadow: [
@@ -708,49 +709,53 @@ class _RecipesPageState extends State<RecipesPage> {
               ),
               child: Row(
                 children: [
-                  // Left side: meal images
+                  // Left side: scrollable meal images
                   Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
                     child: Row(
                       children: _mealsForPlan.map(
                         (meal) => Container(
                           margin: const EdgeInsets.only(right: 8),
                           child: Stack(
+                            clipBehavior: Clip.none,
                             children: [
                               ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(8),
                                 child: Image.network(
                                   meal.imageUrl,
-                                  width: 60,
-                                  height: 60,
+                                  width: 45,
+                                  height: 45,
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) =>
                                       Container(
-                                    width: 60,
-                                    height: 60,
+                                    width: 45,
+                                    height: 45,
                                     decoration: BoxDecoration(
                                       color: Colors.grey[300],
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
-                                    child: const Icon(Icons.restaurant, color: Colors.grey),
+                                    child: const Icon(Icons.restaurant, color: Colors.grey, size: 20),
                                   ),
                                 ),
                               ),
-                              // Remove button overlay
+                              // Remove button overlay - positioned to overlap with image edge like a badge
                               Positioned(
-                                top: -5,
-                                right: -5,
+                                top: -8,
+                                right: -8,
                                 child: GestureDetector(
                                   onTap: () => _removeFromMealPlan(meal),
                                   child: Container(
-                                    padding: const EdgeInsets.all(2),
+                                    width: 20,
+                                    height: 20,
                                     decoration: const BoxDecoration(
-                                      color: Colors.red,
+                                      color: const Color(0xFFFF6961),
                                       shape: BoxShape.circle,
                                     ),
                                     child: const Icon(
                                       Icons.close,
                                       color: Colors.white,
-                                      size: 12,
+                                      size: 14,
                                     ),
                                   ),
                                 ),
@@ -759,6 +764,7 @@ class _RecipesPageState extends State<RecipesPage> {
                           ),
                         ),
                       ).toList(),
+                      ),
                     ),
                   ),
                   // Right side: Build Meal Plan button
@@ -773,32 +779,21 @@ class _RecipesPageState extends State<RecipesPage> {
                               final userId = Supabase.instance.client.auth.currentUser?.id;
                               if (userId != null) {
                                 for (final m in mealsWithTime) {
-                                  final mealJson = {
-                                    'recipe_id': m.recipe.id,
-                                    'title': m.recipe.title,
-                                    'meal_type': m.mealType ?? 'dinner',
-                                    'meal_time': m.time != null
-                                        ? '${m.time!.hour.toString().padLeft(2, '0')}:${m.time!.minute.toString().padLeft(2, '0')}'
-                                        : null,
-                                    'calories': m.recipe.calories,
-                                    'cost': m.recipe.cost,
-                                    'protein': m.recipe.macros['protein'] ?? 0.0,
-                                    'carbs': m.recipe.macros['carbs'] ?? 0.0,
-                                    'fat': m.recipe.macros['fat'] ?? 0.0,
-                                    'fiber': m.recipe.macros['fiber'] ?? 0.0,
-                                    'sugar': m.recipe.macros['sugar'] ?? 0.0,
-                                    'sodium': m.recipe.macros['sodium'] ?? 0.0,
-                                    'cholesterol': m.recipe.macros['cholesterol'] ?? 0.0,
-                                    'user_id': userId,
-                                    'created_at': DateTime.now().toUtc().toIso8601String(),
-                                  };
-
                                   try {
+                                    // Insert one row per meal (new format) with required date and time
                                     await Supabase.instance.client
                                         .from('meal_plans')
-                                        .insert(mealJson);
+                                        .insert({
+                                          'user_id': userId,
+                                          'recipe_id': m.recipe.id,
+                                          'title': m.recipe.title,
+                                          'meal_type': m.mealType ?? 'dinner',
+                                          'meal_time': m.time != null ? '${m.time!.hour.toString().padLeft(2, '0')}:${m.time!.minute.toString().padLeft(2, '0')}:00' : null,
+                                          'date': DateTime.now().toUtc().toIso8601String().split('T').first,
+                                        });
+                                    print('Successfully saved meal to plans: ${m.recipe.title}');
                                   } catch (e) {
-                                    print('Failed to save meal ${m.recipe.title}: $e');
+                                    print('Failed to save meal to plans ${m.recipe.title}: $e');
                                   }
                                 }
 
@@ -807,15 +802,14 @@ class _RecipesPageState extends State<RecipesPage> {
                                   _mealsForPlan.clear();
                                 });
 
-                                // Show success message and go back
+                                // Navigate to confirmation page, which will redirect to planner
                                 if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Meal plan created successfully!'),
-                                      backgroundColor: Colors.green,
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const MealPlanConfirmationPage(),
                                     ),
                                   );
-                                  Navigator.pop(context);
                                 }
                               }
                             },
@@ -827,8 +821,8 @@ class _RecipesPageState extends State<RecipesPage> {
                       backgroundColor: const Color.fromARGB(255, 39, 230, 80),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
-                        vertical: 16,
-                        horizontal: 24,
+                        vertical: 12,
+                        horizontal: 20,
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -837,7 +831,7 @@ class _RecipesPageState extends State<RecipesPage> {
                     child: Text(
                       'Build Meal Plan',
                       style: const TextStyle(
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                         fontFamily: 'Geist',
                       ),

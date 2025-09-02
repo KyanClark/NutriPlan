@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/recipes.dart';
-import '../services/recipe_service.dart';
+import '../../models/recipes.dart';
+import '../../services/recipe_service.dart';
 import 'recipe_info_screen.dart';
 
 class FavoritesPage extends StatefulWidget {
@@ -149,7 +149,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                   ),
                                   title: Text(recipe.title, style: const TextStyle(fontWeight: FontWeight.bold)),
                                   trailing: IconButton(
-                                    icon: const Icon(Icons.favorite, color: Colors.redAccent),
+                                    icon: const Icon(Icons.favorite, color: Color(0xFFFF6961)),
                                     onPressed: () => _toggleFavorite(recipe),
                                   ),
                                 ),

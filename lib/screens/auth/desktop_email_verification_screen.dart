@@ -2,8 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'login_screen.dart';
-import '../widgets/animated_logo.dart';
-import '../widgets/decorative_auth_background.dart';
+import '../../widgets/animated_logo.dart';
+import '../../widgets/decorative_auth_background.dart';
 
 class DesktopEmailVerificationScreen extends StatefulWidget {
   final String email;
@@ -138,7 +138,7 @@ class _DesktopEmailVerificationScreenState extends State<DesktopEmailVerificatio
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
-            backgroundColor: Colors.red,
+                           backgroundColor: const Color(0xFFFF6961),
             duration: const Duration(seconds: 5),
           ),
         );

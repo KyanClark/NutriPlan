@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/recipes.dart';
-import 'recipe_info_screen.dart';
+import '../../models/recipes.dart';
+import '../recipes/recipe_info_screen.dart';
 
 class MealPlanHistoryScreen extends StatefulWidget {
   const MealPlanHistoryScreen({super.key});
@@ -119,7 +119,7 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
                     ),
                     ElevatedButton(
                       onPressed: () => Navigator.of(context).pop(true),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF6961)),
                       child: const Text('Clear All', style: TextStyle(color: Colors.white)),
                     ),
                   ],

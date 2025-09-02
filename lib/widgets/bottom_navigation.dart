@@ -79,9 +79,8 @@ class BottomNavigation extends StatelessWidget {
                   items: [
                     _buildBottomNavItem(Icons.home, 'Home', 0),
                     _buildBottomNavItem(Icons.restaurant_menu, 'Meal Plan', 1, badgeCount: mealPlanCount),
-                    _buildBottomNavItem(Icons.analytics, 'Analytics', 2),
-                    _buildBottomNavItem(Icons.track_changes, 'Meal Tracker', 3),
-                    _buildBottomNavItem(Icons.person, 'Profile', 4),
+                    _buildBottomNavItem(Icons.track_changes, 'Meal Tracker', 2),
+                    _buildBottomNavItem(Icons.person, 'Profile', 3),
                   ],
                 ),
               ],
@@ -120,7 +119,7 @@ class BottomNavigation extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
-                  color: Colors.red,
+                  color: const Color(0xFFFF6961),
                   borderRadius: BorderRadius.circular(100),
                 ),
                 constraints: const BoxConstraints(

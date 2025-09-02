@@ -83,31 +83,31 @@ class FNRIIngredientNutrition {
       scientificName: row[2]?.toString() ?? '',
       alternateNames: row[3]?.toString() ?? '',
       ediblePortion: row[4]?.toString() ?? '',
-      water: _parseDouble(row[5]) ?? 0.0,
-      energyKcal: _parseDouble(row[6]) ?? 0.0,
-      protein: _parseDouble(row[7]) ?? 0.0,
-      totalFat: _parseDouble(row[8]) ?? 0.0,
-      totalCarbohydrate: _parseDouble(row[9]) ?? 0.0,
-      availableCarbohydrate: _parseDouble(row[10]) ?? 0.0,
-      ash: _parseDouble(row[11]) ?? 0.0,
-      fiber: _parseDouble(row[12]) ?? 0.0,
-      sugars: _parseDouble(row[13]) ?? 0.0,
-      calcium: _parseDouble(row[14]) ?? 0.0,
-      phosphorus: _parseDouble(row[15]) ?? 0.0,
-      iron: _parseDouble(row[16]) ?? 0.0,
-      sodium: _parseDouble(row[17]) ?? 0.0,
-      potassium: _parseDouble(row[18]) ?? 0.0,
-      zinc: _parseDouble(row[19]) ?? 0.0,
-      retinol: _parseDouble(row[20]) ?? 0.0,
-      betaCarotene: _parseDouble(row[21]) ?? 0.0,
-      thiamin: _parseDouble(row[22]) ?? 0.0,
-      riboflavin: _parseDouble(row[23]) ?? 0.0,
-      niacin: _parseDouble(row[24]) ?? 0.0,
-      vitaminC: _parseDouble(row[25]) ?? 0.0,
-      saturatedFat: _parseDouble(row[26]) ?? 0.0,
-      monounsaturatedFat: _parseDouble(row[27]) ?? 0.0,
-      polyunsaturatedFat: _parseDouble(row[28]) ?? 0.0,
-      cholesterol: _parseDouble(row[29]) ?? 0.0,
+      water: _parseDouble(row[6]) ?? 0.0,        // Proximates_Water_g
+      energyKcal: _parseDouble(row[7]) ?? 0.0,   // Proximates_Energy_calculated_kcal
+      protein: _parseDouble(row[8]) ?? 0.0,      // Proximates_Protein_g
+      totalFat: _parseDouble(row[9]) ?? 0.0,     // Proximates_Total_Fat_g
+      totalCarbohydrate: _parseDouble(row[10]) ?? 0.0, // Proximates_Carbohydrate_total_g
+      availableCarbohydrate: _parseDouble(row[11]) ?? 0.0, // Proximates_Carbohydrate_available_g
+      ash: _parseDouble(row[12]) ?? 0.0,         // Proximates_Ash_total_g
+      fiber: _parseDouble(row[13]) ?? 0.0,       // Other_Carbohydrate_Fiber_total_dietary_g
+      sugars: _parseDouble(row[14]) ?? 0.0,      // Other_Carbohydrate_Sugars_total_g
+      calcium: _parseDouble(row[15]) ?? 0.0,     // Minerals_Calcium_Ca_mg
+      phosphorus: _parseDouble(row[16]) ?? 0.0,  // Minerals_Phosphorus_P_mg
+      iron: _parseDouble(row[17]) ?? 0.0,        // Minerals_Iron_Fe_mg
+      sodium: _parseDouble(row[18]) ?? 0.0,      // Minerals_Sodium_Na_mg
+      potassium: _parseDouble(row[19]) ?? 0.0,   // Vitamins_Retinol_Vitamin_A_µg (wrong column)
+      zinc: _parseDouble(row[20]) ?? 0.0,        // Vitamins_beta-Carotene_µg (wrong column)
+      retinol: _parseDouble(row[21]) ?? 0.0,     // Vitamins_Retinol_Activity_Equivalent_RAE_µg (wrong column)
+      betaCarotene: _parseDouble(row[22]) ?? 0.0, // Vitamins_Thiamin_Vitamin_B1_mg (wrong column)
+      thiamin: _parseDouble(row[23]) ?? 0.0,     // Vitamins_Riboflavin_Vitamin_B2_mg (wrong column)
+      riboflavin: _parseDouble(row[24]) ?? 0.0,  // Vitamins_Niacin_mg (wrong column)
+      niacin: _parseDouble(row[25]) ?? 0.0,      // Vitamins_Ascorbic_Acid_Vitamin_C_mg (wrong column)
+      vitaminC: _parseDouble(row[26]) ?? 0.0,    // Lipids_Fatty_acids_saturated_total_g (wrong column)
+      saturatedFat: _parseDouble(row[27]) ?? 0.0, // Lipids_Fatty_acids_monounsaturated_total_g (wrong column)
+      monounsaturatedFat: _parseDouble(row[28]) ?? 0.0, // Lipids_Fatty_acids_polyunsaturated_totalg (wrong column)
+      polyunsaturatedFat: _parseDouble(row[29]) ?? 0.0, // Lipids_Cholesterol_mg (wrong column)
+      cholesterol: _parseDouble(row[30]) ?? 0.0,  // Minerals_Potassium_K_mg (wrong column)
     );
   }
 
@@ -121,9 +121,75 @@ class FNRIIngredientNutrition {
     return 0.0;
   }
 
+  /// Get edible portion percentage as a decimal
+  double get ediblePortionPercentage {
+    if (ediblePortion.isEmpty) return 1.0; // Default to 100% if not specified
+    final percentage = ediblePortion.replaceAll('%', '').trim();
+    final value = double.tryParse(percentage);
+    return (value ?? 100.0) / 100.0;
+  }
+
+  /// Apply cooking loss factors to nutrition values
+  Map<String, double> getCookingAdjustedNutrition(String cookingMethod) {
+    final cookingLossFactors = _getCookingLossFactors(cookingMethod);
+    
+    return {
+      'protein': protein * cookingLossFactors['protein']!,
+      'totalFat': totalFat * cookingLossFactors['fat']!,
+      'totalCarbohydrate': totalCarbohydrate * cookingLossFactors['carbs']!,
+      'fiber': fiber * cookingLossFactors['fiber']!,
+      'sugars': sugars * cookingLossFactors['sugars']!,
+      'sodium': sodium * cookingLossFactors['sodium']!,
+      'cholesterol': cholesterol * cookingLossFactors['cholesterol']!,
+      'energyKcal': energyKcal * cookingLossFactors['calories']!,
+      'calcium': calcium * cookingLossFactors['minerals']!,
+      'iron': iron * cookingLossFactors['minerals']!,
+      'vitaminC': vitaminC * cookingLossFactors['vitamins']!,
+    };
+  }
+
+  /// Get cooking loss factors based on cooking method
+  Map<String, double> _getCookingLossFactors(String cookingMethod) {
+    final method = cookingMethod.toLowerCase();
+    
+    // Default factors (no loss)
+    Map<String, double> factors = {
+      'protein': 1.0,
+      'fat': 1.0,
+      'carbs': 1.0,
+      'fiber': 1.0,
+      'sugars': 1.0,
+      'sodium': 1.0,
+      'cholesterol': 1.0,
+      'calories': 1.0,
+      'minerals': 1.0,
+      'vitamins': 1.0,
+    };
+
+    if (method.contains('boil') || method.contains('steam')) {
+      // Boiling/steaming: some water-soluble vitamins and minerals are lost
+      factors['vitamins'] = 0.8; // 20% loss of water-soluble vitamins
+      factors['minerals'] = 0.9; // 10% loss of minerals
+    } else if (method.contains('fry') || method.contains('deep fry')) {
+      // Frying: some fat-soluble vitamins are lost, but fat content may increase
+      factors['vitamins'] = 0.85; // 15% loss of vitamins
+      factors['fat'] = 1.1; // 10% increase in fat due to oil absorption
+    } else if (method.contains('grill') || method.contains('broil')) {
+      // Grilling: minimal losses
+      factors['vitamins'] = 0.9; // 10% loss of vitamins
+    } else if (method.contains('bake') || method.contains('roast')) {
+      // Baking/roasting: moderate losses
+      factors['vitamins'] = 0.85; // 15% loss of vitamins
+      factors['minerals'] = 0.95; // 5% loss of minerals
+    }
+
+    return factors;
+  }
+
   Map<String, dynamic> toJson() => {
     'foodId': foodId,
     'foodName': foodName,
+    'ediblePortion': ediblePortion,
     'protein': protein,
     'totalFat': totalFat,
     'totalCarbohydrate': totalCarbohydrate,
@@ -139,7 +205,7 @@ class FNRIIngredientNutrition {
 
   @override
   String toString() {
-    return 'FNRIIngredientNutrition($foodName: ${protein}g protein, ${totalFat}g fat, ${totalCarbohydrate}g carbs, ${energyKcal} kcal)';
+    return 'FNRIIngredientNutrition($foodName: ${protein}g protein, ${totalFat}g fat, ${totalCarbohydrate}g carbs, ${energyKcal} kcal, EP: $ediblePortion)';
   }
 }
 
@@ -218,10 +284,14 @@ class FNRINutritionService {
     // Common ingredient synonyms and variations
     final ingredientSynonyms = {
       'pork': ['pork', 'baboy', 'pig', 'sus'],
+      'ground pork': ['ground pork', 'minced pork', 'pork ground', 'baboy giniling', 'giniling na baboy', 'pork butt', 'boston butt', 'baboy paypay'],
       'pork ribs': ['pork ribs', 'baboy tadyang', 'ribs', 'tadyang'],
       'pork belly': ['pork belly', 'baboy liempo', 'liempo', 'belly'],
+      'pork shoulder': ['pork shoulder', 'pork butt', 'boston butt', 'baboy paypay'],
+      'pork butt': ['pork butt', 'boston butt', 'baboy paypay', 'pork shoulder'],
       'chicken': ['chicken', 'manok', 'gallus'],
       'chicken breast': ['chicken breast', 'manok dibdib', 'breast', 'dibdib'],
+      'egg': ['egg', 'eggs', 'itlog', 'chicken egg', 'whole egg'],
       'beef': ['beef', 'baka', 'cattle', 'bos'],
       'fish': ['fish', 'isda', 'tilapia', 'bangus'],
       'shrimp': ['shrimp', 'hipon', 'prawn', 'crustacean'],
@@ -236,16 +306,23 @@ class FNRINutritionService {
       'cabbage': ['cabbage', 'repolyo', 'brassica', 'vegetable'],
       'lettuce': ['lettuce', 'litsugas', 'lactuca', 'leafy'],
       'spinach': ['spinach', 'kangkong', 'spinacia', 'leafy'],
+      'water spinach': ['water spinach', 'kangkong', 'swamp cabbage', 'ipomoea'],
+      'string beans': ['string beans', 'sitaw', 'yard long bean', 'vigna'],
       'eggplant': ['eggplant', 'talong', 'solanum', 'vegetable'],
       'okra': ['okra', 'okra', 'abelmoschus', 'vegetable'],
       'potato': ['potato', 'patatas', 'solanum', 'tuber'],
       'sweet potato': ['sweet potato', 'kamote', 'ipomoea', 'tuber'],
       'cassava': ['cassava', 'kamoteng kahoy', 'manihot', 'tuber'],
       'corn': ['corn', 'mais', 'zea', 'grain'],
+      'radish': ['radish', 'labanos', 'raphanus', 'root'],
+      'daikon': ['daikon', 'radish', 'labanos', 'raphanus'],
+      'green pepper': ['green pepper', 'bell pepper', 'capsicum', 'vegetable'],
+      'long green pepper': ['long green pepper', 'green pepper', 'bell pepper', 'capsicum'],
       'soy sauce': ['soy sauce', 'toyo', 'soy', 'condiment'],
       'fish sauce': ['fish sauce', 'patis', 'fish', 'condiment'],
       'vinegar': ['vinegar', 'suka', 'acetic', 'condiment'],
       'oil': ['oil', 'mantika', 'fat', 'cooking'],
+      'cooking oil': ['cooking oil', 'vegetable oil', 'cooking fat', 'mantika'],
       'olive oil': ['olive oil', 'olive oil', 'olea', 'oil'],
       'coconut oil': ['coconut oil', 'mantika ng niyog', 'cocos', 'oil'],
       'vegetable oil': ['vegetable oil', 'vegetable oil', 'plant', 'oil'],
@@ -257,14 +334,19 @@ class FNRINutritionService {
       'turmeric': ['turmeric', 'luyang dilaw', 'curcuma', 'rhizome'],
       'lemongrass': ['lemongrass', 'tanglad', 'cymbopogon', 'herb'],
       'tamarind': ['tamarind', 'sampalok', 'tamarindus', 'fruit'],
+      'young tamarind': ['young tamarind', 'tamarind', 'sampalok', 'tamarindus'],
       'calamansi': ['calamansi', 'calamansi', 'citrus', 'fruit'],
       'lime': ['lime', 'dayap', 'citrus', 'fruit'],
       'lemon': ['lemon', 'lemon', 'citrus', 'fruit'],
       'mango': ['mango', 'mangga', 'mangifera', 'fruit'],
       'banana': ['banana', 'saging', 'musa', 'fruit'],
+      'banana blossom': ['banana blossom', 'banana heart', 'puso ng saging', 'puso saging', 'musa'],
+      'banana heart': ['banana heart', 'banana blossom', 'puso ng saging', 'puso saging', 'musa'],
       'papaya': ['papaya', 'papaya', 'carica', 'fruit'],
       'pineapple': ['pineapple', 'pinya', 'ananas', 'fruit'],
       'coconut': ['coconut', 'niyog', 'cocos', 'fruit'],
+      'coconut milk': ['coconut milk', 'gata', 'cocos', 'liquid'],
+      'ginataang gulay mix': ['ginataang gulay mix', 'knorr ginataang gulay mix', 'seasoning mix'],
       'mushroom': ['mushroom', 'kabute', 'fungus', 'fungi'],
       'tofu': ['tofu', 'tokwa', 'soy', 'protein'],
       'egg': ['egg', 'itlog', 'gallus', 'protein'],
@@ -290,11 +372,39 @@ class FNRINutritionService {
       }
     }
 
-    // Exact matches first
+    // Search with multiple strategies
     if (_searchCache != null) {
-    for (final entry in _searchCache!.entries) {
-      if (entry.key.contains(searchQuery) || searchQuery.contains(entry.key)) {
-        results.add(entry.value);
+      // Strategy 1: Exact matches first
+      for (final entry in _searchCache!.entries) {
+        if (entry.key == searchQuery) {
+          results.add(entry.value);
+        }
+      }
+      
+      // Strategy 2: Contains matches
+      for (final entry in _searchCache!.entries) {
+        if (entry.key.contains(searchQuery) || searchQuery.contains(entry.key)) {
+          if (!results.contains(entry.value)) {
+            results.add(entry.value);
+          }
+        }
+      }
+      
+      // Strategy 3: Word-by-word matching for multi-word ingredients
+      final searchWords = searchQuery.split(' ');
+      if (searchWords.length > 1) {
+        for (final entry in _searchCache!.entries) {
+          final entryWords = entry.key.split(' ');
+          // Check if at least 2 words match
+          int matches = 0;
+          for (final searchWord in searchWords) {
+            if (entryWords.any((entryWord) => entryWord.contains(searchWord) || searchWord.contains(entryWord))) {
+              matches++;
+            }
+          }
+          if (matches >= 2 && !results.contains(entry.value)) {
+            results.add(entry.value);
+          }
         }
       }
     }
@@ -336,6 +446,112 @@ class FNRINutritionService {
   /// Find best matching ingredient for a recipe ingredient
   static Future<FNRIIngredientNutrition?> findBestMatch(String ingredientName) async {
     final results = await searchIngredients(ingredientName);
+
+    // Special handling for ground pork - find the best pork cut substitute
+    if (ingredientName.toLowerCase().contains('ground pork') || 
+        ingredientName.toLowerCase().contains('minced pork') ||
+        ingredientName.toLowerCase().contains('baboy giniling')) {
+      
+      // Search for pork cuts that are commonly used for ground pork
+      final porkCutResults = await searchIngredients('pork boston butt');
+      if (porkCutResults.isNotEmpty) {
+        // Prefer raw/unprocessed cuts over cooked ones for ground pork
+        final rawPorkCuts = porkCutResults.where((r) => 
+          !r.foodName.toLowerCase().contains('boiled') &&
+          !r.foodName.toLowerCase().contains('broiled') &&
+          !r.foodName.toLowerCase().contains('fried') &&
+          !r.foodName.toLowerCase().contains('cooked')
+        ).toList();
+        
+        if (rawPorkCuts.isNotEmpty) {
+          final validPorkCuts = rawPorkCuts.where((ingredient) => _isValidNutritionData(ingredient)).toList();
+          if (validPorkCuts.isNotEmpty) {
+            print('    🔄 Using ${validPorkCuts.first.foodName} as substitute for ground pork');
+            return validPorkCuts.first;
+          }
+        }
+        
+        // If no raw cuts found, use any valid pork cut
+        final validPorkCuts = porkCutResults.where((ingredient) => _isValidNutritionData(ingredient)).toList();
+        if (validPorkCuts.isNotEmpty) {
+          print('    🔄 Using ${validPorkCuts.first.foodName} as substitute for ground pork');
+          return validPorkCuts.first;
+        }
+      }
+    }
+
+    // Special handling for bell peppers - find the best pepper match
+    if (ingredientName.toLowerCase().contains('bell pepper') || 
+        ingredientName.toLowerCase().contains('bell peppers') ||
+        ingredientName.toLowerCase().contains('sweet pepper') ||
+        ingredientName.toLowerCase().contains('green pepper') ||
+        ingredientName.toLowerCase().contains('red pepper') ||
+        ingredientName.toLowerCase().contains('yellow pepper')) {
+      
+      // Search for bell pepper entries in FNRI data
+      final bellPepperResults = await searchIngredients('pepper sweet bell');
+      if (bellPepperResults.isNotEmpty) {
+        // Prefer fresh/raw bell peppers over processed ones
+        final freshBellPeppers = bellPepperResults.where((r) => 
+          r.foodName.toLowerCase().contains('bell') &&
+          !r.foodName.toLowerCase().contains('canned') &&
+          !r.foodName.toLowerCase().contains('pickled') &&
+          !r.foodName.toLowerCase().contains('dried')
+        ).toList();
+        
+        if (freshBellPeppers.isNotEmpty) {
+          final validBellPeppers = freshBellPeppers.where((ingredient) => _isValidNutritionData(ingredient)).toList();
+          if (validBellPeppers.isNotEmpty) {
+            print('    🔄 Using ${validBellPeppers.first.foodName} as substitute for bell peppers');
+            return validBellPeppers.first;
+          }
+        }
+        
+        // If no fresh bell peppers found, use any valid bell pepper
+        final validBellPeppers = bellPepperResults.where((ingredient) => _isValidNutritionData(ingredient)).toList();
+        if (validBellPeppers.isNotEmpty) {
+          print('    🔄 Using ${validBellPeppers.first.foodName} as substitute for bell peppers');
+          return validBellPeppers.first;
+        }
+      }
+    }
+
+    // Special handling for eggs - find the best egg match
+    if (ingredientName.toLowerCase().contains('egg') || 
+        ingredientName.toLowerCase().contains('eggs') ||
+        ingredientName.toLowerCase().contains('itlog')) {
+      
+      // Search for egg entries in FNRI data
+      final eggResults = await searchIngredients('egg chicken whole');
+      if (eggResults.isNotEmpty) {
+        // Prefer whole eggs over processed egg products
+        final wholeEggs = eggResults.where((r) => 
+          r.foodName.toLowerCase().contains('egg') &&
+          r.foodName.toLowerCase().contains('whole') &&
+          !r.foodName.toLowerCase().contains('white') &&
+          !r.foodName.toLowerCase().contains('yolk') &&
+          !r.foodName.toLowerCase().contains('powdered') &&
+          !r.foodName.toLowerCase().contains('dried')
+        ).toList();
+        
+        if (wholeEggs.isNotEmpty) {
+          final validEggs = wholeEggs.where((ingredient) => _isValidNutritionData(ingredient)).toList();
+          if (validEggs.isNotEmpty) {
+            print('    🔄 Using ${validEggs.first.foodName} as substitute for eggs');
+            return validEggs.first;
+          }
+        }
+        
+        // If no whole eggs found, use any valid egg
+        final validEggs = eggResults.where((ingredient) => _isValidNutritionData(ingredient)).toList();
+        if (validEggs.isNotEmpty) {
+          print('    🔄 Using ${validEggs.first.foodName} as substitute for eggs');
+          return validEggs.first;
+        }
+      }
+    }
+
+    // If no special handling worked and no results found, return null
     if (results.isEmpty) return null;
 
     // Filter out ingredients with impossible nutrition values
@@ -352,8 +568,16 @@ class FNRINutritionService {
 
   /// Validate that nutrition data makes sense (per 100g)
   static bool _isValidNutritionData(FNRIIngredientNutrition ingredient) {
-    // Protein: 0-50g per 100g is realistic (some high-protein foods like meat, fish, tofu)
-    if (ingredient.protein < 0 || ingredient.protein > 50) {
+    // Special case: Pure fats/oils can have 0 protein and high fat
+    if (ingredient.foodName.toLowerCase().contains('fat') || 
+        ingredient.foodName.toLowerCase().contains('oil') ||
+        ingredient.foodName.toLowerCase().contains('mantika')) {
+      // These can have 0 protein and up to 100g fat
+      return true;
+    }
+    
+    // Protein: 0-100g per 100g is realistic (some high-protein foods like meat, fish, tofu, shrimp paste)
+    if (ingredient.protein < 0 || ingredient.protein > 100) {
       print('    ❌ Invalid protein: ${ingredient.protein}g per 100g for ${ingredient.foodName}');
       return false;
     }
@@ -433,7 +657,7 @@ class FNRINutritionService {
         totalCalories += (nutrition.energyKcal * multiplier).round();
         
         print('    ✅ Found: ${nutrition.foodName}');
-        print('      📊 Added: ${(nutrition.protein * multiplier).toStringAsFixed(1)}g protein, ${(nutrition.totalFat * multiplier).toStringAsFixed(1)}g fat');
+        print('      📊 Added: ${(nutrition.protein * multiplier).toStringAsFixed(1)}g protein, ${(nutrition.totalFat * multiplier).toStringAsFixed(1)}g fat, ${(nutrition.totalCarbohydrate * multiplier).toStringAsFixed(1)}g carbs, ${(nutrition.energyKcal * multiplier).round()} kcal');
         
         results[ingredient] = {
           'found': true,
@@ -452,22 +676,35 @@ class FNRINutritionService {
       }
     }
     
+    // Calculate per serving (typical Filipino dishes serve 4-6 people)
+    final estimatedServings = _estimateServings(ingredients, quantities);
+    print('🍽️ Estimated servings: $estimatedServings');
+    
+    final perServingProtein = totalProtein / estimatedServings;
+    final perServingFat = totalFat / estimatedServings;
+    final perServingCarbs = totalCarbs / estimatedServings;
+    final perServingFiber = totalFiber / estimatedServings;
+    final perServingSugar = totalSugar / estimatedServings;
+    final perServingSodium = totalSodium / estimatedServings;
+    final perServingCholesterol = totalCholesterol / estimatedServings;
+    final perServingCalories = totalCalories / estimatedServings;
+    
     // Round all values to 2 decimal places and validate
     final roundedSummary = {
-      'protein': _roundToTwoDecimals(totalProtein),
-      'fat': _roundToTwoDecimals(totalFat),
-      'carbs': _roundToTwoDecimals(totalCarbs),
-      'fiber': _roundToTwoDecimals(totalFiber),
-      'sugar': _roundToTwoDecimals(totalSugar),
-      'sodium': _roundToTwoDecimals(totalSodium),
-      'cholesterol': _roundToTwoDecimals(totalCholesterol),
-      'calories': totalCalories.round(),
+      'protein': _roundToTwoDecimals(perServingProtein),
+      'fat': _roundToTwoDecimals(perServingFat),
+      'carbs': _roundToTwoDecimals(perServingCarbs),
+      'fiber': _roundToTwoDecimals(perServingFiber),
+      'sugar': _roundToTwoDecimals(perServingSugar),
+      'sodium': _roundToTwoDecimals(perServingSodium),
+      'cholesterol': _roundToTwoDecimals(perServingCholesterol),
+      'calories': perServingCalories.round(),
     };
     
     // Validate nutrition values for realism
     final validatedSummary = _validateNutritionValues(roundedSummary);
     
-    print('\n🎯 Recipe Nutrition Summary (from ingredients):');
+    print('\n🎯 Recipe Nutrition Summary (per serving):');
     print('  Protein: ${validatedSummary['protein']}g');
     print('  Fat: ${validatedSummary['fat']}g');
     print('  Carbs: ${validatedSummary['carbs']}g');
@@ -486,6 +723,8 @@ class FNRINutritionService {
       'ingredients': results,
       'missing_ingredients': missingIngredients,
       'method': 'ingredient_calculation',
+      'total_recipe_calories': totalCalories,
+      'estimated_servings': estimatedServings,
     };
   }
 
@@ -695,6 +934,41 @@ class FNRINutritionService {
     };
   }
 
+  /// Estimate number of servings based on ingredients and quantities
+  static double _estimateServings(List<String> ingredients, Map<String, double> quantities) {
+    double totalWeight = 0;
+    int meatCount = 0;
+    int vegetableCount = 0;
+    
+    for (final ingredient in ingredients) {
+      final quantity = quantities[ingredient] ?? 0;
+      totalWeight += quantity;
+      
+      final ingredientLower = ingredient.toLowerCase();
+      if (ingredientLower.contains('pork') || ingredientLower.contains('beef') || 
+          ingredientLower.contains('chicken') || ingredientLower.contains('fish')) {
+        meatCount++;
+      }
+      if (ingredientLower.contains('tomato') || ingredientLower.contains('onion') ||
+          ingredientLower.contains('garlic') || ingredientLower.contains('spinach') ||
+          ingredientLower.contains('eggplant') || ingredientLower.contains('okra') ||
+          ingredientLower.contains('beans') || ingredientLower.contains('radish')) {
+        vegetableCount++;
+      }
+    }
+    
+    // Estimate servings based on total weight and ingredient types
+    if (totalWeight > 2000) return 6.0; // Large recipe (2kg+)
+    if (totalWeight > 1500) return 5.0; // Medium-large recipe (1.5kg+)
+    if (totalWeight > 1000) return 4.0; // Medium recipe (1kg+)
+    if (totalWeight > 500) return 3.0;  // Small-medium recipe (500g+)
+    if (totalWeight > 200) return 2.0;  // Small recipe (200g+)
+    
+    // Default based on meat content (typical Filipino serving has meat)
+    if (meatCount > 0) return 4.0; // Typical Filipino family meal
+    return 2.0; // Light meal
+  }
+
   /// Round a number to 2 decimal places
   static double _roundToTwoDecimals(double value) {
     return (value * 100).round() / 100;
@@ -704,41 +978,41 @@ class FNRINutritionService {
   static Map<String, dynamic> _validateNutritionValues(Map<String, dynamic> nutrition) {
     final validated = Map<String, dynamic>.from(nutrition);
     
-    // More realistic ranges for Filipino dishes (per serving)
-    // Protein validation (typical range: 5-80g per serving for meat-heavy dishes)
-    if (validated['protein'] > 80.0) {
-      print('⚠️ Protein value ${validated['protein']}g seems too high for a single serving, capping at 80g');
-      validated['protein'] = 80.0;
+    // More realistic ranges for Filipino dishes (per serving ~250-300g)
+    // Protein validation (typical range: 8-45g per serving for Filipino dishes)
+    if (validated['protein'] > 45.0) {
+      print('⚠️ Protein value ${validated['protein']}g seems too high for a single serving, capping at 45g');
+      validated['protein'] = 45.0;
     }
     
-    // Fat validation (typical range: 2-50g per serving for fried dishes)
-    if (validated['fat'] > 50.0) {
-      print('⚠️ Fat value ${validated['fat']}g seems too high for a single serving, capping at 50g');
-      validated['fat'] = 50.0;
+    // Fat validation (typical range: 3-35g per serving for Filipino dishes)
+    if (validated['fat'] > 35.0) {
+      print('⚠️ Fat value ${validated['fat']}g seems too high for a single serving, capping at 35g');
+      validated['fat'] = 35.0;
     }
     
-    // Calories validation (typical range: 100-1200 per serving for Filipino dishes)
-    if (validated['calories'] > 1200) {
-      print('⚠️ Calories value ${validated['calories']} seems too high for a single serving, capping at 1200');
-      validated['calories'] = 1200;
+    // Calories validation (typical range: 150-800 per serving for Filipino dishes)
+    if (validated['calories'] > 800) {
+      print('⚠️ Calories value ${validated['calories']} seems too high for a single serving, capping at 800');
+      validated['calories'] = 800;
     }
     
-    // Sodium validation (typical range: 50-2000mg per serving for Filipino dishes)
+    // Sodium validation (typical range: 100-2000mg per serving for Filipino dishes)
     if (validated['sodium'] > 2000.0) {
       print('⚠️ Sodium value ${validated['sodium']}mg seems too high for a single serving, capping at 2000mg');
       validated['sodium'] = 2000.0;
     }
     
-    // Cholesterol validation (typical range: 0-300mg per serving)
-    if (validated['cholesterol'] > 300.0) {
-      print('⚠️ Cholesterol value ${validated['cholesterol']}mg seems too high for a single serving, capping at 300mg');
-      validated['cholesterol'] = 300.0;
+    // Cholesterol validation (typical range: 0-200mg per serving)
+    if (validated['cholesterol'] > 200.0) {
+      print('⚠️ Cholesterol value ${validated['cholesterol']}mg seems too high for a single serving, capping at 200mg');
+      validated['cholesterol'] = 200.0;
     }
     
-    // Carbs validation (typical range: 5-150g per serving)
-    if (validated['carbs'] > 150.0) {
-      print('⚠️ Carbs value ${validated['carbs']}g seems too high for a single serving, capping at 150g');
-      validated['carbs'] = 150.0;
+    // Carbs validation (typical range: 8-100g per serving)
+    if (validated['carbs'] > 100.0) {
+      print('⚠️ Carbs value ${validated['carbs']}g seems too high for a single serving, capping at 100g');
+      validated['carbs'] = 100.0;
     }
     
     // Fiber validation (typical range: 0-20g per serving)
@@ -747,10 +1021,10 @@ class FNRINutritionService {
       validated['fiber'] = 20.0;
     }
     
-    // Sugar validation (typical range: 0-50g per serving)
-    if (validated['sugar'] > 50.0) {
-      print('⚠️ Sugar value ${validated['sugar']}g seems too high for a single serving, capping at 50g');
-      validated['sugar'] = 50.0;
+    // Sugar validation (typical range: 0-40g per serving)
+    if (validated['sugar'] > 40.0) {
+      print('⚠️ Sugar value ${validated['sugar']}g seems too high for a single serving, capping at 40g');
+      validated['sugar'] = 40.0;
     }
     
     return validated;

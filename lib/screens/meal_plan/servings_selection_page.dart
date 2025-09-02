@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'home_page.dart';
+import '../home/home_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ServingsSelectionPage extends StatefulWidget {

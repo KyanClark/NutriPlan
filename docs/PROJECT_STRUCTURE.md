@@ -1,349 +1,199 @@
-# NutriPlan Project Structure & Organization
+# NutriPlan Project Structure
 
-## 📁 Directory Structure
+## Overview
+This document outlines the professional organization of the NutriPlan Flutter application, which follows domain-driven design principles and industry best practices for maintainable codebases.
 
+## Directory Structure
+
+### Root Level
 ```
 nutriplan/
-├── android/                    # Android-specific configurations
-├── ios/                       # iOS-specific configurations
-├── lib/                       # Main Dart source code
-│   ├── models/               # Data models and entities
-│   ├── screens/              # UI screens and pages
-│   ├── services/             # Business logic and external integrations
-│   ├── widgets/              # Reusable UI components
-│   └── utils/                # Helper functions and utilities
-├── assets/                    # Static assets (images, data files)
-│   ├── data/                 # CSV files and data sources
-│   └── images/               # App images and icons
-├── docs/                      # Project documentation
-├── system_reports/            # Daily activity logs and system reports
-├── test/                      # Unit and widget tests
-├── web/                       # Web platform support
-├── windows/                   # Windows platform support
-├── macos/                     # macOS platform support
-├── linux/                     # Linux platform support
-├── pubspec.yaml              # Flutter dependencies and configuration
-└── README.md                 # Project overview and setup instructions
+├── android/                 # Android platform-specific code
+├── ios/                    # iOS platform-specific code
+├── web/                    # Web platform-specific code
+├── linux/                  # Linux platform-specific code
+├── macos/                  # macOS platform-specific code
+├── windows/                # Windows platform-specific code
+├── assets/                 # Static assets (fonts, images, etc.)
+├── lib/                    # Main Dart source code
+├── test/                   # Test files
+├── docs/                   # Project documentation
+├── fnri-food-composition-scraper/  # Data scraping utilities
+└── pubspec.yaml           # Flutter dependencies
 ```
 
-## 🏗️ Architecture Patterns
+### Core Application Structure (`lib/`)
 
-### **Service Layer Architecture**
-- **Business Logic**: Centralized in service classes
-- **Data Access**: Abstracted through service interfaces
-- **Dependency Injection**: Services injected where needed
-- **Error Handling**: Consistent error handling across services
+#### Main Entry Point
+- `main.dart` - Application entry point and configuration
 
-### **Model-View-Service (MVS)**
-- **Models**: Data structures and business entities
-- **Views**: UI screens and components
-- **Services**: Business logic and data operations
+#### Models (`lib/models/`)
+- `meal_history_entry.dart` - Meal history data model
+- `recipes.dart` - Recipe data model
+- `user_nutrition_goals.dart` - User nutrition goals model
 
-## 📝 Naming Conventions
+#### Services (`lib/services/`)
+- `ai_meal_suggestion_service.dart` - AI-powered meal suggestions
+- `feedback_service.dart` - User feedback management
+- `fnri_nutrition_service.dart` - FNRI nutrition data service
+- `login_history_service.dart` - User login tracking
+- `recipe_nutrition_updater_service.dart` - Recipe nutrition updates
+- `recipe_service.dart` - Recipe management operations
 
-### **Files and Directories**
-- **snake_case**: For file names and directory names
-  - `meal_tracker_screen.dart`
-  - `ai_meal_suggestion_service.dart`
-  - `user_nutrition_goals.dart`
+#### Utils (`lib/utils/`)
+- `responsive_design.dart` - Responsive design utilities
 
-### **Classes and Types**
-- **PascalCase**: For class names and type definitions
-  - `MealTrackerScreen`
-  - `AIMealSuggestionService`
-  - `UserNutritionGoals`
+#### Widgets (`lib/widgets/`)
+- `animated_logo.dart` - Animated application logo
+- `bottom_navigation.dart` - Bottom navigation component
+- `custom_back_button.dart` - Custom back button widget
+- `decorative_auth_background.dart` - Authentication background
+- `loading_screen.dart` - Loading state component
+- `meal_log_card.dart` - Meal logging card widget
 
-### **Variables and Methods**
-- **camelCase**: For variables, methods, and properties
-  - `mealHistory`
-  - `calculateNutrition()`
-  - `userPreferences`
+#### Screens (`lib/screens/`)
+The screens are organized into domain-based subfolders with barrel files for clean imports:
 
-### **Constants**
-- **SCREAMING_SNAKE_CASE**: For global constants
-  - `MAX_RECIPE_TITLE_LENGTH`
-  - `DEFAULT_SERVING_SIZE`
-  - `API_TIMEOUT_DURATION`
+##### Authentication (`lib/screens/auth/`)
+- `index.dart` - Barrel file exporting all auth screens
+- `login_screen.dart` - User login interface
+- `signup_screen.dart` - User registration interface
+- `verify_screen.dart` - Email verification interface
+- `desktop_email_verification_screen.dart` - Desktop verification
 
-## 🔧 Code Organization Guidelines
+##### Recipe Management (`lib/screens/recipes/`)
+- `index.dart` - Barrel file exporting all recipe screens
+- `recipes_page.dart` - Main recipes listing and meal plan builder
+- `see_all_recipe.dart` - Complete recipe catalog
+- `recipe_info_screen.dart` - Detailed recipe information
+- `interactive_recipe_page.dart` - Interactive recipe interface
+- `recipe_steps_summary_page.dart` - Recipe steps overview
 
-### **File Structure Standards**
+##### Meal Planning (`lib/screens/meal_plan/`)
+- `index.dart` - Barrel file exporting all meal planning screens
+- `meal_planner_screen.dart` - Meal planning interface
+- `meal_plan_history_screen.dart` - Meal plan history
+- `meal_plan_confirmation_page.dart` - Meal plan confirmation
+- `meal_summary_page.dart` - Meal plan summary
+- `servings_selection_page.dart` - Serving size selection
 
-#### **Models** (`lib/models/`)
+##### Analytics (`lib/screens/analytics/`)
+- `index.dart` - Barrel file exporting analytics screens
+- `analytics_page.dart` - Nutrition and meal analytics
+
+##### Feedback System (`lib/screens/feedback/`)
+- `index.dart` - Barrel file exporting feedback screens
+- `feedback_thank_you_page.dart` - Feedback confirmation
+
+##### Meal Tracking (`lib/screens/tracking/`)
+- `index.dart` - Barrel file exporting tracking screens
+- `meal_tracker_screen.dart` - Daily meal tracking
+
+##### User Profile (`lib/screens/profile/`)
+- `index.dart` - Barrel file exporting profile screens
+- `profile_screen.dart` - User profile management
+
+##### Onboarding (`lib/screens/onboarding/`)
+- `index.dart` - Barrel file exporting onboarding screens
+- `dietary_preferences_screen.dart` - Dietary preference selection
+- `allergy_selection_page.dart` - Allergy and restriction selection
+
+##### AI Features (`lib/screens/ai/`)
+- `index.dart` - Barrel file exporting AI screens
+- `ai_meal_suggestions_screen.dart` - AI-powered meal suggestions
+
+##### Home (`lib/screens/home/`)
+- `index.dart` - Barrel file exporting home screens
+- `home_page.dart` - Main application home
+
+##### Shared Components (`lib/screens/shared/`)
+- `index.dart` - Barrel file exporting shared screens
+- `diet_type.dart` - Diet type definitions
+
+## Import Strategy
+
+### Barrel Files
+Each domain subfolder contains an `index.dart` file that exports all related screens. This provides:
+
+1. **Clean Imports**: Developers can import from domain folders instead of individual files
+2. **Maintainability**: Easy to add/remove screens without updating multiple import statements
+3. **Organization**: Clear separation of concerns by domain
+4. **Backward Compatibility**: Existing imports continue to work
+
+### Example Usage
 ```dart
-// File: user_nutrition_goals.dart
-class UserNutritionGoals {
-  // 1. Static constants
-  static const int maxCalories = 5000;
-  
-  // 2. Instance variables
-  final String id;
-  final int dailyCalories;
-  
-  // 3. Constructor
-  const UserNutritionGoals({
-    required this.id,
-    required this.dailyCalories,
-  });
-  
-  // 4. Factory constructors
-  factory UserNutritionGoals.fromMap(Map<String, dynamic> map) {
-    // Implementation
-  }
-  
-  // 5. Methods
-  Map<String, dynamic> toMap() {
-    // Implementation
-  }
-}
+// Before (scattered imports)
+import 'package:nutriplan/screens/recipes_page.dart';
+import 'package:nutriplan/screens/recipe_info_screen.dart';
+
+// After (organized imports)
+import 'package:nutriplan/screens/recipes/';
+import 'package:nutriplan/screens/meal_plan/';
 ```
 
-#### **Services** (`lib/services/`)
-```dart
-// File: nutrition_calculator_service.dart
-class NutritionCalculatorService {
-  // 1. Private variables
-  static final Map<String, dynamic> _cache = {};
-  
-  // 2. Public methods
-  static Future<Map<String, dynamic>> calculateNutrition(
-    List<String> ingredients,
-  ) async {
-    // Implementation
-  }
-  
-  // 3. Private helper methods
-  static Map<String, dynamic> _validateResults(
-    Map<String, dynamic> results,
-  ) {
-    // Implementation
-  }
-}
-```
+## Benefits of This Structure
 
-#### **Screens** (`lib/screens/`)
-```dart
-// File: meal_tracker_screen.dart
-class MealTrackerScreen extends StatefulWidget {
-  // 1. Constructor and required parameters
-  const MealTrackerScreen({
-    super.key,
-    required this.userId,
-  });
-  
-  final String userId;
-  
-  @override
-  State<MealTrackerScreen> createState() => _MealTrackerScreenState();
-}
+### 1. **Domain Separation**
+- Related functionality is grouped together
+- Clear boundaries between different application areas
+- Easier to understand and navigate
 
-class _MealTrackerScreenState extends State<MealTrackerScreen> {
-  // 1. Controllers and variables
-  late ScrollController _scrollController;
-  
-  // 2. State variables
-  bool _isLoading = false;
-  List<MealHistoryEntry> _meals = [];
-  
-  // 3. Lifecycle methods
-  @override
-  void initState() {
-    super.initState();
-    _initializeScreen();
-  }
-  
-  // 4. Public methods
-  Future<void> _loadMeals() async {
-    // Implementation
-  }
-  
-  // 5. Private helper methods
-  void _initializeScreen() {
-    // Implementation
-  }
-  
-  // 6. Build method
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      // UI implementation
-    );
-  }
-}
-```
+### 2. **Scalability**
+- New features can be added to appropriate domains
+- Easy to add new domains as the application grows
+- Maintains organization as complexity increases
 
-### **Import Organization**
-```dart
-// 1. Dart core libraries
-import 'dart:async';
-import 'dart:convert';
+### 3. **Team Collaboration**
+- Multiple developers can work on different domains
+- Reduced merge conflicts
+- Clear ownership of different areas
 
-// 2. Flutter libraries
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+### 4. **Maintenance**
+- Easier to locate specific functionality
+- Simplified refactoring within domains
+- Better code organization for debugging
 
-// 3. Third-party packages
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:intl/intl.dart';
+### 5. **Testing**
+- Domain-specific test organization
+- Easier to write focused unit tests
+- Better test coverage organization
 
-// 4. Local imports (relative paths)
-import '../models/recipe.dart';
-import '../services/recipe_service.dart';
-import '../widgets/recipe_card.dart';
+## Migration Notes
 
-// 5. Local imports (absolute paths)
-import 'package:nutriplan/utils/constants.dart';
-```
+### Existing Code
+- All existing imports continue to work
+- No breaking changes to current functionality
+- Screens remain in their original locations
 
-## 🎯 Best Practices
+### Future Development
+- New screens should be added to appropriate domain folders
+- Update barrel files when adding new screens
+- Consider creating new domains for major feature areas
 
-### **Code Quality Standards**
-1. **Documentation**: All public methods must have documentation comments
-2. **Error Handling**: Comprehensive error handling with user-friendly messages
-3. **Validation**: Input validation for all user inputs
-4. **Performance**: Efficient algorithms and data structures
-5. **Testing**: Unit tests for all business logic
+## Best Practices
 
-### **UI/UX Guidelines**
-1. **Consistency**: Use consistent spacing, colors, and typography
-2. **Accessibility**: Support for screen readers and accessibility features
-3. **Responsiveness**: Optimize for different screen sizes
-4. **Loading States**: Always show loading indicators for async operations
-5. **Error States**: Clear error messages with recovery options
+### 1. **Naming Conventions**
+- Use descriptive, domain-specific names
+- Follow Flutter naming conventions
+- Maintain consistency across similar components
 
-### **Database Design**
-1. **Normalization**: Proper database normalization
-2. **Indexing**: Strategic use of database indexes
-3. **Constraints**: Appropriate foreign key and check constraints
-4. **Security**: Row-level security for user data isolation
+### 2. **File Organization**
+- Keep related files together
+- Use barrel files for clean exports
+- Maintain logical grouping within domains
 
-## 📊 Data Flow Patterns
+### 3. **Import Management**
+- Prefer domain imports over individual file imports
+- Keep imports organized and clean
+- Avoid circular dependencies
 
-### **Recipe Management Flow**
-```
-User Input → Validation → Service Layer → Database → Response → UI Update
-```
+### 4. **Documentation**
+- Update this document when adding new domains
+- Document any domain-specific conventions
+- Maintain clear separation of concerns
 
-### **Nutrition Calculation Flow**
-```
-Ingredients → FNRI Service → Data Validation → Calculation → Result → Storage
-```
+## Conclusion
 
-### **Meal Tracking Flow**
-```
-Meal Log → Categorization → Nutrition Calculation → Database → Analytics Update
-```
+This organized structure provides a solid foundation for the NutriPlan application's continued growth and development. It follows industry best practices and makes the codebase more maintainable, scalable, and professional.
 
-## 🔄 State Management
-
-### **Local State**
-- **setState**: For simple component state
-- **ValueNotifier**: For reactive state changes
-- **ChangeNotifier**: For complex state management
-
-### **Global State**
-- **Services**: Singleton services for global state
-- **Event Bus**: For cross-component communication
-- **Shared Preferences**: For persistent user settings
-
-## 🧪 Testing Strategy
-
-### **Test Organization**
-```
-test/
-├── unit/                     # Unit tests for services and models
-├── widget/                   # Widget tests for UI components
-└── integration/              # Integration tests for workflows
-```
-
-### **Test Naming**
-```dart
-// File: test/unit/services/nutrition_calculator_service_test.dart
-void main() {
-  group('NutritionCalculatorService', () {
-    test('should calculate nutrition for valid ingredients', () async {
-      // Test implementation
-    });
-    
-    test('should handle empty ingredient list', () async {
-      // Test implementation
-    });
-  });
-}
-```
-
-## 📈 Performance Guidelines
-
-### **Memory Management**
-1. **Dispose Controllers**: Always dispose of controllers in dispose method
-2. **Image Caching**: Implement proper image caching strategies
-3. **List Optimization**: Use ListView.builder for large lists
-4. **Async Operations**: Cancel unnecessary async operations
-
-### **Database Optimization**
-1. **Query Efficiency**: Optimize database queries
-2. **Connection Pooling**: Efficient database connection management
-3. **Caching**: Implement appropriate caching strategies
-4. **Batch Operations**: Use batch operations for multiple updates
-
-## 🔒 Security Considerations
-
-### **Data Protection**
-1. **Input Sanitization**: Validate and sanitize all user inputs
-2. **Authentication**: Secure user authentication
-3. **Authorization**: Proper access control for user data
-4. **Encryption**: Encrypt sensitive data in storage
-
-### **API Security**
-1. **Rate Limiting**: Implement API rate limiting
-2. **Input Validation**: Validate all API inputs
-3. **Error Handling**: Don't expose sensitive information in errors
-4. **HTTPS**: Use secure connections for all API calls
-
-## 📝 Documentation Standards
-
-### **Code Comments**
-```dart
-/// Calculates the total nutrition for a recipe based on ingredients.
-/// 
-/// This method processes the ingredient list and calculates the total
-/// nutritional values using the FNRI database.
-/// 
-/// Parameters:
-/// - [ingredients]: List of ingredient names
-/// - [quantities]: Map of ingredient names to quantities in grams
-/// 
-/// Returns a [Map] containing the calculated nutrition values.
-/// 
-/// Throws [NutritionCalculationException] if ingredients cannot be processed.
-Future<Map<String, dynamic>> calculateRecipeNutrition(
-  List<String> ingredients,
-  Map<String, double> quantities,
-) async {
-  // Implementation
-}
-```
-
-### **README Updates**
-- Update README.md when adding new features
-- Document breaking changes clearly
-- Include setup instructions for new dependencies
-- Update usage examples for new functionality
-
-## 🚀 Deployment Guidelines
-
-### **Build Configuration**
-1. **Environment Variables**: Use proper environment configuration
-2. **Build Variants**: Configure debug, release, and staging builds
-3. **Code Signing**: Proper code signing for production releases
-4. **Version Management**: Consistent version numbering
-
-### **Release Process**
-1. **Testing**: Comprehensive testing before release
-2. **Documentation**: Update release notes and documentation
-3. **Deployment**: Staged deployment to production
-4. **Monitoring**: Monitor application performance post-release
-
----
-
-This structure ensures maintainable, scalable, and professional code quality throughout the NutriPlan project. Follow these guidelines to maintain consistency and best practices across all development activities.
+The domain-based organization ensures that related functionality is grouped together, making it easier for developers to understand and work with the codebase. The barrel file approach maintains clean imports while preserving backward compatibility.

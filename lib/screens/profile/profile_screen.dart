@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'login_screen.dart';
-import './dietary_preferences_screen.dart';
-import './meal_plan_history_screen.dart'; // Added import for MealPlanHistoryScreen
+import '../auth/login_screen.dart';
+import 'dietary_preferences_screen.dart';
+import '../meal_plan/meal_plan_history_screen.dart'; // Added import for MealPlanHistoryScreen
 
-import './favorites_page.dart'; // Added import for FavoritesPage
+import '../recipes/favorites_page.dart'; // Added import for FavoritesPage
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -210,7 +210,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(context, rootNavigator: true).pop(true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF6961)),
               child: const Text('Logout', style: TextStyle(color: Colors.white)),
             ),
           ],
@@ -458,7 +458,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to upload image: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: const Color(0xFFFF6961),
           ),
         );
       }
@@ -627,7 +627,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Failed to update profile picture: $e'),
-              backgroundColor: Colors.red,
+              backgroundColor: const Color(0xFFFF6961),
             ),
           );
         }

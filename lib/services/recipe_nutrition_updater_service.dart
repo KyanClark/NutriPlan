@@ -29,7 +29,7 @@ class RecipeNutritionUpdaterService {
       
       // Calculate nutrition using FNRI data
       final nutrition = await FNRINutritionService.calculateRecipeNutrition(
-        ingredients.map((i) => i.toString()).toList(),
+        ingredientList.map((i) => i['name'].toString()).toList(),
         Map.fromEntries(ingredientList.map((i) => MapEntry(i['name'].toString(), i['quantity'])))
       );
       
@@ -122,6 +122,13 @@ class RecipeNutritionUpdaterService {
 
   /// Extract quantity from ingredient string (e.g., "12 oz mung bean sprouts" -> 340.2g)
   static double _extractQuantityFromString(String ingredientStr) {
+    // Handle pounds (lbs)
+    final lbsMatch = RegExp(r'(\d+(?:\.\d+)?)\s*lbs?').firstMatch(ingredientStr);
+    if (lbsMatch != null) {
+      final lbs = double.tryParse(lbsMatch.group(1) ?? '1');
+      return (lbs ?? 1) * 453.59; // Convert to grams (1 lb = 453.59g)
+    }
+    
     // Handle ounces (oz)
     final ozMatch = RegExp(r'(\d+(?:\.\d+)?)\s*oz').firstMatch(ingredientStr);
     if (ozMatch != null) {
@@ -150,15 +157,59 @@ class RecipeNutritionUpdaterService {
       return (tsp ?? 1) * 5; // Convert to grams (1 tsp ≈ 5g)
     }
     
+    // Handle pieces (estimate based on ingredient type)
+    final pieceMatch = RegExp(r'(\d+(?:\.\d+)?)\s*piece').firstMatch(ingredientStr);
+    if (pieceMatch != null) {
+      final pieces = double.tryParse(pieceMatch.group(1) ?? '1');
+      final ingredientLower = ingredientStr.toLowerCase();
+      
+      // Estimate weight per piece based on ingredient type
+      if (ingredientLower.contains('tomato')) return (pieces ?? 1) * 60; // 60g per tomato
+      if (ingredientLower.contains('onion')) return (pieces ?? 1) * 50; // 50g per onion
+      if (ingredientLower.contains('eggplant')) return (pieces ?? 1) * 60; // 60g per eggplant
+      if (ingredientLower.contains('okra')) return (pieces ?? 1) * 10; // 10g per okra
+      if (ingredientLower.contains('potato')) return (pieces ?? 1) * 60; // 60g per potato
+      if (ingredientLower.contains('radish') || ingredientLower.contains('daikon')) return (pieces ?? 1) * 40; // 40g per radish
+      
+      return (pieces ?? 1) * 30; // Default 30g per piece
+    }
+    
+    // Handle bunches (estimate based on ingredient type)
+    final bunchMatch = RegExp(r'(\d+(?:\.\d+)?)\s*bunch').firstMatch(ingredientStr);
+    if (bunchMatch != null) {
+      final bunches = double.tryParse(bunchMatch.group(1) ?? '1');
+      final ingredientLower = ingredientStr.toLowerCase();
+      
+      if (ingredientLower.contains('spinach') || ingredientLower.contains('kangkong')) return (bunches ?? 1) * 100; // 100g per bunch
+      if (ingredientLower.contains('string beans') || ingredientLower.contains('sitaw')) return (bunches ?? 1) * 180; // 180g per bunch
+      
+      return (bunches ?? 1) * 80; // Default 80g per bunch
+    }
+    
     return 0; // No quantity found
   }
 
   /// Clean ingredient name by removing quantity information
   static String _cleanIngredientName(String ingredientStr) {
-    // Remove common quantity patterns
-    return ingredientStr
-        .replaceAll(RegExp(r'\d+(?:\.\d+)?\s*(oz|ounce|cup|cups|tbsp|tsp|g|gram|grams|kg|kilogram|kilograms)'), '')
-        .trim();
+    // Remove common quantity patterns but be more careful
+    String cleaned = ingredientStr;
+    
+    // Remove measurements but keep ingredient names
+    cleaned = cleaned.replaceAll(RegExp(r'\d+(?:\.\d+)?\s*(oz|ounce|cup|cups|tbsp|tsp|g|gram|grams|kg|kilogram|kilograms|lbs?|pound|pounds)'), '');
+    
+    // Remove "pieces", "bunch", "to taste" but keep the ingredient
+    cleaned = cleaned.replaceAll(RegExp(r'\d+(?:\.\d+)?\s*(piece|pieces|bunch|bunches)'), '');
+    cleaned = cleaned.replaceAll(RegExp(r'\d+(?:\.\d+)?\s*(clove|cloves|teaspoon|teaspoons|tsp)'), '');
+    cleaned = cleaned.replaceAll(RegExp(r'\s*(to taste|and|with)\s*'), ' ');
+    
+    // Remove any remaining numbers with decimals at the start
+    cleaned = cleaned.replaceAll(RegExp(r'^\d+\.\d+\s*'), '');
+    
+    // Clean up extra spaces and remove leading/trailing punctuation
+    cleaned = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
+    cleaned = cleaned.replaceAll(RegExp(r'^[.,\s]+|[.,\s]+$'), '');
+    
+    return cleaned;
   }
 
   /// Estimate ingredient quantities based on common Filipino recipe amounts
@@ -167,10 +218,11 @@ class RecipeNutritionUpdaterService {
     
     // Meat and protein - more realistic portions
     if (ingredientLower.contains('pork') || ingredientLower.contains('beef') || ingredientLower.contains('chicken')) {
+      if (ingredientLower.contains('belly') || ingredientLower.contains('liempo')) return 100; // 100g pork belly
       if (ingredientLower.contains('ribs') || ingredientLower.contains('chunk') || ingredientLower.contains('cut')) return 120; // 120g per serving
       if (ingredientLower.contains('thigh') || ingredientLower.contains('breast') || ingredientLower.contains('fillet')) return 100; // 100g per serving
       if (ingredientLower.contains('ground') || ingredientLower.contains('minced')) return 80; // 80g per serving
-      return 80; // Default meat portion - more realistic
+      return 100; // Default meat portion - more realistic for Filipino dishes
     }
     
     // Fish and seafood
