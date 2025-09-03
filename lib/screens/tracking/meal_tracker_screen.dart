@@ -408,14 +408,14 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
           
           const SizedBox(height: 20),
           
-          // Macro cards in 2x2 grid
+          // Macro cards in 3x2 grid (6 macros total)
           GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
+            crossAxisCount: 3,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: 1.2,
+            childAspectRatio: 0.9,
             children: [
               _MacroCard(
                 icon: Icons.fitness_center,
@@ -448,6 +448,22 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                 unit: 'g',
                 goal: goals?.fiberGoal ?? 25,
                 color: Colors.green,
+              ),
+              _MacroCard(
+                icon: Icons.cake,
+                title: 'Sugar',
+                value: summary.sugar.toStringAsFixed(0),
+                unit: 'g',
+                goal: goals?.sugarGoal ?? 50,
+                color: Colors.pink,
+              ),
+              _MacroCard(
+                icon: Icons.favorite,
+                title: 'Cholesterol',
+                value: summary.cholesterol.toStringAsFixed(0),
+                unit: 'mg',
+                goal: goals?.cholesterolGoal ?? 300,
+                color: Colors.red,
               ),
             ],
           ),
@@ -605,10 +621,10 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
               GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
+                crossAxisCount: 3,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                childAspectRatio: 1.2,
+                childAspectRatio: 0.9,
                 children: [
                   _MacroCard(
                     icon: Icons.fitness_center,
@@ -641,6 +657,22 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                     unit: 'g',
                     goal: (goals?.fiberGoal ?? 25) * 7,
                     color: Colors.green,
+                  ),
+                  _MacroCard(
+                    icon: Icons.cake,
+                    title: 'Weekly Sugar',
+                    value: summary.sugar.toStringAsFixed(0),
+                    unit: 'g',
+                    goal: (goals?.sugarGoal ?? 50) * 7,
+                    color: Colors.pink,
+                  ),
+                  _MacroCard(
+                    icon: Icons.favorite,
+                    title: 'Weekly Cholesterol',
+                    value: summary.cholesterol.toStringAsFixed(0),
+                    unit: 'mg',
+                    goal: (goals?.cholesterolGoal ?? 300) * 7,
+                    color: Colors.red,
                   ),
                 ],
               ),
@@ -739,10 +771,10 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
               GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
+                crossAxisCount: 3,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                childAspectRatio: 1.2,
+                childAspectRatio: 0.9,
                 children: [
                   _MacroCard(
                     icon: Icons.fitness_center,
@@ -775,6 +807,22 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                     unit: 'g',
                     goal: (goals?.fiberGoal ?? 25) * 30,
                     color: Colors.green,
+                  ),
+                  _MacroCard(
+                    icon: Icons.cake,
+                    title: 'Monthly Sugar',
+                    value: summary.sugar.toStringAsFixed(0),
+                    unit: 'g',
+                    goal: (goals?.sugarGoal ?? 50) * 30,
+                    color: Colors.pink,
+                  ),
+                  _MacroCard(
+                    icon: Icons.favorite,
+                    title: 'Monthly Cholesterol',
+                    value: summary.cholesterol.toStringAsFixed(0),
+                    unit: 'mg',
+                    goal: (goals?.cholesterolGoal ?? 300) * 30,
+                    color: Colors.red,
                   ),
                 ],
               ),

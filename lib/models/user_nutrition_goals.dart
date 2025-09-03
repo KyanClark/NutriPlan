@@ -5,6 +5,7 @@ class UserNutritionGoals {
   final double fatGoal;
   final double sugarGoal;
   final double fiberGoal;
+  final double cholesterolGoal;
 
   UserNutritionGoals({
     required this.calorieGoal,
@@ -13,6 +14,7 @@ class UserNutritionGoals {
     required this.fatGoal,
     required this.sugarGoal,
     required this.fiberGoal,
+    required this.cholesterolGoal,
   });
 
   factory UserNutritionGoals.fromMap(Map<String, dynamic> map) {
@@ -23,6 +25,7 @@ class UserNutritionGoals {
       fatGoal: (map['fat_goal'] ?? 70).toDouble(),
       sugarGoal: (map['sugar_goal'] ?? 50).toDouble(),
       fiberGoal: (map['fiber_goal'] ?? 30).toDouble(),
+      cholesterolGoal: (map['cholesterol_goal'] ?? 300).toDouble(),
     );
   }
 } 
