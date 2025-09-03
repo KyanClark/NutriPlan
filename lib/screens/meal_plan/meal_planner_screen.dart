@@ -589,7 +589,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                },
                icon: const Icon(Icons.add, color: Colors.white),
                label: const Text(
-                 'Create Meal Plan',
+                 'Add Meal Plan',
                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                ),
                backgroundColor: const Color.fromARGB(255, 81, 209, 87),

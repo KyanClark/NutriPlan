@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'dart:ui';
 import '../../models/meal_history_entry.dart';
 import '../../models/user_nutrition_goals.dart';
 import '../../widgets/meal_log_card.dart';
@@ -26,10 +27,16 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
   
   // Flag to track if widget is mounted
   bool _mounted = true;
+  
+  // Scroll controller for glass morphism effects
+  late ScrollController _scrollController;
+  double _scrollOffset = 0.0;
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
     _fetchData();
     _fetchDatesWithMeals();
   }
@@ -37,7 +44,157 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
   @override
   void dispose() {
     _mounted = false;
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     super.dispose();
+  }
+  
+  void _onScroll() {
+    if (!_mounted) return;
+    setState(() {
+      _scrollOffset = _scrollController.offset;
+    });
+  }
+  
+  // Glass morphism header widget
+  Widget _buildGlassMorphismHeader() {
+    // Calculate opacity based on scroll position
+    final opacity = (_scrollOffset / 100).clamp(0.0, 0.8);
+    final blurIntensity = (_scrollOffset / 50).clamp(0.0, 15.0);
+    
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: blurIntensity, sigmaY: blurIntensity),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(opacity),
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  if (widget.showBackButton)
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+                      onPressed: () => Navigator.of(context).pop(),
+                    )
+                  else
+                    const SizedBox(),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Meal Tracker',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                        Text(
+                          'Track your nutrition goals',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+  
+  // Glass morphism tab section widget
+  Widget _buildGlassMorphismTabs() {
+    // Calculate opacity based on scroll position
+    final opacity = (_scrollOffset / 100).clamp(0.0, 0.6);
+    final blurIntensity = (_scrollOffset / 50).clamp(0.0, 10.0);
+    
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: blurIntensity, sigmaY: blurIntensity),
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(opacity),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.2),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              _TabButton(
+                label: 'Today',
+                isSelected: _selectedTab == 'today',
+                onTap: () {
+                  if (!_mounted) return;
+                  setState(() {
+                    _selectedTab = 'today';
+                  });
+                  _fetchData();
+                },
+              ),
+              const SizedBox(width: 12),
+              _TabButton(
+                label: 'Weekly',
+                isSelected: _selectedTab == 'weekly',
+                onTap: () {
+                  if (!_mounted) return;
+                  setState(() {
+                    _selectedTab = 'weekly';
+                  });
+                  _fetchData();
+                },
+              ),
+              const SizedBox(width: 12),
+              _TabButton(
+                label: 'Monthly',
+                isSelected: _selectedTab == 'monthly',
+                onTap: () {
+                  if (!_mounted) return;
+                  setState(() {
+                    _selectedTab = 'monthly';
+                  });
+                  _fetchData();
+                },
+              ),
+              const Spacer(),
+              // Calendar button with glass effect
+              GestureDetector(
+                onTap: _showCalendar,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.5),
+                      width: 1,
+                    ),
+                  ),
+                  child: Icon(Icons.calendar_today, size: 20, color: Colors.grey[600]),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _fetchData() async {
@@ -304,12 +461,13 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
         return _buildTodayContent();
     }
   }
-
-  // Build today's content
+  
+  // Build today's content with scroll controller
   Widget _buildTodayContent() {
     final summary = _getDailySummary(meals);
     
     return SingleChildScrollView(
+      controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         children: [
@@ -372,34 +530,34 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                         ],
                       ),
                     ),
-                                         // Circular progress indicator
-                     SizedBox(
-                       width: 150,
-                       height: 150,
-                       child: Column(
-                         children: [
-                           SizedBox(
-                             width: 100,
-                             height: 100,
-                             child: CircularProgressIndicator(
-                               value: (summary.calories / (goals?.calorieGoal ?? 2000)).clamp(0.0, 1.0),
-                               strokeWidth: 12,
-                               backgroundColor: Colors.white.withValues(alpha: 0.3),
-                               valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                             ),
-                           ),
-                           const SizedBox(height: 8),
-                           Text(
-                             '${((summary.calories / (goals?.calorieGoal ?? 2000)) * 100).toStringAsFixed(0)}%',
-                             style: const TextStyle(
-                               color: Colors.white,
-                               fontSize: 18,
-                               fontWeight: FontWeight.bold,
-                             ),
-                           ),
-                         ],
-                       ),
-                     ),
+                    // Circular progress indicator with centered percentage
+                    SizedBox(
+                      width: 150,
+                      height: 150,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          SizedBox(
+                            width: 100,
+                            height: 100,
+                            child: CircularProgressIndicator(
+                              value: (summary.calories / (goals?.calorieGoal ?? 2000)).clamp(0.0, 1.0),
+                              strokeWidth: 12,
+                              backgroundColor: Colors.white.withValues(alpha: 0.3),
+                              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          ),
+                          Text(
+                            '${((summary.calories / (goals?.calorieGoal ?? 2000)) * 100).toStringAsFixed(0)}%',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -408,23 +566,15 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
           
           const SizedBox(height: 20),
           
-          // Macro cards in 3x2 grid (6 macros total)
+          // Macro cards in 2x3 grid (6 macros total)
           GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 3,
+            crossAxisCount: 2,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: 0.9,
+            childAspectRatio: 1.2,
             children: [
-              _MacroCard(
-                icon: Icons.fitness_center,
-                title: 'Protein',
-                value: summary.protein.toStringAsFixed(0),
-                unit: 'g',
-                goal: goals?.proteinGoal ?? 165,
-                color: Colors.blue,
-              ),
               _MacroCard(
                 icon: Icons.grain,
                 title: 'Carbs',
@@ -432,6 +582,14 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                 unit: 'g',
                 goal: goals?.carbGoal ?? 275,
                 color: Colors.orange,
+              ),
+              _MacroCard(
+                icon: Icons.fitness_center,
+                title: 'Protein',
+                value: summary.protein.toStringAsFixed(0),
+                unit: 'g',
+                goal: goals?.proteinGoal ?? 165,
+                color: Colors.blue,
               ),
               _MacroCard(
                 icon: Icons.water_drop,
@@ -554,6 +712,7 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
         );
         
         return SingleChildScrollView(
+          controller: _scrollController,
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Column(
             children: [
@@ -609,6 +768,34 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                             ],
                           ),
                         ),
+                        // Circular progress indicator with centered percentage
+                        SizedBox(
+                          width: 150,
+                          height: 150,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              SizedBox(
+                                width: 100,
+                                height: 100,
+                                child: CircularProgressIndicator(
+                                  value: (summary.calories / ((goals?.calorieGoal ?? 2000) * 7)).clamp(0.0, 1.0),
+                                  strokeWidth: 12,
+                                  backgroundColor: Colors.white.withValues(alpha: 0.3),
+                                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              ),
+                              Text(
+                                '${((summary.calories / ((goals?.calorieGoal ?? 2000) * 7)) * 100).toStringAsFixed(0)}%',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -621,30 +808,30 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
               GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 3,
+                crossAxisCount: 2,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                childAspectRatio: 0.9,
+                childAspectRatio: 1.2,
                 children: [
                   _MacroCard(
-                    icon: Icons.fitness_center,
-                    title: 'Weekly Protein',
-                    value: summary.protein.toStringAsFixed(0),
-                    unit: 'g',
-                    goal: (goals?.proteinGoal ?? 165) * 7,
-                    color: Colors.blue,
-                  ),
-                  _MacroCard(
                     icon: Icons.grain,
-                    title: 'Weekly Carbs',
+                    title: 'Carbs',
                     value: summary.carbs.toStringAsFixed(0),
                     unit: 'g',
                     goal: (goals?.carbGoal ?? 275) * 7,
                     color: Colors.orange,
                   ),
                   _MacroCard(
+                    icon: Icons.fitness_center,
+                    title: 'Protein',
+                    value: summary.protein.toStringAsFixed(0),
+                    unit: 'g',
+                    goal: (goals?.proteinGoal ?? 165) * 7,
+                    color: Colors.blue,
+                  ),
+                  _MacroCard(
                     icon: Icons.water_drop,
-                    title: 'Weekly Fat',
+                    title: 'Fat',
                     value: summary.fat.toStringAsFixed(0),
                     unit: 'g',
                     goal: (goals?.fatGoal ?? 75) * 7,
@@ -652,7 +839,7 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                   ),
                   _MacroCard(
                     icon: Icons.local_florist,
-                    title: 'Weekly Fiber',
+                    title: 'Fiber',
                     value: summary.fiber.toStringAsFixed(0),
                     unit: 'g',
                     goal: (goals?.fiberGoal ?? 25) * 7,
@@ -660,7 +847,7 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                   ),
                   _MacroCard(
                     icon: Icons.cake,
-                    title: 'Weekly Sugar',
+                    title: 'Sugar',
                     value: summary.sugar.toStringAsFixed(0),
                     unit: 'g',
                     goal: (goals?.sugarGoal ?? 50) * 7,
@@ -668,7 +855,7 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                   ),
                   _MacroCard(
                     icon: Icons.favorite,
-                    title: 'Weekly Cholesterol',
+                    title: 'Cholesterol',
                     value: summary.cholesterol.toStringAsFixed(0),
                     unit: 'mg',
                     goal: (goals?.cholesterolGoal ?? 300) * 7,
@@ -759,6 +946,34 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                             ],
                           ),
                         ),
+                        // Circular progress indicator with centered percentage
+                        SizedBox(
+                          width: 150,
+                          height: 150,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              SizedBox(
+                                width: 100,
+                                height: 100,
+                                child: CircularProgressIndicator(
+                                  value: (summary.calories / ((goals?.calorieGoal ?? 2000) * 30)).clamp(0.0, 1.0),
+                                  strokeWidth: 12,
+                                  backgroundColor: Colors.white.withValues(alpha: 0.3),
+                                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              ),
+                              Text(
+                                '${((summary.calories / ((goals?.calorieGoal ?? 2000) * 30)) * 100).toStringAsFixed(0)}%',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -771,30 +986,30 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
               GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 3,
+                crossAxisCount: 2,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                childAspectRatio: 0.9,
+                childAspectRatio: 1.2,
                 children: [
                   _MacroCard(
-                    icon: Icons.fitness_center,
-                    title: 'Monthly Protein',
-                    value: summary.protein.toStringAsFixed(0),
-                    unit: 'g',
-                    goal: (goals?.proteinGoal ?? 165) * 30,
-                    color: Colors.blue,
-                  ),
-                  _MacroCard(
                     icon: Icons.grain,
-                    title: 'Monthly Carbs',
+                    title: 'Carbs',
                     value: summary.carbs.toStringAsFixed(0),
                     unit: 'g',
                     goal: (goals?.carbGoal ?? 275) * 30,
                     color: Colors.orange,
                   ),
                   _MacroCard(
+                    icon: Icons.fitness_center,
+                    title: 'Protein',
+                    value: summary.protein.toStringAsFixed(0),
+                    unit: 'g',
+                    goal: (goals?.proteinGoal ?? 165) * 30,
+                    color: Colors.blue,
+                  ),
+                  _MacroCard(
                     icon: Icons.water_drop,
-                    title: 'Monthly Fat',
+                    title: 'Fat',
                     value: summary.fat.toStringAsFixed(0),
                     unit: 'g',
                     goal: (goals?.fatGoal ?? 75) * 30,
@@ -802,7 +1017,7 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                   ),
                   _MacroCard(
                     icon: Icons.local_florist,
-                    title: 'Monthly Fiber',
+                    title: 'Fiber',
                     value: summary.fiber.toStringAsFixed(0),
                     unit: 'g',
                     goal: (goals?.fiberGoal ?? 25) * 30,
@@ -810,7 +1025,7 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                   ),
                   _MacroCard(
                     icon: Icons.cake,
-                    title: 'Monthly Sugar',
+                    title: 'Sugar',
                     value: summary.sugar.toStringAsFixed(0),
                     unit: 'g',
                     goal: (goals?.sugarGoal ?? 50) * 30,
@@ -818,7 +1033,7 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                   ),
                   _MacroCard(
                     icon: Icons.favorite,
-                    title: 'Monthly Cholesterol',
+                    title: 'Cholesterol',
                     value: summary.cholesterol.toStringAsFixed(0),
                     unit: 'mg',
                     goal: (goals?.cholesterolGoal ?? 300) * 30,
@@ -842,101 +1057,11 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header with title and profile icon
-            Container(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  if (widget.showBackButton)
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-                      onPressed: () => Navigator.of(context).pop(),
-                    )
-                  else
-                    const SizedBox(),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Meal Tracker',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
-                        Text(
-                          'Track your nutrition goals',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            // Glass morphism header
+            _buildGlassMorphismHeader(),
             
-            // Tab buttons (Today, Weekly, Monthly)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  _TabButton(
-                    label: 'Today',
-                    isSelected: _selectedTab == 'today',
-                    onTap: () {
-                      if (!_mounted) return;
-                      setState(() {
-                        _selectedTab = 'today';
-                      });
-                      _fetchData();
-                    },
-                  ),
-                  const SizedBox(width: 12),
-                  _TabButton(
-                    label: 'Weekly',
-                    isSelected: _selectedTab == 'weekly',
-                    onTap: () {
-                      if (!_mounted) return;
-                      setState(() {
-                        _selectedTab = 'weekly';
-                      });
-                      _fetchData();
-                    },
-                  ),
-                  const SizedBox(width: 12),
-                  _TabButton(
-                    label: 'Monthly',
-                    isSelected: _selectedTab == 'monthly',
-                    onTap: () {
-                      if (!_mounted) return;
-                      setState(() {
-                        _selectedTab = 'monthly';
-                      });
-                      _fetchData();
-                    },
-                  ),
-                  const Spacer(),
-                  // Calendar button
-                  GestureDetector(
-                    onTap: _showCalendar,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey[300]!),
-                      ),
-                      child: Icon(Icons.calendar_today, size: 20, color: Colors.grey[600]),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            // Glass morphism tabs
+            _buildGlassMorphismTabs(),
             
             const SizedBox(height: 20),
             
