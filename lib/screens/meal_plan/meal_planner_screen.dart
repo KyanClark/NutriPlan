@@ -279,7 +279,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
               children: [
                                                   // Header with 'My Meal Plan' text and delete button inline
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 30.0),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [

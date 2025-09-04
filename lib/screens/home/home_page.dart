@@ -27,6 +27,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   // Scroll offset for transparency effect
   double _scrollOffset = 0.0;
   static const double _maxScrollOffset = 100.0; // Distance to reach full transparency
+  
+  // Keys for each screen to force rebuild when navigation changes
+  final List<GlobalKey> _pageKeys = [
+    GlobalKey(),
+    GlobalKey(),
+    GlobalKey(),
+    GlobalKey(),
+  ];
 
   @override
   void initState() {
@@ -47,6 +55,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     setState(() {
       _scrollOffset = offset;
     });
+  }
+
+  // Reset scroll offset for glass morphism when switching main navigation tabs
+  void _resetScrollOffsetForTab(int newIndex) {
+    // Force rebuild of the target screen to reset its scroll state
+    if (newIndex < _pageKeys.length) {
+      final key = _pageKeys[newIndex];
+      if (key.currentState != null) {
+        // Trigger a rebuild by updating the key
+        setState(() {});
+      }
+    }
   }
 
   // Calculate opacity based on scroll position
@@ -121,8 +141,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
   }
 
-  Widget _buildHomeContent() {
+  Widget _buildHomeContent({Key? key}) {
     return SingleChildScrollView(
+      key: key,
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -291,15 +312,23 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final isSmallScreen = ResponsiveDesign.isSmallScreen(context);
 
-
   List<Widget> pages = [
-    _buildHomeContent(),
+    _buildHomeContent(key: _pageKeys[0]),
     MealPlannerScreen(
+      key: _pageKeys[1],
       forceRefresh: widget.forceMealPlanRefresh,
       onChanged: _fetchCounts,
     ),
-    const MealTrackerScreen(),
-    const ProfileScreen(),
+    MealTrackerScreen(
+      key: _pageKeys[2],
+      onTabActivated: () {
+        // This callback is called when MealTrackerScreen is activated
+        // The scroll offset is already reset in the screen itself
+      },
+    ),
+    ProfileScreen(
+      key: _pageKeys[3],
+    ),
   ];
 
   return Scaffold(
@@ -366,6 +395,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     bottomNavigationBar: BottomNavigation(
       selectedIndex: _selectedIndex,
       onTap: (index) {
+        if (index != _selectedIndex) {
+          // Reset scroll offset for glass morphism when switching main navigation tabs
+          _resetScrollOffsetForTab(index);
+        }
         setState(() {
           _selectedIndex = index;
         });

@@ -8,7 +8,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class MealTrackerScreen extends StatefulWidget {
   final bool showBackButton;
-  const MealTrackerScreen({super.key, this.showBackButton = false});
+  final VoidCallback? onTabActivated;
+  const MealTrackerScreen({super.key, this.showBackButton = false, this.onTabActivated});
 
   @override
   State<MealTrackerScreen> createState() => _MealTrackerScreenState();
@@ -37,6 +38,8 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
     super.initState();
     _scrollController = ScrollController();
     _scrollController.addListener(_onScroll);
+    // Reset scroll offset when screen is initialized (e.g., when switching from another tab)
+    _scrollOffset = 0.0;
     _fetchData();
     _fetchDatesWithMeals();
   }
@@ -48,11 +51,30 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
     _scrollController.dispose();
     super.dispose();
   }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reset scroll offset when dependencies change (e.g., when switching back to this tab)
+    if (_mounted) {
+      _scrollOffset = 0.0;
+      // Notify parent that this tab is activated
+      widget.onTabActivated?.call();
+    }
+  }
   
   void _onScroll() {
     if (!_mounted) return;
     setState(() {
       _scrollOffset = _scrollController.offset;
+    });
+  }
+  
+  // Reset scroll offset to reset glass morphism effects
+  void _resetScrollOffset() {
+    if (!_mounted) return;
+    setState(() {
+      _scrollOffset = 0.0;
     });
   }
   
@@ -145,6 +167,7 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                   if (!_mounted) return;
                   setState(() {
                     _selectedTab = 'today';
+                    _scrollOffset = 0.0; // Reset scroll offset for glass morphism
                   });
                   _fetchData();
                 },
@@ -157,6 +180,7 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                   if (!_mounted) return;
                   setState(() {
                     _selectedTab = 'weekly';
+                    _scrollOffset = 0.0; // Reset scroll offset for glass morphism
                   });
                   _fetchData();
                 },
@@ -169,6 +193,7 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                   if (!_mounted) return;
                   setState(() {
                     _selectedTab = 'monthly';
+                    _scrollOffset = 0.0; // Reset scroll offset for glass morphism
                   });
                   _fetchData();
                 },
@@ -199,6 +224,8 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
 
   Future<void> _fetchData() async {
     if (!_mounted) return;
+    // Reset scroll offset for glass morphism when data is refreshed
+    _scrollOffset = 0.0;
     setState(() => isLoading = true);
     
     try {
@@ -353,6 +380,7 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
           if (!_mounted) return;
           setState(() {
             selectedDate = date;
+            _scrollOffset = 0.0; // Reset scroll offset for glass morphism
           });
           Navigator.of(context).pop();
           _fetchData();
