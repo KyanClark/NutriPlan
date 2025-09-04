@@ -79,155 +79,145 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
   
   // Glass morphism header widget
   Widget _buildGlassMorphismHeader() {
-    return AnimatedBuilder(
-      animation: _scrollController,
-      builder: (context, child) {
-        // Calculate opacity based on scroll position
-        final opacity = (_scrollOffset / 100).clamp(0.0, 0.8);
-        final blurIntensity = (_scrollOffset / 50).clamp(0.0, 15.0);
-        
-        return ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: blurIntensity, sigmaY: blurIntensity),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(opacity),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
-                ),
-              ),
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    children: [
-                      if (widget.showBackButton)
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-                          onPressed: () => Navigator.of(context).pop(),
-                        )
-                      else
-                        const SizedBox(),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Meal Tracker',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
-                            ),
-                            Text(
-                              'Track your nutrition goals',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+    // Calculate opacity based on scroll position
+    final opacity = (_scrollOffset / 100).clamp(0.0, 0.8);
+    final blurIntensity = (_scrollOffset / 50).clamp(0.0, 15.0);
+    
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: blurIntensity, sigmaY: blurIntensity),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(opacity),
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
             ),
           ),
-        );
-      },
-    );
-  }
-  
-  // Glass morphism tab section widget
-  Widget _buildGlassMorphismTabs() {
-    return AnimatedBuilder(
-      animation: _scrollController,
-      builder: (context, child) {
-        // Calculate opacity based on scroll position
-        final opacity = (_scrollOffset / 100).clamp(0.0, 0.6);
-        final blurIntensity = (_scrollOffset / 50).clamp(0.0, 10.0);
-        
-        return ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: blurIntensity, sigmaY: blurIntensity),
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(opacity),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.2),
-                  width: 1,
-                ),
-              ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
-                  _TabButton(
-                    label: 'Today',
-                    isSelected: _selectedTab == 'today',
-                    onTap: () {
-                      if (!_mounted) return;
-                      setState(() {
-                        _selectedTab = 'today';
-                        _scrollOffset = 0.0; // Reset scroll offset for glass morphism
-                      });
-                      _fetchData();
-                    },
-                  ),
-                  const SizedBox(width: 12),
-                  _TabButton(
-                    label: 'Weekly',
-                    isSelected: _selectedTab == 'weekly',
-                    onTap: () {
-                      if (!_mounted) return;
-                      setState(() {
-                        _selectedTab = 'weekly';
-                        _scrollOffset = 0.0; // Reset scroll offset for glass morphism
-                      });
-                      _fetchData();
-                    },
-                  ),
-                  const SizedBox(width: 12),
-                  _TabButton(
-                    label: 'Monthly',
-                    isSelected: _selectedTab == 'monthly',
-                    onTap: () {
-                      if (!_mounted) return;
-                      setState(() {
-                        _selectedTab = 'monthly';
-                        _scrollOffset = 0.0; // Reset scroll offset for glass morphism
-                      });
-                      _fetchData();
-                    },
-                  ),
-                  const Spacer(),
-                  // Calendar button with glass effect
-                  GestureDetector(
-                    onTap: _showCalendar,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.5),
-                          width: 1,
+                  if (widget.showBackButton)
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+                      onPressed: () => Navigator.of(context).pop(),
+                    )
+                  else
+                    const SizedBox(),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Meal Tracker',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
                         ),
-                      ),
-                      child: Icon(Icons.calendar_today, size: 20, color: Colors.grey[600]),
+                        Text(
+                          'Track your nutrition goals',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
+    );
+  }
+  
+  // Glass morphism tab section widget
+  Widget _buildGlassMorphismTabs() {
+    // Calculate opacity based on scroll position
+    final opacity = (_scrollOffset / 100).clamp(0.0, 0.6);
+    final blurIntensity = (_scrollOffset / 50).clamp(0.0, 10.0);
+    
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: blurIntensity, sigmaY: blurIntensity),
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(opacity),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.2),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              _TabButton(
+                label: 'Today',
+                isSelected: _selectedTab == 'today',
+                onTap: () {
+                  if (!_mounted) return;
+                  setState(() {
+                    _selectedTab = 'today';
+                    _scrollOffset = 0.0; // Reset scroll offset for glass morphism
+                  });
+                  _fetchData();
+                },
+              ),
+              const SizedBox(width: 12),
+              _TabButton(
+                label: 'Weekly',
+                isSelected: _selectedTab == 'weekly',
+                onTap: () {
+                  if (!_mounted) return;
+                  setState(() {
+                    _selectedTab = 'weekly';
+                    _scrollOffset = 0.0; // Reset scroll offset for glass morphism
+                  });
+                  _fetchData();
+                },
+              ),
+              const SizedBox(width: 12),
+              _TabButton(
+                label: 'Monthly',
+                isSelected: _selectedTab == 'monthly',
+                onTap: () {
+                  if (!_mounted) return;
+                  setState(() {
+                    _selectedTab = 'monthly';
+                    _scrollOffset = 0.0; // Reset scroll offset for glass morphism
+                  });
+                  _fetchData();
+                },
+              ),
+              const Spacer(),
+              // Calendar button with glass effect
+              GestureDetector(
+                onTap: _showCalendar,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.5),
+                      width: 1,
+                    ),
+                  ),
+                  child: Icon(Icons.calendar_today, size: 20, color: Colors.grey[600]),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
