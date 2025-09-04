@@ -1056,21 +1056,8 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                             const SizedBox(height: 16),
                             
                                                         // Feedback Section Header
-                            const Text('Reviews & Ratings', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                            const SizedBox(height: 8),
-                            ElevatedButton.icon(
-                              onPressed: _loadFeedbacks,
-                              icon: const Icon(Icons.refresh, size: 18),
-                              label: const Text('Refresh'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
+            
+                            const SizedBox(height: 20),
                             
                             // Reviews Section Header
                             if (isLoadingFeedbacks)
