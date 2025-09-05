@@ -23,7 +23,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _dietType;
   List<dynamic>? _allergies;
   int? _servings;
-  List<String> _healthGoals = [];
   bool _loading = true;
   // Removed edit mode and saving state
   bool _shouldLogout = false;
@@ -32,14 +31,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _avatarUrl;
   bool _uploadingImage = false;
 
-  // Example health goals
-  final List<String> _availableHealthGoals = [
-    'Lose Weight',
-    'Build Muscle',
-    'Improve Endurance',  
-    'Eat Healthier',
-    'Maintain Weight',
-  ];
 
   bool _hasShownInitialLoading = false;
 
@@ -154,9 +145,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _allergies = data['allergies'] as List<dynamic>? ?? [];
             _servings = data['servings'] as int?;
             _avatarUrl = data['avatar_url'] as String?;
-            if (data['health_goals'] != null) {
-              _healthGoals = List<String>.from(data['health_goals']);
-            }
           });
         }
       } catch (e) {
@@ -179,7 +167,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               'diet_type': _dietType,
               'allergies': _allergies ?? [],
               'servings': _servings,
-              'health_goals': _healthGoals,
             });
         
         if (!mounted) return;

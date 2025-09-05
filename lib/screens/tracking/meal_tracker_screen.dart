@@ -32,6 +32,12 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
   // Scroll controller for glass morphism effects
   late ScrollController _scrollController;
   double _scrollOffset = 0.0;
+  
+  // Weekly and monthly data storage
+  DailySummary? _weeklySummary;
+  DailySummary? _monthlySummary;
+  bool _isLoadingWeekly = false;
+  bool _isLoadingMonthly = false;
 
   @override
   void initState() {
@@ -227,6 +233,10 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
     _scrollOffset = 0.0;
     setState(() => isLoading = true);
     
+    // Also fetch weekly and monthly data
+    _fetchWeeklyData();
+    _fetchMonthlyData();
+    
     try {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) {
@@ -356,17 +366,6 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
     );
   }
 
-  // Get weekly summary
-  Future<DailySummary> _getWeeklySummary() async {
-    final weeklyMeals = await _fetchWeeklyData();
-    return _getDailySummary(weeklyMeals);
-  }
-
-  // Get monthly summary
-  Future<DailySummary> _getMonthlySummary() async {
-    final monthlyMeals = await _fetchMonthlyData();
-    return _getDailySummary(monthlyMeals);
-  }
 
   void _showCalendar() {
     showDialog(
@@ -392,10 +391,16 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
   }
 
   // Fetch weekly data
-  Future<List<MealHistoryEntry>> _fetchWeeklyData() async {
+  Future<void> _fetchWeeklyData() async {
+    if (!_mounted) return;
+    setState(() => _isLoadingWeekly = true);
+    
     try {
       final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return [];
+      if (user == null) {
+        setState(() => _isLoadingWeekly = false);
+        return;
+      }
       
       // Get start and end of current week
       final now = DateTime.now();
@@ -425,19 +430,29 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
         }
       }
       
-      if (!_mounted) return [];
-      return mealList;
+      if (!_mounted) return;
+      setState(() {
+        _weeklySummary = _getDailySummary(mealList);
+        _isLoadingWeekly = false;
+      });
     } catch (e) {
       print('Error fetching weekly data: $e');
-      return [];
+      if (!_mounted) return;
+      setState(() => _isLoadingWeekly = false);
     }
   }
 
   // Fetch monthly data
-  Future<List<MealHistoryEntry>> _fetchMonthlyData() async {
+  Future<void> _fetchMonthlyData() async {
+    if (!_mounted) return;
+    setState(() => _isLoadingMonthly = true);
+    
     try {
       final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return [];
+      if (user == null) {
+        setState(() => _isLoadingMonthly = false);
+        return;
+      }
       
       // Get start and end of current month
       final now = DateTime.now();
@@ -467,11 +482,15 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
         }
       }
       
-      if (!_mounted) return [];
-      return mealList;
+      if (!_mounted) return;
+      setState(() {
+        _monthlySummary = _getDailySummary(mealList);
+        _isLoadingMonthly = false;
+      });
     } catch (e) {
       print('Error fetching monthly data: $e');
-      return [];
+      if (!_mounted) return;
+      setState(() => _isLoadingMonthly = false);
     }
   }
 
@@ -722,26 +741,19 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
 
   // Build weekly content
   Widget _buildWeeklyContent() {
-    return FutureBuilder<DailySummary>(
-      future: _getWeeklySummary(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        
-        if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        }
-        
-        final summary = snapshot.data ?? DailySummary(
-          calories: 0, protein: 0, carbs: 0, fat: 0, 
-          sugar: 0, fiber: 0, sodium: 0, cholesterol: 0
-        );
-        
-        return SingleChildScrollView(
-          controller: _scrollController,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
+    if (_isLoadingWeekly) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    
+    final summary = _weeklySummary ?? DailySummary(
+      calories: 0, protein: 0, carbs: 0, fat: 0, 
+      sugar: 0, fiber: 0, sodium: 0, cholesterol: 0
+    );
+    
+    return SingleChildScrollView(
+      controller: _scrollController,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
             children: [
               // Weekly Calories card
               Container(
@@ -895,32 +907,23 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
             ],
           ),
         );
-      },
-    );
   }
 
   // Build monthly content
   Widget _buildMonthlyContent() {
-    return FutureBuilder<DailySummary>(
-      future: _getMonthlySummary(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        
-        if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        }
-        
-        final summary = snapshot.data ?? DailySummary(
-          calories: 0, protein: 0, carbs: 0, fat: 0, 
-          sugar: 0, fiber: 0, sodium: 0, cholesterol: 0
-        );
-        
-        return SingleChildScrollView(
-          controller: _scrollController,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
+    if (_isLoadingMonthly) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    
+    final summary = _monthlySummary ?? DailySummary(
+      calories: 0, protein: 0, carbs: 0, fat: 0, 
+      sugar: 0, fiber: 0, sodium: 0, cholesterol: 0
+    );
+    
+    return SingleChildScrollView(
+      controller: _scrollController,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
             children: [
               // Monthly Calories card
               Container(
@@ -1074,8 +1077,6 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
             ],
           ),
         );
-      },
-    );
   }
 
   @override

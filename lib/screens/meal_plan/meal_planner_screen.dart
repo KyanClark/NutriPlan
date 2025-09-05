@@ -355,15 +355,15 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                   _filteredMeals.isNotEmpty
                     ? Padding(
                         padding: EdgeInsets.symmetric(
-                          horizontal: isSmallScreen ? 12.0 : 16.0, 
+                          horizontal: isSmallScreen ? 12.0 : 20.0, 
                           vertical: 8
                         ),
                         child: GridView.builder(
                           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: isSmallScreen ? 1 : 2, // Single column on small screens
                             crossAxisSpacing: isSmallScreen ? 0 : 12,
-                            mainAxisSpacing: 12,
-                            childAspectRatio: isSmallScreen ? 1.2 : 0.8, // Taller cards on small screens
+                            mainAxisSpacing: 20,
+                            childAspectRatio: isSmallScreen ? 1.2 : 0.75, // Taller cards on small screens
                           ),
                           shrinkWrap: true,
                           physics: NeverScrollableScrollPhysics(),
