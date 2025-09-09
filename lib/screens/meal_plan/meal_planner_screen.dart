@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
-import '../recipes/recipes_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../recipes/recipe_info_screen.dart';
 import '../../models/recipes.dart';
+import '../recipes/recipes_page.dart';
 
 class MealPlannerScreen extends StatefulWidget {
   final bool forceRefresh;
@@ -15,8 +14,6 @@ class MealPlannerScreen extends StatefulWidget {
 }
 
 class _MealPlannerScreenState extends State<MealPlannerScreen> {
-  DateTime selectedDate = DateTime.now();
-  Timer? _timer;
 
   // Add state for Supabase meal plans
   List<Map<String, dynamic>> supabaseMealPlans = [];
@@ -192,10 +189,6 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
 
   @override
   void dispose() {
-    if (_timer != null) {
-      _timer!.cancel();
-      _timer = null;
-    }
     super.dispose();
   }
 

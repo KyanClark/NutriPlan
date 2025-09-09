@@ -1,792 +1,773 @@
 -- Insert Filipino Recipes into Supabase
--- This SQL statement inserts 25 authentic Filipino recipes with proper diet classifications and allergy warnings
+-- This SQL statement inserts 22 authentic Filipino recipes with proper diet classifications and allergy warnings
 
 INSERT INTO recipes (title, image_url, short_description, ingredients, instructions, allergy_warning, diet_types, cost) VALUES
 
--- 1. Vegan Longganisa
+-- 1. Paklay
 (
-  'Vegan Longganisa',
-  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/vegan_longganisa_with_mushroom.png',
-  'This vegan version of longganisa uses a mix of extra firm tofu or tokwa and minced mushrooms that I seasoned and shaped into small links before pan-frying to create a plant-based version of a Filipino classic.',
+  'Paklay',
+  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/paklay.png',
+  'Paklay is a Filipino dish made from various animal innards including pig liver, kidney, heart, ox tripe, and pig stomach. It is orange in color and looks like Kare-Kare without the vegetables and thick pork fat. The mixture of pig and cow innards creates a satisfying dish that can be eaten without rice or as pulutan in drinking sessions.',
   ARRAY[
-    '10 oz extra firm tofu or tokwa',
-    '1/2 lb mushrooms minced',
-    '8 cloves garlic minced',
-    '4 tbsp tomato paste',
-    '1/2 tsp ground black pepper',
-    '3-4 tbsp soy sauce adjust to taste',
-    '1 tsp Knorr liquid seasoning',
-    '1/4 cup brown sugar',
-    '3 tbsp corn starch',
-    '1 cup bread crumbs',
-    'Neutral oil for frying',
-    '1/2 tsp black salt or sub for regular adjust (to taste)',
-    '1/2 tsp turmeric powder for color',
-    '1 1/2 tsp nutritional yeast optional',
-    'Ground black pepper',
-    'Sprinkle of liquid aminos or soy sauce to taste',
-    '1/4 cup distilled white vinegar for dipping',
-    '1/2 small red onion diced',
-    '1-2 tsp sugar adjust to taste',
-    '1 red chili sliced optional'
-  ],
-  ARRAY[
-    'Drain excess liquid from the tofu. I usually do this by wrapping the block in some paper towels before placing a plate or flat surface on top so the water seeps out and is absorbed by the towel.',
-    'If using dried shiitake mushrooms, soak these in hot water for 30 minutes until rehydrated. You can also leave this to soak overnight. Squeeze out the water from the mushrooms.',
-    'For all the mushrooms, you can finely mince these or process them.',
-    'Heat a large pan or skillet over medium heat. Add a little oil. Add the mushrooms and sauté for 2-3 minutes or until cooked. Turn off the heat. Set aside to cool. Cooking the mushrooms will help draw out extra moisture.',
-    'In a bowl, crumble the tofu with your hands. Add in the mushrooms and the rest of the ingredients. Mix throughly until well incorporated.',
-    'You can taste some of the mixture and season more if needed.',
-    'Shape 1.5 tbsp of the mixture into a small cocktail sausage-like shape. The longganisa or Filipino sausage mixture should hold up well. If it easily crumbles or falls apart, you can add 1-2 tbsp more of bread crumbs to help absorb the excess moisture.',
-    'You can also shape the sausages however way you like.',
-    'In a frying pan, add enough oil to submerge half of the sausages.',
-    'To test out the heat of the oil, you can add a small piece of the longganisa. It should immediately sizzle in the oil.',
-    'Add the longganisa in the oil. Cook the longganisa for 2-3 minutes on each side or until golden brown. Flip over and cook the remaining side.',
-    'Drain the longganisa from the oil.',
-    'Serve with the tofu scramble, garlic rice or sinangag, and vinegar for dipping. Enjoy!'
-  ],
-  'Soy, Wheat/Gluten',
-  ARRAY['Vegan', 'Dairy Free', 'High Protein', 'Flexitarian'],
-  85.0
-),
-
--- 2. Garlic Butter Shrimp
-(
-  'Garlic Butter Shrimp',
-  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/garlic_butter_shrimp.jpeg',
-  'Garlic Butter Shrimp is a savory seafood dish where shrimp is sautéed in a rich mixture of garlic and butter, often enhanced with a touch of lemon juice, herbs, or seasoning. It''s known for its bold garlicky flavor, tender shrimp texture, and the silky butter sauce that coats each bite.',
-  ARRAY[
-    '0.33 lbs shrimp cleaned',
-    '0.33 tablespoons parsley chopped',
-    '0.04 cup butter',
-    '0.17 head garlic crushed',
-    '0.17 cup lemon lime soda',
-    '0.17 teaspoon lemon juice salt and pepper to taste'
-  ],
-  ARRAY[
-    'Marinate the shrimp in lemon soda for about 10 minutes',
-    'Melt the butter in a pan.',
-    'Add the garlic. Cook in low heat until the color turns light brown',
-    'Put-in the shrimp. Adjust heat to high. Stir-fry until shrimp turns orange.',
-    'Season with ground black pepper, salt, and lemon juice. Stir.',
-    'Add parsley. Cook for 30 seconds.',
-    'Serve hot. Share and Enjoy!'
-  ],
-  'Shellfish, Dairy',
-  ARRAY['Balance Diet', 'Pescatarian', 'High Protein Diet', 'Flexitarian'],
-  110.0
-),
-
--- 3. Chicken Liver and Gizzard Adobo
-(
-  'Chicken Liver and Gizzard Adobo',
-  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/chicken_liver_and_gizzard_adobo.jpeg',
-  'Chicken Liver and Gizzard Adobo is a Filipino dish made by simmering chicken liver and gizzard in vinegar, soy sauce, garlic, onions, and spices, following the classic adobo cooking style. It is known for its savory and slightly tangy flavor, with the liver giving it richness while the gizzard adds a chewy texture.',
-  ARRAY[
-    '0.17 lb. chicken gizzard',
-    '0.17 lb. chicken liver',
-    '0.08 cup all-purpose flour',
-    '0.08 cup soy sauce',
-    '0.04 cup white vinegar',
-    '0.17 teaspoon garlic powder',
-    '1 piece dried bay leaves',
-    '0.17 teaspoon whole peppercorn',
-    '0.83 cloves crushed garlic',
-    '0.13 cup water Salt to taste',
-    '0.33 tablespoons green onion chopped',
-    '0.67 tablespoons cooking oil'
-  ],
-  ARRAY[
-    'Boil the chicken gizzard in 4 cups of water (covered) for 60 to 90 minutes. Drain the water and set aside.',
-    'Sprinkle 1 teaspoon garlic powder and 1/4 teaspoon salt all over the chicken liver. Let it stay for 10 minutes.',
-    'Heat the cooking oil in a frying pan.',
-    'Dredge the chicken liver in all-purpose flour. Pan fry for 2 minutes per side. Remove the pan-fried chicken liver. Set aside.',
-    'On the same pan using the remaining oil, add the garlic, Cook until the color turns light brown.',
-    'Put-in the gizzard and pan-fried liver. Stir.',
-    'Add the soy sauce and water. Let boil.',
-    'Add the bay leaves and whole peppercorn. Cover and simmer for 15 to 20 minutes.',
-    'Add the vinegar. Let the liquid re-boil. Stir and cook for 5 minutes.',
-    'Turn the heat off. Transfer to a serving plate.',
-    'Top with chopped green onions. Serve. Share and enjoy!'
-  ],
-  'Soy, Wheat/Gluten',
-  ARRAY['Balance Diet', 'High Protein', 'Flexitarian', 'Dairy Free', 'Keto / Low Carbs'],
-  100.0
-),
-
--- 4. Chicken Feet Adobo
-(
-  'Chicken Feet Adobo',
-  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/chicken_feet_adobo.jpeg',
-  'Chicken Feet Adobo is a Filipino dish that features chicken feet cooked in the traditional adobo style, resulting in a savory, tangy, and gelatinous delicacy often eaten with rice or served as pulutan (appetizer).',
-  ARRAY[
-    '0.25 lb chicken feet cleaned',
-    '0.06 cup soy sauce',
-    '0.06 cup white vinegar',
-    '0.25 tablespoon oyster sauce',
-    '0.13 teaspoon whole peppercorn',
-    '0.75 pieces Thai chili pepper dried',
-    '0.38 teaspoons sugar',
-    '0.75 pieces bay leaves dried',
-    '1.25 cloves garlic crushed',
-    '4.5 tablespoons cooking oil',
-    '0.38 cups water salt as needed'
-  ],
-  ARRAY[
-    'Heat cooking pot and pour-in 16 tablespoons of cooking oil.',
-    'Fry the chicken feet until color turns light brown. Set aside.',
-    'On a clean pot, heat 2 tablespoons of cooking oil.',
-    'Saute garlic and dried chili.',
-    'Put-in the fried chicken feet, soy sauce, and water. Let it boil.',
-    'Add the dried bay leaves, whole peppercorn, oyster sauce, and sugar. Stir and simmer until chicken feet becomes tender. Note: add water as necessary.',
-    'Add vinegar and stir. Cook for 5 minutes more. Taste and add salt as needed.',
-    'Turn-off heat, and then transfer to a serving plate.',
-    'Serve. Share and enjoy!'
-  ],
-  'Soy, Wheat/Gluten',
-  ARRAY['Balance Diet', 'Flexitarian', 'Dairy Free', 'Keto / Low Carbs Diet', 'High Protein Diet'],
-  75.0
-),
-
--- 5. Dynamite Lumpia
-(
-  'Dynamite Lumpia',
-  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/dynamite_lumpia.jpeg',
-  'Dynamite Lumpia is a Filipino snack or appetizer made by wrapping long green chilies in spring roll wrappers, usually stuffed with cheese or meat, then deep-fried to create a crispy, spicy, and savory treat often enjoyed as pulutan (beer food) or side dish.',
-  ARRAY[
-    '5.33 pieces long green pepper',
-    '75.6 g cheddar cheese',
-    '5.33 pieces lumpia wrapper',
-    '298.67 g cooking oil',
-    '113.4 g ground pork',
-    '0.67 piece onion minced',
-    '2 cloves garlic crushed and minced',
-    '0.67 piece egg',
-    '1.33 tablespoons cooking oil',
-    'Salt and ground black pepper to taste'
-  ],
-  ARRAY[
-    'Prepare the ground pork stuffing by heating 3 tablespoons oil in a pan. Saute garlic and onion until the latter softens. Add ground pork. Saute until medium brown. Season with salt and ground black pepper. Remove from the pan and put on a large bowl. Let it cool down.',
-    'Beat 1 piece of egg and pour into the cooked ground pork. Mix well. Set aside.',
-    'Slice one side of the peppers lengthwise all the way to the bottom. Remove the seeds by gently scraping using a small spoon or a butter knife. Set aside.',
-    'Slice the cheddar cheese into long pieces. Stuff individual slices of cheese into each pepper. Scoop the cooked meat mixture and stuff into the chili peppers. Make sure that there is enough meat.',
-    'Wrap the stuffed peppers in lumpia wrapper.',
-    'Heat 2 cups of oil in a pan. Fry each piece of dynamite lumpia in medium heat for 2 minutes per side or until lumpia wrapper turns golden brown. Note: you may fry longer if needed.',
-    'Remove from pan and place over a wire rack. Let it cool down. Arrange in a serving plate and then serve with your favorite condiment.',
-    'Share and enjoy!'
-  ],
-  'Dairy, Wheat/Gluten, Eggs',
-  ARRAY['Balance Diet', 'Flexitarian'],
-  100.0
-),
-
--- 6. Ginisang Puso ng Saging
-(
-  'Ginisang Puso ng Saging',
-  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/ginisang_puso_ng_saging.jpg',
-  'Ginisang Puso ng Saging is a classic Filipino dish made from banana heart (the purple flower of the banana plant), sautéed with pork, onions, garlic, and flavored with vinegar and seasonings. Sotanghon (vermicelli noodles) is often added for texture, making the dish hearty yet light. It has a slightly tangy and savory flavor, with a tender-crisp bite from the banana heart and richness from the pork.',
-  ARRAY[
-    '1 cup banana heart (about 100 g, cleaned and shredded)',
-    '60 g (2 oz) pork, thinly sliced',
-    '¼ Knorr Pork Cube',
-    '15 g (½ oz) vermicelli (sotanghon), soaked in water',
-    '¼ medium onion, chopped',
-    '1 clove garlic, minced',
-    '2 tsp white vinegar (≈ 0.13 cup scaled)',
-    '1 ¼ cups water',
-    '¾ tbsp cooking oil',
-    '¼ tbsp (¾ tsp) salt',
-    'Fish sauce and ground black pepper to taste'
-  ],
-  ARRAY[
-    'Clean the banana heart and slice it into thin pieces. Combine ½ cup vinegar and 1 cup of water in a large bowl. Put the sliced banana heart into the mixture. Rub the salt onto it and soak for 10 to 20 minutes. Drain the liquid mixture and then wring the banana hearts (a chunk at a time) to force the liquid to come out. Set aside.',
-    'Soak the vermicelli in 2 cups of water for 12 minutes. Drain the water and then set the vermicelli aside.',
-    'Heat the oil in pan. Sauté the garlic and onion until the latter softens.',
-    'Add the pork sliced. Continue to cook until it browns.',
-    'Pour 1 cup of water into the pan. Cover it and let the water boil. Adjust the heat between low to medium heat setting. Cook until the liquid completely evaporates.',
-    'Add the sliced banana hearts. Sauté it for 2 minutes.',
-    'Pour the remaining 1 cup of water into the pan. Let it boil. Add Knorr Pork Cube. Cover and cook until the water reduces to half. Note: you can add more water if the banana heart slices needs to be cooked further to soften.',
-    'Remove the cover and season with fish sauce and ground black pepper as needed.',
-    'Serve with rice.'
-  ],
-  'Soy, Wheat/Gluten, Shellfish',
-  ARRAY['Balance Diet', 'Dairy Free', 'Flexitarian'],
-  60.0
-),
-
--- 7. Tofu Vegetable Stir Fry
-(
-  'Tofu Vegetable Stir Fry',
-  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/tofu_vegetable_stir_fry.jpg',
-  'Tofu Vegetable Stir-fry is a hearty and colorful dish made with crispy tofu and a medley of vegetables such as cabbage, bok choy, mushrooms, carrots and peas. This dish is versatile, served as a main with rice or noodles, or enjoyed as a nutritious side.',
-  ARRAY[
-    '0.2 head cabbage sliced',
-    '0.4 Knorr Chicken Cube',
-    '0.4 bunch baby bok choy sliced',
-    '2.4 shiitake mushrooms sliced',
-    '6 snow peas',
-    '4.8 oz. tofu extra firm, cubed',
-    '0.3 cups green peas',
-    '0.4 carrot sliced',
-    '0.4 onion sliced',
-    '1.6 cloves garlic crushed',
-    '0.8 tablespoons soy sauce',
-    '0.8 teaspoons sesame oil',
-    '0.4 tablespoon oyster sauce',
-    '0.4 tablespoon cornstarch',
-    '0.4 cup water',
-    '0.4 cup cooking oil',
-    '0.2 teaspoon sugar',
-    'Salt and ground black pepper to taste'
-  ],
-  ARRAY[
-    'Heat 1 cup of oil in a small cooking pot. Deep fry the tofu until it turns golden brown. Set aside.',
-    'Heat 3 tablespoons of the same oil in a wok. Sauté onion and garlic.',
-    'Add mushrooms and carrot once the onion softens.',
-    'Pour the soy sauce. Sauté for 2 minutes.',
-    'Add snow peas, Knorr Chicken Cube, and water. Let boil.',
-    'Put the oyster sauce along with the cabbage, bok choy, and green peas into the wok. Toss. Cover. Cook for 3 minutes.',
-    'Add the fried tofu and season with sugar, salt, and ground black pepper.',
-    'Combine cornstarch with 3 tablespoons water. Mix well and then pour into the wok. Stir and continue cooking until the sauce thickens.',
-    'Finish by adding sesame oil.',
-    'Transfer to a serving bowl. Serve with rice.'
-  ],
-  'Soy, Shellfish, Wheat/Gluten',
-  ARRAY['Balance Diet', 'Vegetarian', 'Dairy Free', 'Flexitarian'],
-  70.0
-),
-
--- 8. Utan nga Langka
-(
-  'Utan nga Langka',
-  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/utan_nga_langka.png',
-  'Utan nga Langka is a traditional Visayan vegetable dish made with unripe jackfruit simmered in creamy coconut milk and flavored with dried fish (such as dulong), bago leaves (or malunggay/spinach), and spices. The dish is savory, slightly earthy, and mildly spicy when chilies are added. It is often enjoyed with steamed rice as a comforting, everyday home-cooked meal in the Philippines.',
-  ARRAY[
-    '0.67 lbs. unripe jackfruit sliced',
-    '0.33 Knorr Shrimp cube',
-    '226 g coconut milk',
-    '157.73 g bago leaves sliced',
-    '78.86 g dried fish dulong',
-    '0.67 onions chopped',
-    '1.67 cloves garlic chopped',
-    '1 Thai chili pepper',
-    '0.67 tablespoons vinegar',
-    'Fish sauce to taste',
-    '1 tablespoons cooking oil'
-  ],
-  ARRAY[
-    'Heat oil in a large wok.',
-    'Sauté onion and garlic.',
-    'Add the dried fish once the onions soften. Cook for 1 minute.',
-    'Add unripe jackfruit. Cook while stirring for 2 to 3 minutes.',
-    'Add chili peppers and bago leaves. Stir.',
-    'Season with 1 tablespoon fish sauce and then pour-in the coconut milk. Let boil.',
-    'Add vinegar. Cook for 5 to 8 minutes.',
-    'Add Knorr Shrimp Cube. Continue cooking until the liquid evaporates completely.',
-    'Season with ground black pepper and fish sauce as needed.',
-    'Transfer to a serving plate. Serve with warm rice.'
-  ],
-  'Fish/Seafood, Shellfish, Soy/Gluten, Coconut',
-  ARRAY['Balance Diet', 'Dairy Free', 'Pescatarian', 'Flexitarian'],
-  55.0
-),
-
--- 9. Kilawing Labanos
-(
-  'Kilawing Labanos',
-  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/kilawing_labanos.png',
-  'Kilawin is synonymous to ceviche. It is the Filipino way of preparing food by marinating in acid. Fish, meat, and vegetable can be marinated in vinegar (acetic acid), or calamansi (citric acid) until it gets fully cooked. There are certain dishes that needs extra cooking through fire. This dish is a good example.',
-  ARRAY[
-    '0.5 piece daikon radish',
-    '70.88 g pork minced',
-    '42.52 g pork liver minced',
-    '95.63 g white vinegar',
-    '0.75 teaspoons sugar',
-    '0.5 piece onion sliced',
-    '2 cloves garlic minced',
-    '1.5 tablespoons cooking oil',
-    '1 tablespoons salt for prep',
-    'Salt and pepper to taste'
-  ],
-  ARRAY[
-    'Slice the daikon radish into thin pieces. Arrange in a bowl and then add 2 tablespoons salt. Rub salt all over the radish slices and let is stay for 15 minutes. Squeeze the juice out of the radish. Rinse with water until all the salt goes off. Squeeze to release water.',
-    'Combine prepared radish, pork, pork liver, sugar, onion, and white vinegar in a large bowl. Toss until well blended. Marinate for 20 minutes.',
-    'Heat oil in a cooking pot. Saute garlic until golden brown.',
-    'Add the marinated mixture. Let boil. Stir and then adjust the heat between low to medium. Cover the pot and continue to cook for 20 to 25 minutes.',
-    'Season with salt and ground black pepper. Serve with warm white rice.'
-  ],
-  'None',
-  ARRAY['Balance Diet', 'Dairy Free', 'Gluten Free', 'Flexitarian'],
-  50.0
-),
-
--- 10. Kalabasa and Corned Beef Nuggets
-(
-  'Kalabasa and Corned Beef Nuggets',
-  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/kalabasa_and_corned_beef_nuggets.png',
-  'Kalabasa and Corned Beef Nuggets are savory bite-sized patties made with grated squash (kalabasa), corned beef, breadcrumbs, and seasonings, then pan-fried until golden.',
-  ARRAY[
-    '12 ounces corned beef',
-    '2 cups kalabasa',
-    '1 piece egg',
-    '1 teaspoon garlic powder',
-    '1/2 teaspoon ground black pepper',
-    '1 teaspoon salt',
-    '1 cup breadcrumbs for the mixture',
-    '1/2 cup breadcrumbs for coating',
-    '2 1/2 cups cooking oil'
-  ],
-  ARRAY[
-    'Grate the kalabasa or butternut squash using a cheese grater. You can also use a food processor.',
-    'Combine grated kalabasa and corned beef in a bowl. Mix the ingredients together.',
-    'Add garlic powder, pepper, salt, egg, and breadcrumbs. Continue to mix until all ingredients are well blended. Note: If the texture of the mixture is still sticky, you can add more breadcrumbs.',
-    'Heat oil in a cooking pot.',
-    'Scoop around 2 tablespoons of mixture and mold it into nuggets. Dredge in breadcrumbs.',
-    'Fry one side until golden brown. Turn over and continue to fry the opposite side until the same color is achieved. Remove from the cooking pot and let excess oil drip.',
-    'Transfer to a serving plate. Serve with your favorite dipping sauce.'
-  ],
-  'Eggs, Wheat/Gluten',
-  ARRAY['Balance Diet', 'Dairy Free', 'Flexitarian'],
-  65.0
-),
-
--- 11. Seared Okra and Tomato
-(
-  'Seared Okra and Tomato',
-  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/seared_okra_and_tomato.png',
-  'Seared Okra and Tomato is a simple and healthy dish made by sautéing sliced okra with fresh tomatoes, garlic, and seasonings. The quick searing brings out the natural sweetness of the tomato while balancing the earthy flavor of okra.',
-  ARRAY[
-    '6 to 7.5 pieces okra sliced crosswise',
-    '1 medium tomato cubed',
-    '1 teaspoon garlic powder',
-    'Salt and ground black pepper to taste',
-    '1 tablespoon cooking oil'
-  ],
-  ARRAY[
-    'Arrange sliced okra in a bowl. Add vinegar. Toss until coated.',
-    'Heat a pan or a skillet. Pour cooking oil.',
-    'Add okra when the oil is hot. Sear one side for 30 seconds. Stir and continue to cook the opposite side for another 30 seconds.',
-    'Add tomatoes. Stir and cook for 5 to 7 minutes in medium heat while stirring every minute.',
-    'Season with salt and ground black pepper.',
-    'Transfer to a serving plate. Serve.'
-  ],
-  'None',
-  ARRAY['Vegan', 'Vegetarian', 'Balance Diet', 'Keto/Low Carbs', 'Dairy Free'],
-  25.0
-),
-
--- 12. Ginisang Upo with Ground Pork and Shrimp
-(
-  'Ginisang Upo with Ground Pork and Shrimp',
-  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/ginisang_upo_with_ground_pork_and_shrimp.png',
-  'Ginisang Upo with Ground Pork and Shrimp is a dish that can be cooked on regular days. It is delicious, nutritious, and easy to make. It only takes less than 20 to complete the entire dish. This is best served with rice.',
-  ARRAY[
-    '1 small opo squash upo, sliced into thin pieces',
-    '4 ounces ground pork',
-    '6 pieces medium shrimp chopped',
-    '1 medium ripe tomato cubed',
-    '1 medium yellow onion sliced',
-    '1 tablespoon chopped parsley optional',
-    '4 cloves garlic crushed and pounded',
-    '3 tablespoons fish sauce patis',
-    '1/8 teaspoon ground black pepper',
-    '½ cup water',
-    '3 tablespoons cooking oil'
-  ],
-  ARRAY[
-    'Heat oil in cooking pot',
-    'Saute garlic until light brown',
-    'Add onion and tomato. Continue to cook until soft',
-    'Put the ground pork into the pot. Cook until light brown',
-    'Add shrimp. Cook for 2 minutes',
-    'Add the opo squash (upo) into the pot. Cook for 2 minutes.',
-    'Add water. Cover the pot and continue to cook between low to medium heat for 7 minutes.',
-    'Add patis, ground black pepper, and parsley. Stir.',
-    'Transfer to serving plate. Serve.'
-  ],
-  'Shellfish, Fish',
-  ARRAY['Balance Diet', 'Dairy Free', 'Flexitarian'],
-  75.0
-),
-
--- 13. Sweet Pepper Relyeno
-(
-  'Sweet Pepper Relyeno',
-  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/sweet_pepper_relyeno.png',
-  'Sweet Pepper Relyeno or Stuffed Sweet Peppers is an appetizer or main dish consisting of mini sweet peppers and ground pork. The ground pork was combined with spices and seasonings (which is somewhat similar to the mix in Lumpiang Shanghai), topped over the sweet pepper, pan-fried, and finished-up by baking.',
-  ARRAY[
-    '5 pieces sweet peppers sliced into half lengthwise and seeds removed',
-    '0.5 lb. ground pork',
-    '0.25 cup plain breadcrumbs',
-    '1.5 pieces eggs',
-    '0.38 cup Panko breadcrumbs',
-    '0.5 medium yellow onion minced',
-    '0.25 cup minced carrot',
-    '0.5 teaspoon garlic powder',
-    'Salt and ground black pepper to taste',
-    '0.13 cup cooking oil'
-  ],
-  ARRAY[
-    'Prepare the stuffing by combining the ground pork, 1 piece egg, minced onion and carrot, salt, ground black pepper, and garlic powder in a bowl. Mix well.',
-    'Scoop around 1 1/2 tablespoons (or more) of the mixture and arrange it over the sliced sweet pepper. Gently press the mixture to keep it intact.',
-    'Meanwhile, heat the cooking oil in a pan.',
-    'While the oil is heating, beat the remaining 2 eggs. Dip the sweet pepper with ground pork in the egg and roll it over the Panko bread crumbs. Make sure that the top is fully coated with the bread crumbs.',
-    'Pan fry the sweet pepper with breadcrumbs in medium heat until the breadcrumbs turns light to medium brown. Turn it over and cook the other side (side without the stuffing) for 2 minutes. Remove from the pan. Arrange in a baking tray lined with Aluminum foil.',
-    'Preheat the oven to 350F.',
-    'Bake the pan fried sweet peppers for 25 minutes.',
-    'Remove from the oven. Arrange in a plate lined with paper towels.',
-    'Serve with ketchup.'
-  ],
-  'Eggs, Wheat/Gluten',
-  ARRAY['Balance Diet', 'Flexitarian'],
-  80.0
-),
-
--- 14. Ginisang Repolyo with Egg
-(
-  'Ginisang Repolyo with Egg',
-  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/ginisang_repolyo_with_egg.jpeg',
-  'A simple yet hearty Filipino stir-fry made with tender cabbage, carrots, and aromatics sautéed in savory seasonings, then finished with scrambled egg for added flavor and protein. Light, nutritious, and budget-friendly, this classic home-style dish is perfect as a standalone meal or a side to rice.',
-  ARRAY[
-    '¼ head cabbage, chopped',
-    '1 egg',
-    '½ small carrot, julienned',
-    '¼ small onion, chopped',
-    '2 stalks green onions, chopped',
-    '1 clove garlic, minced',
-    '1 teaspoon soy sauce',
-    '½ teaspoon oyster sauce',
-    '¼ teaspoon sesame oil (optional)',
-    '1 pinch salt adjust to taste',
-    '1 pinch ground black pepper',
-    '1 small pinch sugar (optional)',
-    '1 teaspoon cooking oil'
-  ],
-  ARRAY[
-    'Combine chopped cabbage and salt. Mix it altogether. Let it stay for 10 minutes and then rinse with water. Set the cabbage aside.',
-    'Beat the eggs and add a bit of salt and ground black pepper.',
-    'Heat 2 tablespoons of cooking oil in a pan. Once the oil gets hot, pour beaten eggs. Cook it until firm and then cut into small pieces using the tip of your spatula or cooking spoon. Remove the egg from the pan. Set it aside.',
-    'Heat the remaining oil. Sauté the onion and garlic.',
-    'Once the onion softens. Add the carrots. Sauté for 30 seconds.',
-    'Add the cabbage. Continue sautéing for 2 minutes.',
-    'Add the soy sauce, oyster sauce, and sesame oil. Cook for 1 minute. Note: this is also the time to add sugar if you want.',
-    'Put the scrambled eggs into the pan and then add the chopped green onions and sesame oil.',
-    'Season it with ground black pepper and then serve.'
-  ],
-  'Eggs, Soy, Shellfish',
-  ARRAY['Balance Diet', 'Dairy Free', 'Flexitarian'],
-  35.0
-),
-
--- 15. Egg Fried Rice
-(
-  'Egg Fried Rice',
-  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/egg_fried_rice.jpeg',
-  'A hearty and flavorful dish made by stir-frying leftover rice with egg, fresh vegetables, and savory seasonings. Enhanced with a touch of soy sauce and sesame oil, this simple recipe turns basic ingredients into a satisfying, budget-friendly meal that''s perfect for breakfast or any time of the day.',
-  ARRAY[
-    '2 eggs',
-    '370 g leftover rice see note',
-    '0.5 onion chopped',
-    '0.25 bell pepper chopped',
-    '1.5 sweet peppers chopped',
-    '1 tablespoons soy sauce',
-    '0.5 teaspoon sesame oil',
-    '37.5 g green onion chopped',
-    '0.13 teaspoon salt',
-    '2 tablespoons cooking oil'
-  ],
-  ARRAY[
-    'Crack the eggs and place in a bowl.',
-    'Heat oil in a wok. Once the oil gets hot, pour the eggs into the wok. Cook until the bottom part turns brown and somewhat crispy. Turn the eggs over and do the same to the other side.',
-    'Add the peppers and onion. Sauté the ingredients for 1 minute while breaking the eggs apart.',
-    'Add half of the leftover rice. Stir fry for 2 minutes.',
-    'Add the remaining rice. Continue cooking until all the ingredients are well blended.',
-    'Pour the sesame oil and soy sauce. Continue stir frying for 2 minutes.',
-    'Season with salt and sugar and add the green onions. Toss until well blended.',
-    'Transfer to a serving plate. Serve with your favorite main dish and Enjoy!'
-  ],
-  'Eggs, Soy, Wheat/Gluten',
-  ARRAY['Balance Diet', 'High Protein Diet', 'Flexitarian'],
-  40.0
-),
-
--- 16. Sotanghon And Egg Noodle Soup
-(
-  'Sotanghon And Egg Noodle Soup',
-  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/sotanghon_and_egg_noodle_soup.jpg',
-  'A warm and comforting noodle soup made with tender vermicelli, fresh cabbage, and savory seasonings, topped with a boiled egg and fragrant toasted garlic. Light yet satisfying, this budget-friendly dish is perfect for a hearty breakfast, quick lunch, or cozy dinner.',
-  ARRAY[
-    '2 eggs boiled and peeled',
-    '64 grams vermicelli',
-    '0.1 head cabbage shredded',
-    '0.5 quarts water',
-    '1 teaspoons chicken powder',
-    '0.4 teaspoon annatto powder',
-    '2 cloves garlic crushed',
-    '0.4 onion chopped',
-    '0.8 stalks of spring onion chopped',
-    '0.4 teaspoon toasted garlic',
-    '1.2 tablespoons cooking oil',
-    'fish sauce and ground black pepper to taste'
-  ],
-  ARRAY[
-    'Heat oil in a cooking pot.',
-    'Sauté the garlic until it starts to brown. Add the onion and continue sautéing until it softens.',
-    'Stir in the annatto powder and 2 teaspoons of fish sauce.',
-    'Pour in the water and bring it to a boil.',
-    'Add the vermicelli and chicken powder. Cover and let it re-boil, then reduce the heat to a simmer and cook for 3 minutes.',
-    'Toss the noodles, then add the cabbage.',
-    'Cover and cook for an additional 2 minutes.',
-    'Add the boiled eggs and green onions, and season with fish sauce and ground black pepper.',
-    'Transfer to a serving plate and top with toasted garlic. Serve hot, share, and enjoy!'
-  ],
-  'Eggs, Soy, Fish/Shellfish',
-  ARRAY['High Carbohydrate', 'Budget Friendly', 'Flexitarian'],
-  30.0
-),
-
--- 17. Spinach Tomato and Cheese Omelette
-(
-  'Spinach Tomato and Cheese Omelette',
-  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/spinach_tomato_and_cheese_omelette.jpg',
-  'A creamy, savory dish made with fresh spinach and ripe tomato cooked with egg, then topped with melted cheddar cheese and rich butter. Nutritious, filling, and packed with flavor, perfect as a quick breakfast or light meal.',
-  ARRAY[
-    '2 eggs',
-    '3/4 cups fresh baby spinach',
-    '1 small ripe roma tomato chopped',
-    '1/2 cup shredded cheddar cheese',
-    '1/4 cup salted butter'
-  ],
-  ARRAY[
-    'Melt half of the butter in a pan.',
-    'Once the butter starts to bubble, add tomato. Saute for 1 minute.',
-    'Put the spinach in the pan. Cook for 30 seconds. Transfer everything in a clean plate.',
-    'Wipe the pan clean using a paper towel. Heat the pan in a stovetop using low to medium heat. Melt the remaining butter in the pan.',
-    'Beat the eggs in a bowl. Pour into the pan. Tilt the pan to distribute the beaten eggs equally.',
-    'Once the eggs starts to form, pour the cooked tomato and spinach over the egg. Top with shredded cheese. Continue to cook until the eggs are done.',
-    'Fold the omelet halfway to secure the filling. You can top the omelet with more cheese.',
-    'Transfer to a serving plate. Serve.'
-  ],
-  'Eggs, Dairy',
-  ARRAY['Keto/Low Carb', 'High Protein', 'Light Meal', 'Flexitarian'],
-  45.0
-),
-
--- 18. Crab Meat Omelette
-(
-  'Crab Meat Omelette',
-  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/crab_meat_omelette.jpg',
-  'Crabmeat Omelette is a type of beaten egg preparation with crab meat. This is lightly fried using butter or oil. In the Philippines, this type of dish is referred to as "torta" and several different ingredients can be added with the egg. The more traditional method of preparation is adding the crabmeat (or any ingredient that takes a short time to cook) with the eggs while whisking. The eggs and crabmeat will then be poured in the pan and be cooked at the same time.',
-  ARRAY[
-    '3/4 cup crab meat fresh or canned',
-    '1 small onion thinly sliced lengthwise',
-    '3 pieces raw eggs',
-    '4 tbsp. butter',
-    '2 tbsp. green onions minced (optional)',
-    'Salt and pepper to taste'
-  ],
-  ARRAY[
-    'Heat the frying pan and put-in 2 tbsp of butter then allow to melt.',
-    'Add the onion, crab meat, and green onions then cook until half done',
-    'Add salt and pepper to taste then set aside.',
-    'Heat the same frying pan (apply low heat) and put-in the remaining butter then allow to melt.',
-    'Crack the eggs and place in a bowl then add some salt',
-    'Whisk the eggs and pour on the frying pan',
-    'Tilt the frying pan to allow the uncooked portions of the eggs (liquid form) to occupy the whole surface of the pan. You can also pull from the middle part of the pan to allow uncooked portions of the egg to occupy the space.',
-    'Put the cooked crab meat and onions on top of the half side of the omelette.',
-    'Cover the crab meat and onions by folding the other side of the omelette.',
-    'Place in a serving plate.',
-    'Serve hot with bread or rice. Share and Enjoy!'
-  ],
-  'Eggs, Dairy, Shellfish',
-  ARRAY['Keto/Low Carb', 'Pescatarian', 'High Protein', 'Flexitarian'],
-  85.0
-),
-
--- 19. Sinangag
-(
-  'Sinangag',
-  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/sinangag_(Filipino%20Fried%20Frice).png',
-  'Sinangag is a popular Filipino rice recipe that involves stir-frying rice with garlic. It is a simple way to cook your leftover rice, but it can do wonders for your meals with its simple savory flavor',
-  ARRAY[
-    '1 cups cooked white rice',
-    '1.67 cloves crushed garlic',
-    '0.17 teaspoon salt',
-    '0.83 tablespoons cooking oil'
-  ],
-  ARRAY[
-    'Heat the cooking oil in a wide pan.',
-    'While the cooking oil is being heated, add the crushed garlic. Note: make sure that the oil is not hot when you add the garlic. Let the garlic slowly cook while the oil gets heated until it becomes golden brown and crisp.',
-    'Sprinkle the salt over the rice. Toss until the salt gets distributed evenly.',
-    'Gradually add the the rice into the pan. Stir to distribute the ingredients. Continue to stir fry for 3 to 5 minutes.',
-    'Transfer to a serving plate. Serve with your favorite dish.'
-  ],
-  'None',
-  ARRAY['Vegan', 'Vegetarian', 'Balance Diet', 'Dairy Free', 'Gluten Free'],
-  15.0
-),
-
--- 20. Chicken Bistek
-(
-  'Chicken Bistek',
-  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/chicken_bistek.png',
-  'Chicken Bistek is a lighter take on the classic Filipino beef bistek. Made with chicken simmered in a savory soy sauce and calamansi (or lemon) marinade, then topped with sautéed onions, it''s a flavorful, tangy, and budget-friendly dish that pairs perfectly with rice.',
-  ARRAY[
-    '1 lbs boneless chicken breast',
-    '1.5 cloves garlic',
-    '1.5 pieces onion sliced into rings',
-    '0.25 teaspoon sugar',
-    '0.5 cup water',
-    '0.13 cup cooking oil',
-    'Salt and ground black pepper to taste',
-    '0.38 cup soy sauce marinade ingredients',
-    '0.5 piece lemon marinade ingredients',
-    '0.13 teaspoon salt marinade ingredients',
-    '1 cloves garlic crushed marinade ingredients'
-  ],
-  ARRAY[
-    'Combine the marinade ingredients in a large bowl. Mix well.',
-    'Add the chicken. Make sure that the chicken is completely coated with the marinade. Cover the bowl. Refrigerate overnight.',
-    'Heat 2 tablespoons of cooking oil in a wok. Fry the chicken for 2 minutes per side. Remove from the wok. Set it aside.',
-    'Heat the remaining cooking oil. Sauté the garlic and around ½ of the total amount of onions.',
-    'Add the chicken once the onion softens. Continue cooking for 30 seconds.',
-    'Pour the remaining marinade and 1 cup water. Let it boil. Adjust the heat to a simmer, cover the wok, and continue cooking for 35 minutes. Note: add more water as needed.',
-    'Add the remaining onions. Cook for 2 minutes.',
-    'Add the sugar and season with salt and ground black pepper.',
-    'Transfer to a serving bowl. Serve.'
-  ],
-  'Soy, Wheat/Gluten',
-  ARRAY['Balance Diet', 'High Protein', 'Dairy Free', 'Flexitarian'],
-  90.0
-),
-
--- 21. Ginisang Repolyo (Sauteed Cabbage)
-(
-  'Ginisang Repolyo (Sauteed Cabbage)',
-  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/ginisang_repolyo.png',
-  'Ginisang Repolyo, or Sauteed Cabbage, is a simple yet flavorful Filipino dish that''s ideal for a quick and nutritious lunch or dinner. While this recipe is made with green cabbage, it can also be prepared with napa or savoy cabbage. This dish is a staple in many Filipino households because of its affordability and ease of preparation—a convenient choice for busy weekdays!',
-  ARRAY[
-    '1 head cabbage chopped',
-    '4 ounces pork sliced',
-    '1 onion sliced',
-    '1 red bell pepper sliced',
-    '4 cloves garlic crushed and minced',
-    '3 tablespoons cooking oil',
-    '1 cup beef broth',
-    'Salt and pepper to taste'
-  ],
-  ARRAY[
-    'Heat the cooking oil in a pan.',
-    'Once the oil becomes hot, saute the garlic and onion.',
-    'Put-in the pork and then cook for 5 minutes or until color turns medium brown.',
-    'Pour-in half of the beef broth. Let boil and simmer until the liquid totally evaporate.',
-    'Put-in the cabbage. Cook for 1 to 2 minutes.',
-    'Add the red bell pepper. Stir and cook for 1 minute more.',
-    'Add salt and pepper to taste.',
-    'Pour-in remaining beef broth. Let boil. Stir.',
-    'Transfer to a serving bowl and serve.'
-  ],
-  'None',
-  ARRAY['Balance Diet', 'Dairy Free', 'Flexitarian'],
-  40.0
-),
-
--- 22. Chicken Giniling with Green Peas
-(
-  'Chicken Giniling with Green Peas',
-  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/chicken_giniling_with_green_peas.png',
-  'Chicken Giniling with Green Peas is a Filipino stew that makes use of ground chicken meat. This dish is usually made using ground pork (the dish using pork is called pork giniling), but it is a good idea to use other meat to see which is better.',
-  ARRAY[
-    '0.67 lbs ground chicken',
-    '0.33 15 oz. can tomato sauce',
-    '0.33 large potato cut into small cubes',
-    '0.33 large carrot cut into small cubes',
-    '0.5 cups frozen green peas',
-    '0.33 medium yellow onion chopped',
-    '0.67 teaspoons minced garlic',
-    '0.33 cup chicken broth',
-    '0.67 pieces dried bay leaves',
+    '1 cup julienned Bamboo shoots',
+    '1 lb. pig liver, sliced into thin strips',
+    '1 (20 oz.) can Pineapple chunks, drained',
+    '5 pieces dried bay leaves',
+    '½ lb. pig kidney, cleaned',
+    '½ lb. pig heart',
+    '1 lb. ox tripe',
+    '½ lb. pig stomach',
+    '1 large red onion, minced',
+    '1 head garlic, minced',
+    '2½ teaspoons Annatto powder',
+    '2 thumbs ginger, minced',
+    '1 large red bell pepper, julienned',
+    '1 piece beef cube (or 2 teaspoons beef powder)',
+    '2 cups water (for cooking)',
+    '5 cups water (for boiling)',
     'Salt and pepper to taste',
-    '0.67 tablespoons cooking oil'
+    '3 tablespoons olive oil'
   ],
   ARRAY[
-    'Heat the cooking oil in a wide pan.',
-    'When the oil is hot, sauté the garlic and onion until the onion softens.',
-    'Add the ground chicken. Cook for 5 minutes in medium heat.',
-    'Pour-in the tomato sauce and chicken broth. Let boil.',
-    'Add the dried bay leaves. Simmer for 35 minutes covered. Note: add water or chicken broth as needed.',
-    'Put-in the carrots and potato. Stir and cook for 8 to 10 minutes.',
-    'Add the green peas. Cook for 3 to 5 minutes.',
-    'Add salt and pepper to taste. Stir and turn-off heat',
-    'Transfer to a serving plate and then serve.'
+    'Boil 6 cups of water in a pot.',
+    'Once water is boiling, add 1 tbsp. salt, pig stomach, and ox tripe.',
+    'Boil over a medium heat for 1 hr.',
+    'Add the kidney and heart.',
+    'Continue to boil for another 1 hr or until all the innards are tender.',
+    'Discard the water and let the innards cool down.',
+    'Chop the innards and set aside.',
+    'Meanwhile, heat the cooking oil in a large clean cooking pot.',
+    'Sauté the onion, garlic, and ginger.',
+    'Once the onion gets soft, add the chopped innards, bay leaves, and liver.',
+    'Cook for 3 minutes.',
+    'Add the pineapple chunks, bell pepper, and beef cube.',
+    'Pour in 2 cups of water and add the annatto powder. Stir and let boil.',
+    'Add the bamboo shoots. Cover and simmer for 25 minutes.',
+    'Add more water if needed.',
+    'Add salt and pepper to taste.',
+    'Transfer to a serving bowl.',
+    'Serve while hot.'
   ],
   'None',
-  ARRAY['Balance Diet', 'High Protein', 'Dairy Free', 'Flexitarian'],
-  70.0
+  ARRAY['Balance Diet', 'High Protein', 'Flexitarian'],
+  120.0
 ),
 
--- 23. Sinigang na Hipon
+-- 2. Bopis
 (
-  'Sinigang na Hipon',
-  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/sinigang_na_hipon.jpeg',
-  'Sinigang na Hipon is a Filipino main dish having shrimp as the main ingredient. This dish also includes a variety of vegetables such as daikon radish, snake beans, okra, and eggplant. This dish is best served during cold weather. It is best enjoyed hot with a cup of white rice.',
+  'Bopis',
+  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/bopis.png',
+  'Bopis is a spicy Filipino dish made from minced pigs lungs and heart. This can be served as an appetizer for beer and alcoholic beverages; it is also considered as a main dish and is best served with steamed white rice.',
   ARRAY[
-    '0.5 lb. shrimp cleaned',
-    '22 grams Knorr Sinigang sa Sampaloc Mix',
-    '0.5 bunch kangkong',
-    '7.5 pieces snake beans',
-    '2.5 pieces okra',
-    '0.5 piece eggplant',
-    '0.5 cup daikon radish sliced',
-    '0.5 piece tomato sliced',
-    '1.5 pieces long green pepper',
-    '0.5 piece onion',
-    '1 quarts water',
-    'Fish sauce and ground black pepper to taste'
+    '0.75 lbs pork lungs',
+    '0.25 Knorr Pork Cube',
+    '1.25 dried bay leaves',
+    '0.5 carrots diced',
+    '0.75 thumbs ginger minced',
+    '0.25 tablespoon annatto powder',
+    '0.75 Thai chili pepper chopped',
+    '0.25 onion diced',
+    '1.25 cloves garlic minced',
+    '1.25 tablespoons vinegar',
+    '0.63 cups water',
+    '0.06 teaspoon ground black pepper',
+    '1 tablespoons cooking oil',
+    'Fish sauce to taste',
+    '2 cups water boiling ingredients',
+    '1.25 dried bay leaves boiling ingredients',
+    '6.25 g sibot boiling ingredients'
   ],
   ARRAY[
-    'Boil water in a cooking pot. Add onion, tomato, and radish. Cover and continue to boil for 8 minutes.',
-    'Add shrimp. Cook for 1 minute.',
-    'Add Knorr Sinigang sa Sampaloc Recipe Mix. Stir until it dilutes completely. Cover and cook for 3 minutes.',
-    'Add long green pepper, snake beans, okra, and eggplant. Stir. Cook for 5 minutes.',
-    'Put the kangkong stalks into the pot. Season with fish salt and ground black pepper.',
-    'Add kangkong leaves. Cook for 1 minute.',
-    'Transfer to a serving bowl. Serve warm with rice.'
+    'In a large pot, boil 8 cups of water and then add the rest of the boiling ingredients. Put the pig''s lungs into the pot and continue boiling for 1 hours. Remove the lungs, let it cool down, and then dice into small pieces. Set aside.',
+    'Heat oil on a clean pot. Sauté garlic, onion, and ginger.',
+    'Add the diced lungs once the onion softens. Cook for 3 minutes while stirring.',
+    'Add vinegar. Cook for 2 minutes.',
+    'Pour 2 ½ cups of water into the pot. Let it boil.',
+    'Add Knorr Pork cube and bay leaves. Stir. Cover the pot and adjust the heat between low to medium setting. Continue cooking until the liquid reduces to half.',
+    'Add the carrot, chili pepper, and annatto powder. Cook for 3 minutes.',
+    'Season with ground black pepper and fish sauce.',
+    'Transfer to a serving plate and enjoy!'
   ],
-  'Shellfish, Fish',
-  ARRAY['Balance Diet', 'Dairy Free', 'Pescatarian', 'Flexitarian'],
+  'None',
+  ARRAY['Balance Diet', 'High Protein', 'Flexitarian'],
   95.0
 ),
 
--- 24. Ginisang Ampalaya (Sauteed Bitter Melon)
+-- 3. Tapsilog
 (
-  'Ginisang Ampalaya (Sauteed Bitter Melon)',
-  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/ginisang_ampalaya.jpeg',
-  'Ginisang Ampalaya is a classic Filipino sautéed dish made with bitter melon (ampalaya), garlic, onion, and tomato. This healthy, fiber-rich dish is budget-friendly and widely enjoyed in Filipino households.',
+  'Tapsilog',
+  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/tapsilog.png',
+  'Tapsilog is one of my favorite breakfast meal options during big days. These are days wherein I need to complete several tasks. Having this meal gives me the needed energy to perform work and it keeps me full longer.',
   ARRAY[
-    '1 pieces ampalaya cleaned and cut into thin slices',
-    '0.5 tbsp garlic minced',
-    '0.25 tsp ground black pepper',
-    'salt to taste',
-    '1 egg',
-    '9 ounces luke warm water',
-    '0.5 tomato sliced',
-    '0.5 onion sliced',
-    '1.5 tbsp cooking oil'
+    '0.33 lb. beef sirloin sliced thinly',
+    '1 pieces eggs',
+    '2 tablespoons cooking oil',
+    '1 tablespoons Knorr Liquid Seasoning Tapa marinade',
+    '2 cloves crushed garlic',
+    '0.25 cups pineapple juice',
+    '0.67 tablespoons brown sugar',
+    '0.08 teaspoon ground white pepper',
+    '1.67 cups leftover rice Sinangag',
+    '0.33 teaspoon salt',
+    '1.67 cloves garlic crushed'
   ],
   ARRAY[
-    'Place the ampalaya in a large bowl',
-    'Add salt and lukewarm water then leave for 5 minutes',
-    'Place the ampalaya in a cheesecloth then squeeze tightly until all liquid drips',
-    'Heat the pan and place the cooking oil',
-    'Saute the garlic, onion, and tomato',
-    'Add the ampalaya mix well with the other ingredients',
-    'Put-in salt and pepper to taste',
-    'Beat the eggs and pour over the ampalaya then let the eggs cook partially',
-    'Mix the egg with the other ingredients',
-    'Serve hot.'
+    'Prepare the tapa by placing the beef in a large bowl. Combine with all the tapa marinade ingredients. Mix well and cover the bowl. Place inside the fridge and marinate overnight.',
+    'Cook the garlic fried rice (sinangag na kanin) by heating 3 tablespoons cooking oil in a pan. Add crushed garlic. Cook until garlic turns light brown. Add the leftover rice. Stir-fry for 3 minutes.',
+    'Season with salt. Continue to stir-fry for 3 to 5 minutes. Set aside.',
+    'Start to cook the tapa. Heat a pan and pour the marinated beef into it, including the marinade. Add ¾ cups water. Let the mixture boil. Cover the pan and continue to cook until the liquid reduces to half. Add 3 tablespoons cooking oil into the mixture. Continue to cook until the liquid completely evaporates. Fry the beef tapa in remaining oil until medium brown. Set aside.',
+    'Fry the egg by pouring 1 tablespoon oil on a pan. Crack a piece of egg and sprinkle enough salt on top. Cook for 30 seconds. Pour 2 tablespoons water on the side of the pan. Cover and let the water boil. Continue to cook until the egg yolks gets completely cooked by the steam.',
+    'Arrange the beef tapa, sinangag, and fried egg on a large plate to form Tapsilog. Serve with vinegar as dipping sauce for tapa.'
+  ],
+  'Eggs, Soy',
+  ARRAY['Balance Diet', 'High Protein', 'Flexitarian'],
+  110.0
+),
+
+-- 4. Longsilog
+(
+  'Longsilog',
+  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/longsilog.jpg',
+  'Longsilog is a breakfast that consists of sweet pork (longanisa), savory eggs, and umami garlic rice! Without even laying eyes on it, longsilog''s smell wafting through your home is enough to drag even the sleepiest out of bed. Its tantalizing aroma and humble yet comforting appearance, however, aren''t what make this dish special. In fact, it''s longsilog''s simple yet flavorful taste that is the star of the show!',
+  ARRAY[
+    '0.25 lb. skinless longanisa',
+    '1 pieces eggs',
+    '2 cups rice leftover',
+    '2.5 cloves garlic crushed',
+    '0.25 cup water',
+    '2 tablespoons cooking oil',
+    'Salt and ground black pepper to taste'
+  ],
+  ARRAY[
+    'Heat 2 tablespoons of oil in a pan. Once the oil gets hot, fry the eggs. Remove from the pan. Set aside.',
+    'Add remaining oil in the pan. Fry the longanisa until the outer part turns light brown (around 1 1/2 minutes).',
+    'Pour-in water. Let boil. Continue boiling until the water evaporates. Fry the longanisa in remaining oil until fully cooked. Remove from the pan and set aside.',
+    'Using the remaining oil, cook garlic until it starts to turn light brown.',
+    'Add rice. Stir-fry for 3 minutes. Season with salt and ground black pepper.',
+    'Assemble the fried eggs, longanisa, and sinangag on a plate. Serve with spicy vinegar as a dipping sauce for the longanisa.',
+    'Share and enjoy!'
   ],
   'Eggs',
-  ARRAY['Balance Diet', 'Dairy Free', 'Flexitarian'],
-  30.0
+  ARRAY['Balance Diet', 'High Protein', 'Flexitarian'],
+  85.0
+),
+
+-- 5. Pancit Canton
+(
+  'Pancit Canton',
+  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/pancit_canton.png',
+  'Pancit Canton is a type of Lo Mein or tossed noodles known as flour sticks. This dish is often served during birthdays and special occasions to symbolize long life. It is prepared using a variety of ingredients, which makes it look festive.',
+  ARRAY[
+    '125 grams flour stick noodles',
+    '2 ounces pork thinly sliced',
+    '0.5 piece Chinese sausage sliced',
+    '0.5 piece onion sliced',
+    '0.5 teaspoon garlic minced',
+    '4 to 5 pieces shrimp shell removed',
+    '5 to 6 pieces snap peas',
+    '0.38 cup carrot julienne',
+    '0.5 piece cabbage small, chopped',
+    '0.75 cups chicken broth',
+    '0.5 tablespoon oyster sauce opional',
+    '1.5 tablespoons soy sauce',
+    '0.38 cup water',
+    '0.25 cup flat leaf parsley chopped',
+    '1.5 tablespoons cooking oil',
+    'Salt and pepper to taste'
+  ],
+  ARRAY[
+    'Place 2 cups of ice and 3 cups water in a large bowl. Set aside.',
+    'Boil 6 cups of water in a cooking pot.',
+    'Once the water starts to boil, blanch the snap peas, carrots, and cabbage for 35 to 50 seconds. Quickly remove the vegetables and immerse in bowl with ice cold water. Drain the water after 2 minutes and set aside.',
+    'Heat a large wok or cooking pot and pour-in the cooking oil.',
+    'Saute the onion and garlic.',
+    'Add the pork and sausage slices and continue to cook for 2 minutes.',
+    'Add-in soy sauce and oyster sauce. Stir.',
+    'Pour-in chicken broth and water. Add salt and pepper. Let boil. continue to cook for 5 to 10 minutes.',
+    'Put-in the shrimp and parsley. Cook for 3 minutes. Add more water if needed.',
+    'Put-in the flour noodles. Gently toss until the noodles absorb the liquid.',
+    'Add-in the blanched vegetables. Toss and cook for 1 to 2 minutes.',
+    'Transfer to a serving plate. Serve.'
+  ],
+  'Shellfish, Soy, Wheat/Gluten',
+  ARRAY['Balance Diet', 'Flexitarian', 'Pescatarian'],
+  90.0
+),
+
+-- 6. Creamy Chicken Pastel
+(
+  'Creamy Chicken Pastel',
+  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/creamy_chicken_pastel.png',
+  'Chicken pastel, also known as pastel de pollo, is a traditional stew or pie from the Philippines made with chicken, sausages, mushrooms, peas, carrots, potatoes, soy sauce, and various spices in a creamy sauce.',
+  ARRAY[
+    '1 lbs chicken breast cut into cubes',
+    '0.5 piece Knorr Chicken Cube',
+    '0.5 piece Chorizo de Bilbao sliced',
+    '2 pieces hotdogs sliced',
+    '0.5 piece potato cubed',
+    '0.5 piece carrot sliced',
+    '0.5 piece red bell pepper sliced',
+    '0.5 piece green bell pepper sliced',
+    '0.38 cup button mushroom sliced',
+    '7.5 ounces all-purpose cream',
+    '0.13 cup soy sauce',
+    '0.5 piece lime',
+    '0.5 piece onion chopped',
+    '2 cloves garlic minced',
+    '0.38 cup water',
+    'Salt and ground black pepper to taste'
+  ],
+  ARRAY[
+    'Combine chicken, soy sauce, and lime in a large bowl. Mix well. Marinate chicken for at least 30 minutes.',
+    'Heat oil in a cooking pot. Saute onion and garlic.',
+    'Once the onion softens, add the chorizo. Saute for 1 minute.',
+    'Put chicken into the pot. Saute until the color turns light brown.',
+    'Add water. Let boil.',
+    'Add Knorr Chicken Cube. Stir. Cover and continue to cook for 20 minutes.',
+    'Put the sliced hotdogs into the pot. Cook in medium heat until the liquid reduces to half.',
+    'Add potato and carrot. Pour-in all-purpose cream. Cover and cook for 8 minutes.',
+    'Stir-in the mushroom and bell peppers. Stir. Cook for 3 minutes.',
+    'Season with ground black pepper and salt.',
+    'Transfer to a serving plate. Serve with warm rice.'
+  ],
+  'Dairy, Soy',
+  ARRAY['Balance Diet', 'High Protein', 'Flexitarian'],
+  105.0
+),
+
+-- 7. Chicken Macaroni Soup (Sopas)
+(
+  'Chicken Macaroni Soup (Sopas)',
+  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/chicken_Macaroni_soup_(Sopas).jpg',
+  '"Sopas" as commonly know in the Philippines is a kind of soup with macaroni pasta, vegetables, chicken and milk. The addition of milk is what makes this soup different from other soup. This can also be made vegan but replacing regular milk with non dairy milk and removing the chicken.',
+  ARRAY[
+    '1/4 cup cooked Macaroni Pasta',
+    '1/2 teaspoon Olive Oil',
+    '2 cloves Garlic – minced',
+    '1/4 cup chopped white or yellow Onion',
+    '2 tablespoon chopped Green Onion',
+    '1 small size Chicken Breast – shredded or cut int cubes',
+    '1/4 cup Carrots – diced',
+    '1/2 cup shredded Cabbage',
+    '1-2 tsp Chicken Soup Powder (available in spices bulk section in the grocery)',
+    '1/4 teaspoon Black Pepper',
+    '1/2 cup Milk (Any milk)',
+    '3 1/2 cups Broth'
+  ],
+  ARRAY[
+    'Cook the Macaroni Pasta as per package instruction. Set aside while you make the soup.',
+    'Make the Soup – On a heated pan, add garlic, onion and green onion. Sauté for 1 minute.',
+    'Add shredded chicken, and diced carrots. Cook until chicken is no longer raw.',
+    'Add chicken powder, black pepper, chicken or vegetable broth and cooked macaroni pasta. Simmer until vegetables are cook to your liking.',
+    'Add milk and shredded cabbage. Taste and adjust seasoning as desired. Cook for 2 more minutes.'
+  ],
+  'Dairy, Wheat/Gluten',
+  ARRAY['Balance Diet', 'High Protein', 'Flexitarian'],
+  75.0
+),
+
+-- 8. Beef Mechado
+(
+  'Beef Mechado',
+  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/beef_mechado.png',
+  'Beef Mechado is a delicious tomato-based stew that pairs perfectly with a warm cup of rice. It is hearty and filling, and its taste can bring back the comfort of home. The sauce can be made from chopped ripe tomato or canned tomato sauce. This dish is prepared mostly during weekends or special occasions.',
+  ARRAY[
+    '0.67 lbs beef chuck cubed',
+    '1 cloves garlic crushed',
+    '0.33 piece large onion sliced',
+    '2.67 ounces tomato sauce',
+    '0.33 cup water',
+    '1 tbsp cooking oil',
+    '0.33 slice lemon with rind',
+    '0.33 piece large potato sliced',
+    '0.08 cup soy sauce',
+    '0.17 tsp. ground black pepper',
+    '0.67 pieces bay leaves laurel',
+    'Salt to taste'
+  ],
+  ARRAY[
+    'Heat cooking oil in a pan then saute the garlic and onion.',
+    'Put-in the beef and saute for about 3 minutes or until color turns light brown',
+    'Add the tomato sauce and water then simmer until the meat is tender. Add water as needed. Note this can take 60 to 120 minutes depending on the quality of the beef.',
+    'Add the soy sauce, ground black pepper, lemon rind, laurel leaves, and salt then simmer until excess liquid evaporates',
+    'Put-in the potatoes and cook until the potatoes are soft',
+    'Place in a serving plate then serve hot with rice.'
+  ],
+  'Soy',
+  ARRAY['Balance Diet', 'High Protein', 'Flexitarian'],
+  100.0
+),
+
+-- 9. Hotsilog (Hotdog Sinangang at Itlog)
+(
+  'Hotsilog (Hotdog Sinangang at Itlog)',
+  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/hotsilog_(hotdog_%20sinangang_at_%20Itlog).png',
+  'Hotsilog is a meal composed of hotdogs, garlic fried rice, and fried egg. In a Filipino household, this is commonly eaten for breakfast with a condiment of banana ketchup and some pickled shredded papaya (atchara) on the side. Red juicy hotdogs are used to make hotsilog.',
+  ARRAY[
+    '3 pieces red hotdogs',
+    '2 eggs',
+    '1 cup garlic fried rice',
+    '1 medium tomato sliced',
+    '3/4 cup water',
+    '6 tablespoons cooking oil'
+  ],
+  ARRAY[
+    'Pour water in a small cooking pot. Let boil.',
+    'Add hotdogs and then pour 2 tablespoons cooking oil. Continue to cook until the water evaporates.',
+    'Once the water is gone, fry the hotdogs in the remaining oil for 1 to 2 minutes while slowly rolling it back and forth to prevent it from getting burnt. Set aside.',
+    'Prepare the eggs by heating 4 tablespoons of cooking oil in a pan.',
+    'Once the oil gets hot, crack a piece of egg and start to fry it. As the egg is frying, grab a spoon and scoop the oil from the bottom of the pot. Pour the oil over the egg. Do this until the yolk gets a white covering. Remove the egg and set aside. Do the same step on the other piece of egg.',
+    'Arrange the garlic fried rice, hotdogs, and fried eggs in a plate. Put the slices of tomato on the side.',
+    'Serve with ketchup.'
+  ],
+  'Eggs',
+  ARRAY['Balance Diet', 'High Protein', 'Flexitarian'],
+  70.0
+),
+
+-- 10. Sinigang na Sardinas
+(
+  'Sinigang na Sardinas',
+  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/sinigang_na_sardinas.png',
+  'Sinigang na Sardinas is a budget-friendly soup built on sharp tamarind tang and the soft bite of canned sardines or mackerel. It''s loaded with vegetables and easy to cook, especially for weeknight meals.',
+  ARRAY[
+    '7.5 oz mackerel canned',
+    '12.5 grams Maggi Magic Sinigang with Gabi',
+    '2 pieces okra',
+    '2.5 pieces string beans',
+    '1 ounces daikon radish',
+    '0.5 pieces eggplant',
+    '0.67 pieces long green peppers',
+    '0.17 bunch water spinach',
+    '0.33 pieces onions',
+    '1.33 cloves garlic',
+    '0.67 thumbs ginger crushed',
+    '0.83 pieces tomatoes',
+    '0.04 cup miso paste',
+    '0.33 quarts water',
+    'Fish sauce and ground black pepper to taste',
+    '0.5 tablespoons cooking oil'
+  ],
+  ARRAY[
+    'Separate the mackerel from the oil using a kitchen strainer. Set both aside.',
+    'Heat cooking oil and then sauté the onions until the layers separate.',
+    'Add ginger and garlic. Continue to sauté until the garlic starts to brown.',
+    'Add the tomatoes. Sauté for 1 minute.',
+    'Pour the oil from the canned mackerel into the cooking pot. Add 1 tablespoon of fish sauce and ½ teaspoon of ground black pepper. Stir.',
+    'Add miso paste and pour 1 ½ quarts of water. Let it boil.',
+    'Add the daikon radish. Continue cooking in medium heat setting for 5 minutes.',
+    'Add Maggi Magic Sinigang with Gabi. Stir.',
+    'Add the eggplant. Boil for 2 minutes.',
+    'Add the okra, long green peppers, and string beans.',
+    'Pour the remaining water, cover the pot, and let it re-boil. Continue cooking for 2 minutes.',
+    'Put the mackerel into the pot. Gently stir.',
+    'Add the water spinach (kangkong). Cook for 2 to 3 minutes.',
+    'Season with more fish sauce and ground black pepper as needed.',
+    'Transfer to a serving bowl. Serve hot.'
+  ],
+  'Fish',
+  ARRAY['Balance Diet', 'High Protein', 'Pescatarian', 'Dairy-Free'],
+  65.0
+),
+
+-- 11. Kalderetang Kambing (Goat Stew)
+(
+  'Kalderetang Kambing (Goat Stew)',
+  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/kalderetang_kambing_(Goat%20Stew).png',
+  'When you pair the unique flavors of liver with vinegar, tomato sauce, onions and carrots, you get the ever so lovely taste of Kaldereta. This orange stew is a Filipino recipe that locals truly love for its rich texture and powerful savory taste.',
+  ARRAY[
+    '0.5 lb goat meat chevon, cubed',
+    '0.5 tablespoon garlic minced',
+    '0.5 onion minced',
+    '1.5 tomatoes diced',
+    '2 Thai chili optional',
+    '0.5 cup tomato sauce',
+    '0.38 cup bell pepper sliced',
+    '3 tablespoon liver spread',
+    '0.38 cup green olives optional',
+    '0.25 cup vinegar',
+    '0.5 carrot cubed',
+    '0.5 potato cubed',
+    '1.5 tablespoons cooking oil',
+    '1 cups water',
+    'Salt and pepper to taste'
+  ],
+  ARRAY[
+    'Combine the vinegar, salt, and ground black pepper in a large bowl then marinate the goat meat for at least an hour (This should eliminate the gamey smell and taste of the meat) then separate the meat from the marinade.',
+    'Pour the cooking oil in a cooking pot or casserole and apply heat.',
+    'Sauté the garlic, onion, and tomatoes',
+    'Add the marinated goat meat then cook until the color of the outer part turns light brown',
+    'Put-in the tomato sauce and crushed chili then allow to cook for 2 minutes',
+    'Add the water and allow to boil. Simmer for at least 45 minutes or until the meat is tender.',
+    'Add the liver spread and cook for 5 minutes (You may add water if the sauce seems to dry up)',
+    'Put-in the potatoes and carrots then simmer for 8 minutes.',
+    'Add the olives and bell pepper then simmer for another 5 minutes.',
+    'Add salt and pepper to taste.',
+    'Serve hot.'
+  ],
+  'None',
+  ARRAY['Balance Diet', 'High Protein', 'Flexitarian'],
+  130.0
+),
+
+-- 12. Pork Giniling
+(
+  'Pork Giniling',
+  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/pork_giniling.png',
+  'Pork Giniling is a pork dish that makes use of ground pork as the primary ingredient. Ground pork is stewed in tomato sauce and water to bring out the taste while vegetables such as carrots and potatoes (some also like this with raisins and green peas) are added for additional flavor and nutrition.',
+  ARRAY[
+    '0.5 lb ground pork',
+    '0.5 cups potatoes diced',
+    '0.33 cup carrots diced',
+    '2.67 ounces tomato sauce',
+    '2 cloves garlic crushed',
+    '0.33 medium-sized onion minced',
+    '0.33 teaspoon granulated sugar',
+    '0.33 piece beef or pork cube',
+    '1.33 boiled eggs shelled (optional)',
+    'Salt and pepper to taste',
+    '1 tablespoons cooking oil',
+    '0.33 cup water'
+  ],
+  ARRAY[
+    'Heat a cooking pot and pour-in the cooking oil.',
+    'When the oil is hot enough, put-in the garlic and sauté until the color turns light brown.',
+    'Add the onions and sauté until the texture becomes soft.',
+    'Put-in the ground pork and cook for 5 minutes.',
+    'Add the beef or pork cube, tomato sauce, and water and let boil. Simmer for 20 minutes.',
+    'Put the carrots and potatoes in then stir until every ingredient is properly distributed. Simmer for 10 to 12 minutes.',
+    'Add salt, ground black pepper, and sugar then stir.',
+    'Put in the boiled eggs and turn off the heat.',
+    'Transfer to a serving bowl and serve.'
+  ],
+  'Eggs',
+  ARRAY['Balance Diet', 'High Protein', 'Flexitarian'],
+  80.0
+),
+
+-- 13. Pininyahang Manok (Pineapple Chicken)
+(
+  'Pininyahang Manok (Pineapple Chicken)',
+  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/pininyahang_%20manok_(Pineapple%20Chicken).jpeg',
+  'Pininyahang manok, commonly anglicized as pineapple chicken, is a Philippine dish consisting of chicken braised in a milk or coconut milk-based sauce with pineapples, carrots, potatoes, and bell peppers. Some variants of the dish use a chicken stock base instead of milk.',
+  ARRAY[
+    '151.2 g chicken cut into serving pieces',
+    '56.7 g pineapple chunks canned',
+    '0.33 pieces tomato chopped',
+    '24.83 g bell pepper cut into thick strips',
+    '0.17 piece carrot wedged',
+    '0.42 tablespoon fish sauce patis',
+    '20.33 g fresh milk',
+    '0.33 tablespoon garlic minced',
+    '0.17 piece onion sliced',
+    '0.33 tablespoon cooking oil'
+  ],
+  ARRAY[
+    'Marinate the chicken in pineapple juice/concentrate (derived from the can of pineapple chunks) for 20 to 30 minutes',
+    'Pour the cooking oil in a cooking pot / casserole then apply heat',
+    'Sauté the garlic, onion, and tomatoes',
+    'Put-in the chicken and cook until color of the outer part turns light brown',
+    'Add the pineapple juice/concentrate marinade and fresh milk then bring to a boil',
+    'Add the pineapple chunks and simmer until the chicken is tender and half of the liquid evaporates (about 20 to 30 minutes).',
+    'Put-in the carrots and simmer for 5 minutes',
+    'Add the bell pepper and fish sauce then simmer for 3 minutes',
+    'Remove from the cooking pot / casserole and transfer to a serving dish.',
+    'Serve hot.'
+  ],
+  'Dairy',
+  ARRAY['Balance Diet', 'High Protein', 'Flexitarian'],
+  95.0
+),
+
+-- 14. Pancit Palabok
+(
+  'Pancit Palabok',
+  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/pancit_palabok.jpg',
+  'Pancit Palabok is a noodle dish with shrimp sauce and topped with several ingredients such as cooked shrimp, boiled pork, crushed chicharon, tinapa flakes, fried tofu, scallions, and fried garlic. A very tasty treat that is sure to relieve your hunger. If you love Jollibee''s Palabok, I''m sure that you will love this recipe even more.',
+  ARRAY[
+    '83.33 grams rice noodles bihon',
+    '0.33 tbsp cooking oil Sauce ingredients',
+    '37.8 g ground pork Sauce ingredients',
+    '0.17 tbsp anatto powder Sauce ingredients',
+    '117.5 g pork broth Sauce ingredients',
+    '0.17 piece shrimp bouillon Sauce ingredients',
+    '1 tablespoons all-purpose flour Sauce ingredients',
+    '0.33 tbsp fish sauce Sauce ingredients',
+    '0.08 tsp ground black pepper Sauce ingredients',
+    '22.5 g pork belly boiled and sliced thinly into small pieces Topping ingredients',
+    '18.9 g firm tofu fried and sliced into cubes Topping ingredients',
+    '7.5 g tinapa flakes smoked fish Topping ingredients',
+    '19.71 g chicharon pounded Topping ingredients',
+    '0.33 hard boiled eggs sliced Topping ingredients',
+    '19.71 g cooked shrimps boiled or steamed Topping ingredients',
+    '4.17 g green onion or scallions finely chopped Topping ingredients',
+    '0.5 Tablespoons toasted garlic Topping ingredients',
+    '0.33 lemons sliced (or 6 pieces calamansi) Topping ingredients'
+  ],
+  ARRAY[
+    'Soak the rice noodles in water for about 15 minutes. Drain and set aside.',
+    'Cook the sauce by heating a saucepan. Pour-in the cooking oil.',
+    'When the oil is hot enough, put-in the ground pork and cook for about 5 to 7 minutes',
+    'Dilute the annato powder in pork broth then pour the mixture in the saucepan. Bring to a boil (If you are using anatto seeds, soak them first in 3 tbsp water to bring-out the color)',
+    'Add the shrimp cube and stir and simmer for 3 minutes',
+    'Add the flour gradually while stirring.',
+    'Add the fish sauce and ground black pepper then simmer until sauce becomes thick. Set aside.',
+    'Meanwhile, boil enough water in a pot.',
+    'Place the soaked noodles in a strainer (use metal or bamboo strainer) then submerge the strainer in the boiling water for about a minute or until the noodles are cooked. (make sure that the noodles are still firm)',
+    'Remove the strainer from the pot and drain the liquid from the noodles.',
+    'Place the noodles in the serving plate.',
+    'Pour the sauce on top of the noodles then arrange the toppings over the sauce.',
+    'Serve with a slice of lemon or calamansi.'
+  ],
+  'Shellfish, Fish, Eggs',
+  ARRAY['Balance Diet', 'Flexitarian', 'Pescatarian'],
+  85.0
+),
+
+-- 15. Adobong Manok sa Gata
+(
+  'Adobong Manok sa Gata',
+  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/adobong_manok_sa_gata.jpeg',
+  'Adobong Manok sa Gata is a version of Filipino Chicken Adobo that includes coconut milk. It is simply cooked similar to regular adobo, except that coconut milk is added in the middle of the process. The additional ingredient makes this dish different from traditional adobo.',
+  ARRAY[
+    '170.1 g chicken cut into serving pieces',
+    '113 g coconut milk',
+    '0.25 piece Knorr Chicken Cube',
+    '31.88 g white vinegar',
+    '14.5 g soy sauce',
+    '1.5 cloves garlic',
+    '1.25 pieces bay leaves dried',
+    '0.5 teaspoons whole peppercorn',
+    '0.75 tablespoons cooking oil'
+  ],
+  ARRAY[
+    'Heat oil in a pan.',
+    'Crush the garlic, and then saute until it starts to brown.',
+    'Fry the chicken for 1 to 1 ½ minutes per side.',
+    'Pour soy sauce and vinegar. Cover the pan. Let boil. Flip the chicken pieces afterwards. Continue cooking for 5 minutes.',
+    'Add whole peppercorn and bay leaves. Pour coconut milk. Stir and then let the mixture boil.',
+    'Add Knorr Chicken Cube. Stir and cover the pan. Adjust heat to low. Cook for 20 minutes.',
+    'Remove the cover and continue to cook until sauce reduces to desired amount.',
+    'Serve with warm rice.'
+  ],
+  'Soy',
+  ARRAY['Balance Diet', 'High Protein', 'Flexitarian', 'Dairy-Free'],
+  90.0
+),
+
+-- 16. Inihaw na Bangus (Grilled Milkfish)
+(
+  'Inihaw na Bangus (Grilled Milkfish)',
+  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/inihaw_na_bangus_(Grilled%20MilkFish).jpeg',
+  'Inihaw na Bangus or grilled milkfish is a perfect dish to make during warm weather. I like it best when grilled over charcoal because it gives the fish a nice smoky flavor. This recipe will give you a simple yet delicious dish that is quick and easy to make.',
+  ARRAY[
+    '0.5 piece milkfish bangus, with scales but guts removed',
+    '0.5 piece tomato ripe, diced',
+    '0.5 piece red onion diced',
+    '0.5 piece lemon or 3 pieces calamansi (optional)',
+    '0.5 tablespoon ginger minced',
+    '1 teaspoons salt',
+    '0.25 teaspoon ground black pepper'
+  ],
+  ARRAY[
+    'Wash the fish first. After that, pat it dry using a paper towel.',
+    'Open the incision and then rub the salt on the inside of the dish. The fish should have an incision either above or below the belly area.',
+    'Meanwhile, combine tomato, onion, and ginger in a large bowl. Squeeze some lemon juice in and add the ground black pepper. Gently stir.',
+    'Stuff the mixture inside the milkfish.',
+    'Grill the fish in medium heat for about 10 to 12 minutes per side.',
+    'Serve with toyomansi and steamed rice.'
+  ],
+  'Fish',
+  ARRAY['Balance Diet', 'High Protein', 'Pescatarian', 'Dairy-Free', 'Gluten-Free'],
+  110.0
+),
+
+-- 17. Bistek Tagalog (Beef Steak)
+(
+  'Bistek Tagalog (Beef Steak)',
+  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/bistek_tagalog(Beef%20Steak).jpeg',
+  'Bistek Tagalog is a type of Filipino beef stew. This is also known as beef steak to some people. It is comprised of thin slices of beef and a generous amount of onions. These are stewed in a soy sauce and lemon juice mixture until the beef gets very tender. It is best enjoyed with warm rice.',
+  ARRAY[
+    '136.08 g beef sirloin thinly sliced',
+    '1 tablespoons soy sauce',
+    '0.8 pieces calamansi or 1-piece lemon',
+    '0.1 tsp ground black pepper',
+    '0.6 cloves garlic minced',
+    '0.6 pieces onion sliced into rings',
+    '0.8 tablespoons cooking oil',
+    '50 g water',
+    '0.2 pinch salt'
+  ],
+  ARRAY[
+    'Marinate beef in soy sauce, lemon (or calamansi), and ground black pepper for at least 1 hour. Note: marinate overnight for best result',
+    'Heat the cooking oil in a pan then pan-fry half of the onions until the texture becomes soft. Set aside',
+    'Drain the marinade from the beef. Set it aside. Pan-fry the beef on the same pan where the onions were fried for 1 minute per side. Remove from the pan. Set aside',
+    'Add more oil if needed. Saute garlic and remaining raw onions until onion softens.',
+    'Pour the remaining marinade and water. Bring to a boil.',
+    'Add beef. Cover the pan and simmer until meat is tender. Note: Add water as needed.',
+    'Season with ground black pepper and salt as needed. Top with pan-fried onions.',
+    'Transfer to a serving plate. Serve hot.'
+  ],
+  'Soy',
+  ARRAY['Balance Diet', 'High Protein', 'Flexitarian', 'Dairy-Free', 'Gluten-Free'],
+  125.0
+),
+
+-- 18. Binagoongan
+(
+  'Binagoongan',
+  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/binagoongan.jpeg',
+  'Pork in shrimp paste is the best translation for this recipe. Tenderized pork is cooked in shrimp paste to enrich the flavor then garnished with chili to add some kick. This is considered as Filipino a main dish and is often eaten with lots of rice.',
+  ARRAY[
+    '170.1 g pork belly cut into cubes',
+    '0.5 pieces tomato cubed',
+    '0.25 piece Chinese eggplant sliced',
+    '210 g pork stock',
+    '0.75 tablespoons white vinegar',
+    '1 tablespoons bagoong alamang',
+    '0.25 piece onion chopped',
+    '0.75 cloves garlic chopped',
+    '0.5 teaspoons granulated white sugar',
+    '0.03 teaspoon ground black pepper',
+    '0.75 tablespoons cooking oil'
+  ],
+  ARRAY[
+    'Heat oil in a cooking pot.',
+    'Saute onion, garlic, and tomato. Once the onion becomes soft, add the pork belly. Cook until the belly turns light brown.',
+    'Add shrimp paste (bagoong alamang). Stir. Cook for 5 minutes.',
+    'Pour vinegar. Let the mixture boil. Stir and cook for 2 minutes.',
+    'Pour the pork stock into the pot. Cover and let boil. Adjust the heat to medium and continue to cook for 40 minutes or until the pork gets tender. Note: add water or pork stock as needed.',
+    'Add eggplant. Stir. Cover the pot and cook for 3 minutes.',
+    'Season with sugar and ground black pepper.',
+    'Transfer to a serving plate. Serve.'
+  ],
+  'Shellfish',
+  ARRAY['Balance Diet', 'High Protein', 'Flexitarian', 'Dairy-Free', 'Gluten-Free'],
+  85.0
+),
+
+-- 19. Sigarilyas Gising Gising
+(
+  'Sigarilyas Gising Gising',
+  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/sigarilyas_gising_gising.jpg',
+  'Sigarilyas Gising gising is a Filipino vegetable stew composed of winged beans, ground pork, and long green chillies.',
+  ARRAY[
+    '2.5 pieces winged bean sigarilyas, sliced crosswise',
+    '0.5 cups coconut milk',
+    '0.25 medium red onion sliced',
+    '1.25 cloves garlic crushed and chopped',
+    '0.13 lb. ground pork',
+    '1.5 pieces long green peppers siling pansigang',
+    '0.75 tablespoons fish sauce',
+    '0.03 teaspoon ground black pepper',
+    '0.75 tablespoons cooking oil'
+  ],
+  ARRAY[
+    'Heat the oil in a deep pan.',
+    'Once the oil is hot, saute the garlic and onion. Continue to cook until the onion starts to soften.',
+    'Add the ground pork. Saute for 5 minutes or until the pork turns brown.',
+    'Pour the coconut milk in the pan and let boil. Stir and add the sigarilyas and long green peppers. Cover and adjust the heat to low. cook for 30 to 35 minutes or until the liquid reduces in half.',
+    'Remove the cover and add fish sauce and ground black pepper. Stir and cook for a few more minutes until the coconut milk reduces, but do not let the liquid evaporate totally.',
+    'Transfer to a serving plate. Serve!'
+  ],
+  'None',
+  ARRAY['Balance Diet', 'High Protein', 'Flexitarian', 'Dairy-Free', 'Gluten-Free'],
+  70.0
+),
+
+-- 20. Chicken Embutido
+(
+  'Chicken Embutido',
+  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/chicken_embutido.jpg',
+  'Embutido is a type of Filipino steamed meatloaf. Today, we are featuring Chicken Embutido, which is a meatloaf made from ground chicken.',
+  ARRAY[
+    '1 lbs. ground chicken',
+    '0.33 red bell pepper minced',
+    '0.33 green bell pepper minced',
+    '0.33 yellow onion minced',
+    '1 egg',
+    '2.67 oz tomato sauce',
+    '0.33 cup raisins',
+    '0.33 cup carrots minced',
+    '0.25 cups sharp cheddar cheese grated',
+    '0.5 cups bread crumbs',
+    '0.08 cup olive oil',
+    '0.08 cup sweet pickle relish',
+    '0.17 teaspoon ground black pepper',
+    '0.33 teaspoon salt'
+  ],
+  ARRAY[
+    'In a large mixing bowl, combine the ground chicken, carrots, bell peppers, onion, raisins, sweet relish, cheese, and tomato sauce. Mix well.',
+    'Pour-in the olive oil. Add the salt and pepper. Continue to stir until all the ingredients are well blended.',
+    'Put the eggs and bread crumbs in the mixing bowl. Continue to mix with the other ingredients.',
+    'Wrap the mixture (around 1 to 1 1/4 cup) in aluminum foil. Do this step until all the mixture are consumed.',
+    'Arranged the chicken embutido in a steamer. Steam for 45 to 60 minutes.',
+    'Remove the steamed embutido from the steamer. Let it cool down. You can also place it in the fridge.',
+    'Slice the embutido and arrange in a serving plate.',
+    'Serve chilled.'
+  ],
+  'Eggs, Dairy, Wheat/Gluten',
+  ARRAY['Balance Diet', 'High Protein', 'Flexitarian'],
+  95.0
+),
+
+-- 21. Paksiw na Bangus
+(
+  'Paksiw na Bangus',
+  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/paksiw_na_bangus.jpg',
+  'Bangus Filipino Recipe known as Paksiw na Bangus is a classic dish that highlights the country''s love for bold and tangy flavors. It is made by stewing milkfish, or bangus, in vinegar along with garlic, ginger, onions, and a mix of spices. This bangus Filipino recipe is simple to make and requires just one pot, making it perfect for a quick but satisfying meal. The vinegar serves as the main flavoring, so it gives the dish a tangy punch that is balanced by the warmth of the garlic and ginger.',
+  ARRAY[
+    '0.58 lbs. milkfish cleaned and sliced crosswise into serving pieces',
+    '0.5 ounces pork fat chopped',
+    '0.83 thumbs ginger thinly sliced',
+    '0.17 head garlic crushed',
+    '0.21 cup white vinegar',
+    '0.33 cups water',
+    '0.33 onions sliced thinly',
+    '0.33 Chinese eggplants sliced',
+    '0.33 bitter melons sliced',
+    '0.83 long green pepper',
+    '0.33 teaspoons whole peppercorn',
+    'fish sauce to taste'
+  ],
+  ARRAY[
+    'Heat a pan and sear the pork fat until enough oil gets extracted.',
+    'Turn off the heat. Arrange the garlic, ginger, onion, and whole peppercorns.',
+    'Top with the milkfish slices, long green peppers, eggplant, and bitter melon.',
+    'Pour the vinegar. Turn the heat on. Cover the pot, and let it boil. Cook for 2 minutes.',
+    'Add water. Let the liquid re-boil. Simmer for 15 minutes.',
+    'Season with fish sauce.',
+    'Transfer to a serving plate. Serve with rice.'
+  ],
+  'Fish',
+  ARRAY['Balance Diet', 'High Protein', 'Pescatarian', 'Dairy-Free', 'Gluten-Free'],
+  75.0
+),
+
+-- 22. Inun unan
+(
+  'Inun unan',
+  'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/recipes/inun_unan.jpg',
+  'Inun unan is a Filipino fish recipe that involves fish and vinegar along with some vegetables and spices Similar to paksiw this Visayan version difference Inun unan is spiced primarily with ginger and only fish can be used, paksiw can be cooked with other meats like pork',
+  ARRAY[
+    '0.67 lbs. fish tulingan, cleaned and innards removed',
+    '0.33 medium ampalaya bitter gourd, cored and sliced',
+    '0.33 medium Chinese eggplant sliced',
+    '0.33 small onion chopped',
+    '0.33 thumb ginger sliced',
+    '1.67 pieces long green chili or Serrano pepper',
+    '0.17 cup cane or white vinegar',
+    '0.33 cup water',
+    '0.33 teaspoon whole peppercorn'
+  ],
+  ARRAY[
+    'Arrange the onion, fish, ginger, whole peppercorn, water, and vinegar in a cooking pot. Cover the pot and turn the heat on. Let the liquid boil.',
+    'Once the liquid starts to boil, adjust the heat to low. Cook for 15 minutes.',
+    'Add the eggplant, bitter gourd, and chili (or pepper). Cover the pot and continue to cook until the water completely evaporates.',
+    'Transfer to a serving plate. Serve.'
+  ],
+  'Fish',
+  ARRAY['Balance Diet', 'High Protein', 'Pescatarian', 'Dairy-Free', 'Gluten-Free'],
+  60.0
 );
+

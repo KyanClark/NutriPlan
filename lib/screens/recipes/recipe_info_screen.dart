@@ -5,7 +5,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/feedback_service.dart';
 import '../../services/fnri_nutrition_service.dart';
 import '../feedback/feedback_thank_you_page.dart';
-import 'package:intl/intl.dart';
 
 /// Macro chip widget for displaying nutrition information
 class _MacroChip extends StatelessWidget {

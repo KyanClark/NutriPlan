@@ -32,8 +32,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _uploadingImage = false;
 
 
-  bool _hasShownInitialLoading = false;
-
   @override
   void initState() {
     super.initState();
@@ -41,90 +39,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadProfileImage();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_hasShownInitialLoading && _loading) {
-      _hasShownInitialLoading = true;
-      // Use a microtask to avoid showing dialog during build
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _showInitialLoadingDialog();
-        }
-      });
-    }
-  }
-
-  Future<void> _showInitialLoadingDialog() async {
-    // Show loading dialog for initial profile fetch
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return WillPopScope(
-          onWillPop: () async => false,
-          child: Dialog(
-            backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Loading animation (same as meal history)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(3, (i) => AnimatedContainer(
-                      duration: const Duration(milliseconds: 400),
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: const Color.fromARGB(255, 97, 212, 86).withOpacity(i == DateTime.now().second % 3 ? 1 : 0.4),
-                        shape: BoxShape.circle,
-                      ),
-                    )),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Loading Profile...',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Please wait while we load your profile',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.black54,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-
-    // Wait for profile to finish loading
-    while (_loading && mounted) {
-      await Future.delayed(const Duration(milliseconds: 100));
-    }
-    
-    // Close loading dialog
-    if (mounted) {
-      Navigator.of(context).pop();
-    }
-  }
 
   Future<void> _fetchUserProfile() async {
     setState(() => _loading = true);
