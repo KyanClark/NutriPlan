@@ -16,6 +16,7 @@ class HomePage extends StatefulWidget {
 }
 //try
 //yawaaaaaaa
+//pisti
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   String userName = ""; // Start empty, will fetch from Supabase
   late int _selectedIndex;
