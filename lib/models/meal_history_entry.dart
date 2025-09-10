@@ -48,7 +48,7 @@ class MealHistoryEntry {
       if (value is String) return double.tryParse(value) ?? 0.0;
       return 0.0;
     }
-
+//Tryan lang
     return MealHistoryEntry(
       id: map['id'].toString(),
       recipeId: map['recipe_id'].toString(),
