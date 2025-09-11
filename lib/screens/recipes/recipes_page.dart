@@ -10,7 +10,9 @@ import 'package:nutriplan/screens/meal_plan/meal_plan_confirmation_page.dart';
 
 class RecipesPage extends StatefulWidget {
   final VoidCallback? onChanged;
-  const RecipesPage({super.key, this.onChanged});
+  // Optional: preselect meals so the bottom bar is populated on open
+  final List<Recipe> preselectedMeals;
+  const RecipesPage({super.key, this.onChanged, this.preselectedMeals = const []});
 
   @override
   State<RecipesPage> createState() => _RecipesPageState();
@@ -42,6 +44,10 @@ class _RecipesPageState extends State<RecipesPage> {
   void initState() {
     super.initState();
     _fetchFavorites();
+    // Preload any preselected meals into the plan builder
+    if (widget.preselectedMeals.isNotEmpty) {
+      _mealsForPlan.addAll(widget.preselectedMeals);
+    }
   }
 
   List<Recipe> _applySearchAndSort(List<Recipe> recipes) {
