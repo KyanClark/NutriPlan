@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/feedback_service.dart';
 import '../../services/fnri_nutrition_service.dart';
 import '../feedback/feedback_thank_you_page.dart';
+import 'package:intl/intl.dart';
 
 /// Macro chip widget for displaying nutrition information
 class _MacroChip extends StatelessWidget {
@@ -22,7 +23,7 @@ class _MacroChip extends StatelessWidget {
         color: Colors.green[50],
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text('$label: $value$unit', style: const TextStyle(fontSize: 13, color: Colors.green)),
+      child: Text('$label: $value$unit', style: const TextStyle(fontSize: 13, color: Colors.green, fontWeight: FontWeight.normal)),
     );
   }
 }
@@ -876,10 +877,10 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                             const SizedBox(height: 16),
                             // Nutrition Section with Auto-Update
                               Column(
-                                crossAxisAlignment: CrossAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisAlignment: MainAxisAlignment.start,
                                 children: [
                                   const Text('Macronutrients Breakdown', style: TextStyle(fontWeight: FontWeight.bold)),
                                     const SizedBox(width: 8),
@@ -895,7 +896,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                                 
                                 // Test buttons for nutrition data management
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisAlignment: MainAxisAlignment.start,
                                   children: [
                                     ElevatedButton.icon(
                                       onPressed: isUpdatingNutrition ? null : _updateNutrition,
@@ -928,72 +929,77 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                                   )
                                 // Show nutrition data (either original or updated)
                                 else if ((recipe.macros.isNotEmpty && recipe.calories != null && recipe.calories! > 0) || updatedNutrition != null)
-                                  Column(
-                                    children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                          _MacroChip(
-                                            label: 'Carbs', 
-                                            value: (updatedNutrition?['carbs'] ?? recipe.macros['carbs'] ?? 0).toString(),
-                                            unit: 'g'
-                                          ),
-                                      const SizedBox(width: 8),
-                                          _MacroChip(
-                                            label: 'Fat', 
-                                            value: (updatedNutrition?['fat'] ?? recipe.macros['fat'] ?? 0).toString(),
-                                            unit: 'g'
-                                          ),
-                                      const SizedBox(width: 8),
-                                          _MacroChip(
-                                            label: 'Fiber', 
-                                            value: (updatedNutrition?['fiber'] ?? recipe.macros['fiber'] ?? 0).toString(),
-                                            unit: 'g'
-                                          ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                          _MacroChip(
-                                            label: 'Protein', 
-                                            value: (updatedNutrition?['protein'] ?? recipe.macros['protein'] ?? 0).toString(),
-                                            unit: 'g'
-                                          ),
-                                      const SizedBox(width: 8),
-                                          _MacroChip(
-                                            label: 'Sugar', 
-                                            value: (updatedNutrition?['sugar'] ?? recipe.macros['sugar'] ?? 0).toString(),
-                                            unit: 'g'
-                                          ),
-                                        ],
-                                      ),
-                                      // Show additional nutrients if available
-                                      if (updatedNutrition != null && (updatedNutrition!['sodium'] != null || updatedNutrition!['cholesterol'] != null))
-                                        Padding(
-                                          padding: const EdgeInsets.only(top: 8),
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              if (updatedNutrition!['sodium'] != null)
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.start,
+                                          children: [
                                                 _MacroChip(
-                                                  label: 'Sodium', 
-                                                  value: updatedNutrition!['sodium'].toStringAsFixed(1),
-                                                  unit: 'mg'
+                                                  label: 'Carbs', 
+                                                  value: (updatedNutrition?['carbs'] ?? recipe.macros['carbs'] ?? 0).toString(),
+                                                  unit: 'g'
                                                 ),
-                                              if (updatedNutrition!['sodium'] != null && updatedNutrition!['cholesterol'] != null)
-                                                const SizedBox(width: 8),
-                                              if (updatedNutrition!['cholesterol'] != null)
+                                            const SizedBox(width: 8),
                                                 _MacroChip(
-                                                  label: 'Cholesterol', 
-                                                  value: updatedNutrition!['cholesterol'].toStringAsFixed(1),
-                                                  unit: 'mg'
+                                                  label: 'Fat', 
+                                                  value: (updatedNutrition?['fat'] ?? recipe.macros['fat'] ?? 0).toString(),
+                                                  unit: 'g'
                                                 ),
-                                            ],
-                                          ),
+                                            const SizedBox(width: 8),
+                                                _MacroChip(
+                                                  label: 'Fiber', 
+                                                  value: (updatedNutrition?['fiber'] ?? recipe.macros['fiber'] ?? 0).toString(),
+                                                  unit: 'g'
+                                                ),
+                                          ],
                                         ),
-                                    ],
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.start,
+                                          children: [
+                                                _MacroChip(
+                                                  label: 'Protein', 
+                                                  value: (updatedNutrition?['protein'] ?? recipe.macros['protein'] ?? 0).toString(),
+                                                  unit: 'g'
+                                                ),
+                                            const SizedBox(width: 8),
+                                                _MacroChip(
+                                                  label: 'Sugar', 
+                                                  value: (updatedNutrition?['sugar'] ?? recipe.macros['sugar'] ?? 0).toString(),
+                                                  unit: 'g'
+                                                ),
+                                          ],
+                                        ),
+                                        // Show additional nutrients if available
+                                        if (updatedNutrition != null && (updatedNutrition!['sodium'] != null || updatedNutrition!['cholesterol'] != null))
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 8),
+                                            child: Row(
+                                              mainAxisAlignment: MainAxisAlignment.start,
+                                              children: [
+                                                if (updatedNutrition!['sodium'] != null)
+                                                  _MacroChip(
+                                                    label: 'Sodium', 
+                                                    value: updatedNutrition!['sodium'].toStringAsFixed(1),
+                                                    unit: 'mg'
+                                                  ),
+                                                if (updatedNutrition!['sodium'] != null && updatedNutrition!['cholesterol'] != null)
+                                                  const SizedBox(width: 8),
+                                                if (updatedNutrition!['cholesterol'] != null)
+                                                  _MacroChip(
+                                                    label: 'Cholesterol', 
+                                                    value: updatedNutrition!['cholesterol'].toStringAsFixed(1),
+                                                    unit: 'mg'
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                      ],
+                                    ),
                                   )
                                 // Show message when no nutrition data available
                                 else
@@ -1055,8 +1061,21 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> {
                             const SizedBox(height: 16),
                             
                                                         // Feedback Section Header
-            
-                            const SizedBox(height: 20),
+                            const Text('Reviews & Ratings', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                            const SizedBox(height: 8),
+                            ElevatedButton.icon(
+                              onPressed: _loadFeedbacks,
+                              icon: const Icon(Icons.refresh, size: 18),
+                              label: const Text('Refresh'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
                             
                             // Reviews Section Header
                             if (isLoadingFeedbacks)

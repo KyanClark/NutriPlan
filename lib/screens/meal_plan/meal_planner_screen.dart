@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../recipes/recipe_info_screen.dart';
 import '../../models/recipes.dart';
-import '../recipes/recipes_page.dart';
 
 class MealPlannerScreen extends StatefulWidget {
   final bool forceRefresh;
@@ -14,6 +14,8 @@ class MealPlannerScreen extends StatefulWidget {
 }
 
 class _MealPlannerScreenState extends State<MealPlannerScreen> {
+  DateTime selectedDate = DateTime.now();
+  Timer? _timer;
 
   // Add state for Supabase meal plans
   List<Map<String, dynamic>> supabaseMealPlans = [];
@@ -137,6 +139,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
     if (confirm != true) return;
 
     try {
+      final deletedCount = _selectedMealsForDeletion.length;
       for (final mealId in _selectedMealsForDeletion) {
         await Supabase.instance.client.from('meal_plans').delete().eq('id', mealId);
       }
@@ -149,7 +152,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${_selectedMealsForDeletion.length} meal(s) deleted successfully'),
+            content: Text('$deletedCount ${deletedCount == 1 ? 'meal' : 'meals'} deleted successfully'),
             backgroundColor: Colors.green,
           ),
         );
@@ -189,6 +192,10 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
 
   @override
   void dispose() {
+    if (_timer != null) {
+      _timer!.cancel();
+      _timer = null;
+    }
     super.dispose();
   }
 
@@ -272,7 +279,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
               children: [
                                                   // Header with 'My Meal Plan' text and delete button inline
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 30.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -304,9 +311,9 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                             ),
                             child: IconButton(
                               icon: Icon(
-                                _isDeleteMode ? Icons.close : Icons.delete_outline,
-                                color: _isDeleteMode ? const Color(0xFFFF6961) : Colors.grey[700],
-                                size: 20,
+                                _isDeleteMode ? Icons.cancel_rounded : Icons.delete_rounded,
+                                color: _isDeleteMode ? const Color(0xFFFF3B30) : const Color(0xFF6B7280),
+                                size: 22,
                               ),
                               onPressed: () {
                                 setState(() {
@@ -348,15 +355,15 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                   _filteredMeals.isNotEmpty
                     ? Padding(
                         padding: EdgeInsets.symmetric(
-                          horizontal: isSmallScreen ? 12.0 : 20.0, 
+                          horizontal: isSmallScreen ? 12.0 : 16.0, 
                           vertical: 8
                         ),
                         child: GridView.builder(
                           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: isSmallScreen ? 1 : 2, // Single column on small screens
                             crossAxisSpacing: isSmallScreen ? 0 : 12,
-                            mainAxisSpacing: 20,
-                            childAspectRatio: isSmallScreen ? 1.2 : 0.75, // Taller cards on small screens
+                            mainAxisSpacing: 12,
+                            childAspectRatio: isSmallScreen ? 1.2 : 0.8, // Taller cards on small screens
                           ),
                           shrinkWrap: true,
                           physics: NeverScrollableScrollPhysics(),
@@ -435,7 +442,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                                          if (widget.onChanged != null) widget.onChanged!();
                                        },
                                     ),
-                                    const SizedBox(height: 8),
+                                    const SizedBox(height: 6),
                                   ],
                                 ),
                                                                  // Show selection checkbox when in delete mode, otherwise show delete button
@@ -560,33 +567,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                ),
                backgroundColor: const Color(0xFFFF6961),
              )
-           : FloatingActionButton.extended(
-               onPressed: () async {
-                 final navigatorContext = context;
-                 await Navigator.of(navigatorContext).push(
-                   PageRouteBuilder(
-                     pageBuilder: (context, animation, secondaryAnimation) => RecipesPage(onChanged: widget.onChanged),
-                     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                       const begin = Offset(0.0, 1.0);
-                       const end = Offset.zero;
-                       const curve = Curves.ease;
-                       final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                       return SlideTransition(
-                         position: animation.drive(tween),
-                         child: child,
-                       );
-                     },
-                   ),
-                 );
-                 if (widget.onChanged != null) widget.onChanged!();
-               },
-               icon: const Icon(Icons.add, color: Colors.white),
-               label: const Text(
-                 'Add Meal Plan',
-                 style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-               ),
-               backgroundColor: const Color.fromARGB(255, 81, 209, 87),
-             ),
+           : const SizedBox.shrink(),
        ),
     );
   }
@@ -658,85 +639,88 @@ class _RecipeCard extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              recipe.title,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: isSmallScreen ? 16 : 18,
-                                color: Colors.black87,
+                            SizedBox(
+                              height: isSmallScreen ? 40 : 44,
+                              child: Text(
+                                recipe.title,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: isSmallScreen ? 16 : 18,
+                                  color: Colors.black87,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
                             ),
-                                                         if (mealType != null && mealType!.isNotEmpty || mealTime != null && mealTime!.isNotEmpty) ...[
-                               SizedBox(height: isSmallScreen ? 6 : 4),
-                               Wrap(
-                                 spacing: 6,
-                                 runSpacing: 4,
-                                 children: [
-                                   if (mealType != null && mealType!.isNotEmpty)
-                                     Container(
-                                       padding: EdgeInsets.symmetric(
-                                         horizontal: isSmallScreen ? 8 : 6, 
-                                         vertical: isSmallScreen ? 4 : 3
-                                       ),
-                                       decoration: BoxDecoration(
-                                         color: _getMealTypeColor(mealType!),
-                                         borderRadius: BorderRadius.circular(8),
-                                       ),
-                                       child: Text(
-                                         mealType!.capitalize(),
-                                         style: TextStyle(
-                                           color: Colors.white,
-                                           fontSize: isSmallScreen ? 10 : 11,
-                                           fontWeight: FontWeight.w600,
-                                         ),
-                                       ),
-                                     ),
-                                   if (mealTime != null && mealTime!.isNotEmpty)
-                                     Container(
-                                       padding: EdgeInsets.symmetric(
-                                         horizontal: isSmallScreen ? 6 : 5, 
-                                         vertical: isSmallScreen ? 4 : 3
-                                       ),
-                                       decoration: BoxDecoration(
-                                         color: Colors.grey[100],
-                                         borderRadius: BorderRadius.circular(8),
-                                         border: Border.all(color: Colors.grey[300]!),
-                                       ),
-                                       child: Row(
-                                         mainAxisSize: MainAxisSize.min,
-                                         children: [
-                                           Icon(
-                                             Icons.access_time, 
-                                             size: isSmallScreen ? 12 : 11, 
-                                             color: Colors.grey[600]
-                                           ),
-                                           SizedBox(width: isSmallScreen ? 4 : 3),
-                                           Text(
-                                             mealTime!,
-                                             style: TextStyle(
-                                               fontSize: isSmallScreen ? 10 : 11,
-                                               color: Colors.grey[600],
-                                               fontWeight: FontWeight.w500,
-                                             ),
-                                           ),
-                                         ],
-                                       ),
-                                     ),
-                                 ],
-                               ),
-                             ] else ...[
-                               SizedBox(height: isSmallScreen ? 6 : 4),
-                               Text(
-                                 'No meal type/time set',
-                                 style: TextStyle(
-                                   fontSize: isSmallScreen ? 10 : 11,
-                                   color: Colors.grey[500],
-                                   fontStyle: FontStyle.italic,
-                                 ),
-                               ),
-                             ],
+                            if (mealType != null && mealType!.isNotEmpty || mealTime != null && mealTime!.isNotEmpty) ...[
+                              SizedBox(height: 6),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 4,
+                                children: [
+                                  if (mealType != null && mealType!.isNotEmpty)
+                                    Container(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: isSmallScreen ? 8 : 6, 
+                                        vertical: isSmallScreen ? 4 : 3
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: _getMealTypeColor(mealType!),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        mealType!.capitalize(),
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: isSmallScreen ? 10 : 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  if (mealTime != null && mealTime!.isNotEmpty)
+                                    Container(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: isSmallScreen ? 6 : 5, 
+                                        vertical: isSmallScreen ? 4 : 3
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[100],
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: Colors.grey[300]!),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.access_time, 
+                                            size: isSmallScreen ? 12 : 11, 
+                                            color: Colors.grey[600]
+                                          ),
+                                          SizedBox(width: isSmallScreen ? 4 : 3),
+                                          Text(
+                                            mealTime!,
+                                            style: TextStyle(
+                                              fontSize: isSmallScreen ? 10 : 11,
+                                              color: Colors.grey[600],
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ] else ...[
+                              SizedBox(height: 6),
+                              Text(
+                                'No meal type/time set',
+                                style: TextStyle(
+                                  fontSize: isSmallScreen ? 10 : 11,
+                                  color: Colors.grey[500],
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
