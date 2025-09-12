@@ -67,74 +67,10 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
       _timer?.cancel();
       setState(() {
         _remainingSeconds = timerSeconds;
-        _timerRunning = true;
+        _timerRunning = false; // Don't auto-start the timer
         _timerCompleted = false;
       });
-      _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (_remainingSeconds > 0) {
-          setState(() {
-            _remainingSeconds--;
-          });
-        } else {
-          timer.cancel();
-          setState(() {
-            _timerRunning = false;
-            _timerCompleted = true;
-          });
-          // Automatically proceed to next step if not last
-          Future.delayed(const Duration(milliseconds: 500), () {
-            if (!mounted) return;
-            if (_currentStep < widget.instructions.length - 1) {
-              setState(() {
-                _currentStep++;
-              });
-              _handleTimerOnStepChange();
-            } else {
-              showGeneralDialog(
-                context: context,
-                barrierDismissible: false,
-                barrierLabel: 'Completed',
-                transitionDuration: const Duration(milliseconds: 350),
-                pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
-                transitionBuilder: (context, anim1, anim2, child) {
-                  return Transform.scale(
-                    scale: anim1.value,
-                    child: Opacity(
-                      opacity: anim1.value,
-                      child: AlertDialog(
-                        title: const Text('Congratulations!'),
-                        content: const Text('You have completed all the steps. Enjoy your meal!'),
-                        actions: [
-                          TextButton(
-                            onPressed: () async {
-                              final navigatorContext = context;
-                              print('Finish button clicked - first dialog');
-                              await _handleMealCompletion();
-                              if (navigatorContext.mounted) {
-                                Navigator.of(navigatorContext).pop(); // Close the dialog
-                                // Show feedback dialog instead of finishing
-                                _showFeedbackDialog();
-                              }
-                            },
-                            child: const Text('Finish'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              );
-            }
-          });
-        }
-      });
-    } else {
-      _timer?.cancel();
-      setState(() {
-        _timerRunning = false;
-        _timerCompleted = false;
-        _remainingSeconds = 0;
-      });
+      // Don't start the timer automatically - wait for user to click play
     }
   }
 
@@ -486,74 +422,86 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
                   child: child,
                 ),
                 child: showTimer
-                  ? Column(
+                  ? Center(
                       key: ValueKey(_currentStep),
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          instruction,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w500),
-                        ),
-                        const SizedBox(height: 30),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            TweenAnimationBuilder<double>(
-                              tween: Tween<double>(begin: 1, end: _remainingSeconds.toDouble()),
-                              duration: const Duration(milliseconds: 500),
-                              builder: (context, value, child) {
-                                final pulse = (_timerRunning && _remainingSeconds > 0)
-                                    ? (1 + 0.1 * (1 - (_remainingSeconds % 2)))
-                                    : 1.0;
-                                return AnimatedScale(
-                                  scale: pulse,
-                                  duration: const Duration(milliseconds: 200),
-                                  child: Text(
-                                    _remainingSeconds > 0
-                                        ? '${(_remainingSeconds ~/ 60).toString().padLeft(2, '0')}:${(_remainingSeconds % 60).toString().padLeft(2, '0')}'
-                                        : '${(timerSeconds ~/ 60).toString().padLeft(2, '0')}:${(timerSeconds % 60).toString().padLeft(2, '0')}',
-                                    style: TextStyle(
-                                      fontSize: 48,
-                                      fontWeight: FontWeight.bold,
-                                      color: _timerRunning && _remainingSeconds <= 5 && _remainingSeconds > 0
-                                          ? const Color(0xFFFF6961)
-                                          : Colors.green,
-                                    ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Timer at the top
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _timerRunning ? Colors.orange : Colors.green[700],
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
                                   ),
-                                );
-                              },
-                            ),
-                            const SizedBox(width: 16),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _timerRunning ? Colors.orange : Colors.green[700],
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 23),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                onPressed: _timerRunning ? _pauseTimer : _resumeTimer,
+                                child: Icon(
+                                  _timerRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                                  size: 18,
                                 ),
                               ),
-                              onPressed: _timerRunning ? _pauseTimer : _resumeTimer,
-                              child: Text(_timerRunning ? 'Pause' : 'Resume', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        if (_timerCompleted)
-                          const Text('Timer complete! You can proceed to the next step.', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-                      ],
+                              const SizedBox(width: 16),
+                              TweenAnimationBuilder<double>(
+                                tween: Tween<double>(begin: 1, end: _remainingSeconds.toDouble()),
+                                duration: const Duration(milliseconds: 500),
+                                builder: (context, value, child) {
+                                  final pulse = (_timerRunning && _remainingSeconds > 0)
+                                      ? (1 + 0.1 * (1 - (_remainingSeconds % 2)))
+                                      : 1.0;
+                                  return AnimatedScale(
+                                    scale: pulse,
+                                    duration: const Duration(milliseconds: 200),
+                                    child: Text(
+                                      _remainingSeconds > 0
+                                          ? '${(_remainingSeconds ~/ 60).toString().padLeft(2, '0')}:${(_remainingSeconds % 60).toString().padLeft(2, '0')}'
+                                          : '${(timerSeconds ~/ 60).toString().padLeft(2, '0')}:${(timerSeconds % 60).toString().padLeft(2, '0')}',
+                                      style: TextStyle(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.bold,
+                                        color: _timerRunning && _remainingSeconds <= 5 && _remainingSeconds > 0
+                                            ? const Color(0xFFFF6961)
+                                            : Colors.green,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 40),
+                          // Description below the timer
+                          Text(
+                            instruction,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w500),
+                          ),
+                          const SizedBox(height: 20),
+                          const SizedBox(height: 10),
+                          // Completion message at the bottom
+                          if (_timerCompleted)
+                            const Text('Timer complete! You can proceed to the next step.', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
                     )
-                  : Column(
+                  : Center(
                       key: ValueKey(_currentStep),
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          instruction,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w500),
-                        ),
-                      ],
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            instruction,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w500),
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+                      ),
                     ),
               ),
             ),
@@ -561,7 +509,7 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Subtle Previous Step button
+                // Previous Step button
                 TextButton(
                   onPressed: _currentStep > 0 ? () {
                     setState(() {
@@ -570,11 +518,27 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
                     _handleTimerOnStepChange();
                   } : null,
                   style: TextButton.styleFrom(
-                    foregroundColor: Colors.grey[600],
-                    textStyle: const TextStyle(fontSize: 16),
+                    foregroundColor: Colors.orange[600],
+                    textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                   ),
                   child: const Text('Previous'),
                 ),
+                // Skip All button in the middle (not shown on last step)
+                if (_currentStep < widget.instructions.length - 1)
+                  TextButton(
+                    onPressed: () {
+                      // Skip to the last step (completion)
+                      setState(() {
+                        _currentStep = widget.instructions.length - 1;
+                      });
+                      _handleTimerOnStepChange();
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.orange[600],
+                      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                    ),
+                    child: const Text('Skip All'),
+                  ),
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(left: 8.0),
