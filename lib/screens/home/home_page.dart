@@ -7,6 +7,7 @@ import '../tracking/meal_tracker_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../widgets/bottom_navigation.dart'; 
 import '../recipes/recipes_page.dart';
+import '../recipes/recipe_info_screen.dart';
 import '../../models/recipes.dart';
 import '../../services/recipe_service.dart';
 
@@ -160,6 +161,44 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     });
   }
 
+  // Filtering helpers to select specific categories for the home grid
+  List<Recipe> _getFilipinoRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) =>
+      recipe.dietTypes.contains('Filipino Cuisine') ||
+      recipe.title.toLowerCase().contains('sinigang') ||
+      recipe.title.toLowerCase().contains('adobo') ||
+      recipe.title.toLowerCase().contains('sisig') ||
+      recipe.title.toLowerCase().contains('kaldereta') ||
+      recipe.title.toLowerCase().contains('tinola') ||
+      recipe.title.toLowerCase().contains('monggo') ||
+      recipe.title.toLowerCase().contains('afritada')
+    ).toList();
+  }
+
+  List<Recipe> _getMeatSeafoodRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) =>
+      recipe.dietTypes.contains('High Protein') ||
+      recipe.title.toLowerCase().contains('chicken') ||
+      recipe.title.toLowerCase().contains('beef') ||
+      recipe.title.toLowerCase().contains('pork') ||
+      recipe.title.toLowerCase().contains('shrimp') ||
+      recipe.title.toLowerCase().contains('fish') ||
+      recipe.title.toLowerCase().contains('bangus') ||
+      recipe.title.toLowerCase().contains('hipon')
+    ).toList();
+  }
+
+  List<Recipe> _getSoupStewRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) =>
+      recipe.dietTypes.contains('Soup') ||
+      recipe.title.toLowerCase().contains('sinigang') ||
+      recipe.title.toLowerCase().contains('tinola') ||
+      recipe.title.toLowerCase().contains('stew') ||
+      recipe.title.toLowerCase().contains('stews') ||
+      recipe.title.toLowerCase().contains('soup')
+    ).toList();
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -196,7 +235,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               const SizedBox(height: 12),
               _buildFeaturesGrid(),
               const SizedBox(height: 20),
-              _buildSectionHeader('Best Sales'),
+              _buildSectionHeader('You Might Love'),
               const SizedBox(height: 12),
               _buildBestSalesList(),
               const SizedBox(height: 20),
@@ -380,9 +419,47 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     if (_loadingRecipes) {
       return const Center(child: CircularProgressIndicator());
     }
-    final items = _recipes;
+    // Filter to Filipino Favorites, Soup & Stews, and Meat & Seafood
+    final filipino = _getFilipinoRecipes(_recipes);
+    final soupStew = _getSoupStewRecipes(_recipes);
+    final meatSeafood = _getMeatSeafoodRecipes(_recipes);
+    // From each category, take only 1/8th of its items
+    final filipinoSlice = filipino.take((filipino.length / 8).ceil()).toList();
+    final soupStewSlice = soupStew.take((soupStew.length / 8).ceil()).toList();
+    final meatSeafoodSlice = meatSeafood.take((meatSeafood.length / 8).ceil()).toList();
+
+    // Merge the slices while keeping order and removing duplicates by id
+    final Map<String, Recipe> byId = {};
+    for (final r in [...filipinoSlice, ...soupStewSlice, ...meatSeafoodSlice]) {
+      byId[r.id] = r;
+    }
+    final items = byId.values.toList();
     if (items.isEmpty) {
       return const Text('No recipes available');
+    }
+    // Display up to 12 recipes in the home grid
+    final visibleItems = items.take(12).toList();
+    // Ensure Beef Mechado has a card to its right in the 2-column grid
+    final mechadoIndex = visibleItems.indexWhere((r) =>
+      r.title.toLowerCase().contains('beef mechado') || r.title.toLowerCase().contains('mechado')
+    );
+    if (mechadoIndex >= 0) {
+      // If Mechado is at a right-column position, swap left
+      if (mechadoIndex % 2 == 1 && mechadoIndex > 0) {
+        final tmp = visibleItems[mechadoIndex - 1];
+        visibleItems[mechadoIndex - 1] = visibleItems[mechadoIndex];
+        visibleItems[mechadoIndex] = tmp;
+      }
+      // Recompute index after any swap
+      final newIndex = visibleItems.indexWhere((r) =>
+        r.title.toLowerCase().contains('beef mechado') || r.title.toLowerCase().contains('mechado')
+      );
+      // If Mechado ended up as the very last item (no right neighbor), swap with previous
+      if (newIndex == visibleItems.length - 1 && visibleItems.length >= 2) {
+        final tmp = visibleItems[newIndex - 1];
+        visibleItems[newIndex - 1] = visibleItems[newIndex];
+        visibleItems[newIndex] = tmp;
+      }
     }
     return GridView.builder(
       shrinkWrap: true,
@@ -393,9 +470,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         crossAxisSpacing: 12,
         childAspectRatio: 1.1,
       ),
-      itemCount: items.length,
+      itemCount: visibleItems.length,
       itemBuilder: (context, index) {
-        final r = items[index];
+        final r = visibleItems[index];
         return _buildFeatureCard(r);
       },
     );
@@ -404,21 +481,37 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Widget _buildFeatureCard(Recipe recipe) {
     return GestureDetector(
       onTap: () async {
-        await Navigator.of(context).push(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => RecipesPage(onChanged: _fetchCounts),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              const begin = Offset(0.0, 1.0);
-              const end = Offset.zero;
-              const curve = Curves.ease;
-              final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-              return SlideTransition(
-                position: animation.drive(tween),
-                child: child,
-              );
-            },
+        // Open detail; if user taps Add to Meal Plan without a callback, the screen returns the recipe
+        final result = await Navigator.of(context).push<Recipe>(
+          MaterialPageRoute(
+            builder: (_) => RecipeInfoScreen(
+              recipe: recipe,
+            ),
           ),
         );
+        if (!mounted) return;
+        if (result != null) {
+          // Navigate to RecipesPage with the returned recipe preselected in the plan bar
+          await Navigator.of(context).push(
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => RecipesPage(
+                onChanged: _fetchCounts,
+                preselectedMeals: [result],
+              ),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                const begin = Offset(0.0, 1.0);
+                const end = Offset.zero;
+                const curve = Curves.ease;
+                final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                return SlideTransition(
+                  position: animation.drive(tween),
+                  child: child,
+                );
+              },
+            ),
+          );
+          await _fetchCounts();
+        }
       },
       child: Container(
         decoration: BoxDecoration(
@@ -474,35 +567,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                           const SizedBox(height: 2),
                           Text('₱${recipe.cost.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
                         ],
-                      ),
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 6, offset: const Offset(0, 2)),
-                        ],
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.add),
-                        onPressed: () async {
-                          await Navigator.of(context).push(
-                            PageRouteBuilder(
-                              pageBuilder: (context, animation, secondaryAnimation) => RecipesPage(onChanged: _fetchCounts),
-                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                const begin = Offset(0.0, 1.0);
-                                const end = Offset.zero;
-                                const curve = Curves.ease;
-                                final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                                return SlideTransition(
-                                  position: animation.drive(tween),
-                                  child: child,
-                                );
-                              },
-                            ),
-                          );
-                        },
                       ),
                     ),
                   ],
@@ -786,7 +850,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         ? FloatingActionButton(
             onPressed: () async {
               await Navigator.of(context).push(
-                PageRouteBuilder(
+                PageRouteBuilder( 
                   pageBuilder: (context, animation, secondaryAnimation) => RecipesPage(onChanged: _fetchCounts),
                   transitionsBuilder: (context, animation, secondaryAnimation, child) {
                     const begin = Offset(0.0, 1.0);
