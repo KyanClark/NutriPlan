@@ -4,6 +4,7 @@ import 'dart:ui';
 import '../../models/meal_history_entry.dart';
 import '../../models/user_nutrition_goals.dart';
 import '../../widgets/meal_log_card.dart';
+import '../../screens/analytics/analytics_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class MealTrackerScreen extends StatefulWidget {
@@ -132,6 +133,33 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                  // Analytics button
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AnalyticsPage(),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF6961).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: const Color(0xFFFF6961).withOpacity(0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.analytics,
+                        color: Color(0xFFFF6961),
+                        size: 20,
+                      ),
                     ),
                   ),
                 ],
@@ -1433,7 +1461,7 @@ class _CalendarDialogState extends State<_CalendarDialog> {
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 7,
-                childAspectRatio: 1.2,
+                childAspectRatio: 1,
               ),
               itemCount: days.length,
               itemBuilder: (context, index) {
@@ -1457,8 +1485,8 @@ class _CalendarDialogState extends State<_CalendarDialog> {
                   child: Container(
                     margin: const EdgeInsets.all(2),
                     decoration: BoxDecoration(
-                      color: isSelected 
-                          ? Colors.blue 
+                      color: isSelected
+                          ? Colors.blue
                           : (isCurrentMonth ? Colors.white : Colors.grey[100]),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
@@ -1472,27 +1500,15 @@ class _CalendarDialogState extends State<_CalendarDialog> {
                           child: Text(
                             day.day.toString(),
                             style: TextStyle(
-                              color: isSelected 
-                                  ? Colors.white 
-                                  : (isCurrentMonth ? Colors.black : Colors.grey[400]),
+                              color: isSelected
+                                  ? Colors.white
+                                  : (isCurrentMonth
+                                      ? (hasMeals ? Colors.green : Colors.black)
+                                      : Colors.grey[400]),
                               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                             ),
                           ),
                         ),
-                        // Green dot indicator for days with meals
-                        if (hasMeals)
-                          Positioned(
-                            bottom: 4,
-                            right: 4,
-                            child: Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: Colors.green,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                          ),
                         // Meal count badge
                         if (mealCount > 0)
                           Positioned(
@@ -1528,8 +1544,8 @@ class _CalendarDialogState extends State<_CalendarDialog> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  width: 12,
-                  height: 12,
+                  width: 15,
+                  height: 15,
                   decoration: BoxDecoration(
                     color: Colors.green,
                     borderRadius: BorderRadius.circular(6),
