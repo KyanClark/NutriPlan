@@ -220,10 +220,11 @@ class FNRINutritionService {
     }
 
     try {
-      // Path to the CSV file in the fnri-food-composition-scraper directory
+      // Path to the CSV file in the assets/data directory
       final csvPath = path.join(
         Directory.current.path,
-        'fnri-food-composition-scraper',
+        'assets',
+        'data',
         'fnri_detailed_nutritional_data.csv'
       );
 
