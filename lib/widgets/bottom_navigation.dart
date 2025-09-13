@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'dart:ui';
 import '../utils/responsive_design.dart';
 
 class BottomNavigation extends StatelessWidget {
   final int selectedIndex;
   final Function(int) onTap;
   final int mealPlanCount;
-  final double opacity;
   final bool isSmallScreen;
 
   const BottomNavigation({
@@ -14,79 +12,57 @@ class BottomNavigation extends StatelessWidget {
     required this.selectedIndex,
     required this.onTap,
     required this.mealPlanCount,
-    required this.opacity,
     required this.isSmallScreen,
   });
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 300),
-      opacity: opacity,
-      child: ClipRRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(
-            sigmaX: 8 * opacity,
-            sigmaY: 8 * opacity,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
           ),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: opacity * 0.8),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1 * opacity),
-                  blurRadius: 8 * opacity,
-                  offset: Offset(0, -2 * opacity),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Top border line (matching AppBar style)
-                Container(
-                  height: 1,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.25),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 2,
-                        offset: Offset(0, 1),
-                      ),
-                    ],
-                  ),
-                ),
-                // Bottom Navigation Bar
-                BottomNavigationBar(
-                  backgroundColor: Colors.transparent,
-                  elevation: 0,
-                  currentIndex: selectedIndex,
-                  onTap: onTap,
-                  unselectedItemColor: const Color.fromARGB(255, 136, 136, 136),
-                  selectedItemColor: Colors.green,
-                  iconSize: isSmallScreen ? 22 : 24,
-                  type: BottomNavigationBarType.fixed,
-                  showSelectedLabels: true,
-                  showUnselectedLabels: true,
-                  selectedLabelStyle: TextStyle(
-                    fontSize: ResponsiveDesign.responsiveFontSize(context, 12),
-                    fontWeight: FontWeight.bold,
-                  ),
-                  unselectedLabelStyle: TextStyle(
-                    fontSize: ResponsiveDesign.responsiveFontSize(context, 12),
-                  ),
-                  items: [
-                    _buildBottomNavItem(Icons.home, 'Home', 0),
-                    _buildBottomNavItem(Icons.restaurant_menu, 'Meal Plan', 1, badgeCount: mealPlanCount),
-                    _buildBottomNavItem(Icons.track_changes, 'Meal Tracker', 2),
-                    _buildBottomNavItem(Icons.person, 'Profile', 3),
-                  ],
-                ),
-              ],
-            ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Top border line
+          Container(
+            height: 1,
+            color: Colors.grey.withOpacity(0.25),
           ),
-        ),
+          // Bottom Navigation Bar
+          BottomNavigationBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            currentIndex: selectedIndex,
+            onTap: onTap,
+            unselectedItemColor: const Color.fromARGB(255, 136, 136, 136),
+            selectedItemColor: Colors.green,
+            iconSize: isSmallScreen ? 22 : 24,
+            type: BottomNavigationBarType.fixed,
+            showSelectedLabels: true,
+            showUnselectedLabels: true,
+            selectedLabelStyle: TextStyle(
+              fontSize: ResponsiveDesign.responsiveFontSize(context, 12),
+              fontWeight: FontWeight.bold,
+            ),
+            unselectedLabelStyle: TextStyle(
+              fontSize: ResponsiveDesign.responsiveFontSize(context, 12),
+            ),
+            items: [
+              _buildBottomNavItem(Icons.home, 'Home', 0),
+              _buildBottomNavItem(Icons.restaurant_menu, 'Meal Plan', 1, badgeCount: mealPlanCount),
+              _buildBottomNavItem(Icons.track_changes, 'Meal Tracker', 2),
+              _buildBottomNavItem(Icons.person, 'Profile', 3),
+            ],
+          ),
+        ],
       ),
     );
   }

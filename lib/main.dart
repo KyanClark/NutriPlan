@@ -42,7 +42,7 @@ class NutriPlan extends StatelessWidget {
       ),
       initialRoute: '/',
       routes: {
-        '/': (context) => const LoginScreen(),
+        '/': (context) => const HomePage(),
       },
     );
   }
