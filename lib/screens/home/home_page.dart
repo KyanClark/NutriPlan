@@ -439,18 +439,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 left: 12,
                 right: 12,
                 bottom: 12,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      recipe.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 2),
-                    Text('₱${recipe.cost.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            recipe.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 2),
+                          Text('₱${recipe.cost.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),
@@ -465,26 +465,26 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     final categories = [
       {
         'name': 'Soup',
-        'icon': Icons.soup_kitchen,
-        'color': Colors.orange,
+        'asset': 'assets/widgets/soup-vid.gif',
+        'assetType': 'gif',
         'category': 'soup',
       },
       {
         'name': 'Fish',
-        'icon': Icons.set_meal,
-        'color': Colors.blue,
+        'asset': 'assets/widgets/fish.png',
+        'assetType': 'image',
         'category': 'fish',
       },
       {
         'name': 'Pork',
-        'icon': Icons.restaurant,
-        'color': Colors.pink,
+        'asset': 'assets/widgets/pork.png',
+        'assetType': 'image',
         'category': 'pork',
       },
       {
         'name': 'Silog Meals',
-        'icon': Icons.breakfast_dining,
-        'color': Colors.amber,
+        'asset': 'assets/widgets/silog-meals.jpg',
+        'assetType': 'image',
         'category': 'silog',
       },
     ];
@@ -499,80 +499,122 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         childAspectRatio: 1.2,
       ),
       itemCount: categories.length,
-      itemBuilder: (context, index) {
+        itemBuilder: (context, index) {
         final category = categories[index];
         return _buildCategoryCard(
           category['name'] as String,
-          category['icon'] as IconData,
-          category['color'] as Color,
+          category['asset'] as String,
+          category['assetType'] as String,
           category['category'] as String,
         );
       },
     );
   }
 
-  Widget _buildCategoryCard(String name, IconData icon, Color color, String category) {
-    return GestureDetector(
+  Widget _buildCategoryCard(String name, String asset, String assetType, String category) {
+          return GestureDetector(
       onTap: () {
         Navigator.of(context).push(
-          PageRouteBuilder(
+                PageRouteBuilder(
             pageBuilder: (context, animation, secondaryAnimation) => FilteredRecipesPage(
               category: category,
               categoryName: name,
               onChanged: _fetchCounts,
             ),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              const begin = Offset(0.0, 1.0);
-              const end = Offset.zero;
-              const curve = Curves.ease;
-              final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-              return SlideTransition(
-                position: animation.drive(tween),
-                child: child,
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    const begin = Offset(0.0, 1.0);
+                    const end = Offset.zero;
+                    const curve = Curves.ease;
+                    final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                    return SlideTransition(
+                      position: animation.drive(tween),
+                      child: child,
+                    );
+                  },
+                ),
               );
             },
-          ),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
+            child: Container(
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+                color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+              color: Colors.black.withValues(alpha: 0.01),
+              blurRadius: 1,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              child: Icon(
-                icon,
-                size: 32,
-                color: color,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Centered asset (image or gif) with padding for floating effect
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.asset(
+                      asset,
+                      fit: BoxFit.contain,
+                      width: 80,
+                      height: 80,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        width: 80,
+                        height: 80,
+                        color: Colors.grey[200],
+                        child: Icon(
+                          Icons.restaurant,
+                          size: 32,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              name,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[800],
+              // Gradient overlay for better text readability
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                    colors: [
+                      Colors.black.withValues(alpha: 0.3),
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.6),
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                        ),
+                      ),
+                    ),
+              // Category name
+                    Positioned(
+                      left: 12,
+                      right: 12,
+                      bottom: 12,
+                child: Text(
+                  name,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    shadows: [
+                      Shadow(
+                        offset: Offset(0, 1),
+                        blurRadius: 2,
+                        color: Colors.black54,
+                      ),
+                    ],
+                  ),
+                  textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -694,23 +736,23 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     appBar: AppBar(
       backgroundColor: Colors.white,
       elevation: 2,
-      automaticallyImplyLeading: false,
-      title: Text(
-        'NutriPlan',
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
+                automaticallyImplyLeading: false,
+                title: Text(
+                  'NutriPlan',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
           fontSize: ResponsiveDesign.responsiveFontSize(context, 20),
-          color: Colors.black87,
-        ),
-      ),
-      centerTitle: true,
-      actions: [],
+                    color: Colors.black87,
+                  ),
+                ),
+                centerTitle: true,
+                actions: [],
     ),
     backgroundColor: Colors.grey[50],
     body: Column(
       children: [
         Expanded(
-          child: pages[_selectedIndex],
+            child: pages[_selectedIndex],
         ),
       ],
     ),
