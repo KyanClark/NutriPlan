@@ -110,7 +110,27 @@ class _RecipeStepsSummaryPageState extends State<RecipeStepsSummaryPage> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: () {
-                        _showCongratulationsDialog();
+                        final navigatorContext = context;
+                        Navigator.of(navigatorContext).push(
+                          MaterialPageRoute(
+                            builder: (context) => InteractiveRecipePage(
+                              instructions: widget.instructions,
+                              recipeId: widget.recipeId,
+                              title: widget.recipeTitle,
+                              imageUrl: widget.imageUrl,
+                              calories: widget.calories,
+                              cost: widget.cost,
+                              protein: widget.protein,
+                              carbs: widget.carbs,
+                              fat: widget.fat,
+                              sugar: widget.sugar,
+                              fiber: widget.fiber,
+                              sodium: widget.sodium,
+                              cholesterol: widget.cholesterol,
+                              initialStep: widget.instructions.length - 1,
+                            ),
+                          ),
+                        );
                       },
                       child: const Text(
                         'Skip',
