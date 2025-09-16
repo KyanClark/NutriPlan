@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'interactive_recipe_page.dart';
+import '../../services/feedback_service.dart';
+import '../feedback/feedback_thank_you_page.dart';
+import '../home/home_page.dart';
 
-class RecipeStepsSummaryPage extends StatelessWidget {
+class RecipeStepsSummaryPage extends StatefulWidget {
   final List<String> instructions;
   final String recipeTitle;
   final String recipeId;
@@ -34,6 +38,11 @@ class RecipeStepsSummaryPage extends StatelessWidget {
   });
 
   @override
+  State<RecipeStepsSummaryPage> createState() => _RecipeStepsSummaryPageState();
+}
+
+class _RecipeStepsSummaryPageState extends State<RecipeStepsSummaryPage> {
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -48,15 +57,15 @@ class RecipeStepsSummaryPage extends StatelessWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (imageUrl.isNotEmpty)
+          if (widget.imageUrl.isNotEmpty)
             AspectRatio(
               aspectRatio: 16 / 9,
-              child: Image.network(imageUrl, fit: BoxFit.cover),
+              child: Image.network(widget.imageUrl, fit: BoxFit.cover),
             ),
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
-              recipeTitle,
+              widget.recipeTitle,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
@@ -64,7 +73,7 @@ class RecipeStepsSummaryPage extends StatelessWidget {
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              itemCount: instructions.length,
+              itemCount: widget.instructions.length,
               separatorBuilder: (context, idx) => const SizedBox(height: 16),
               itemBuilder: (context, idx) => Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,7 +86,7 @@ class RecipeStepsSummaryPage extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      instructions[idx],
+                      widget.instructions[idx],
                       style: Theme.of(context).textTheme.bodyLarge,
                     ),
                   ),
@@ -87,8 +96,34 @@ class RecipeStepsSummaryPage extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                // Skip button
+                Expanded(
+                  flex: 1,
+                  child: SizedBox(
+                    height: 48,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[600],
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () {
+                        _showCongratulationsDialog();
+                      },
+                      child: const Text(
+                        'Skip',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Start Cooking button
+                Expanded(
+                  flex: 2,
             child: SizedBox(
-              width: double.infinity,
               height: 48,
               child: ElevatedButton.icon(
                 icon: const Icon(Icons.play_arrow),
@@ -104,19 +139,19 @@ class RecipeStepsSummaryPage extends StatelessWidget {
                     navigatorContext,
                     MaterialPageRoute(
                       builder: (context) => InteractiveRecipePage(
-                        instructions: instructions,
-                        recipeId: recipeId,
-                        title: recipeTitle,
-                        imageUrl: imageUrl,
-                        calories: calories,
-                        cost: cost,
-                        protein: protein,
-                        carbs: carbs,
-                        fat: fat,
-                        sugar: sugar,
-                        fiber: fiber,
-                        sodium: sodium,
-                        cholesterol: cholesterol,
+                              instructions: widget.instructions,
+                              recipeId: widget.recipeId,
+                              title: widget.recipeTitle,
+                              imageUrl: widget.imageUrl,
+                              calories: widget.calories,
+                              cost: widget.cost,
+                              protein: widget.protein,
+                              carbs: widget.carbs,
+                              fat: widget.fat,
+                              sugar: widget.sugar,
+                              fiber: widget.fiber,
+                              sodium: widget.sodium,
+                              cholesterol: widget.cholesterol,
                       ),
                     ),
                   );
@@ -129,6 +164,166 @@ class RecipeStepsSummaryPage extends StatelessWidget {
           ),
         ],
       ),
+          ),
+        ],
+      ),
     );
+  }
+
+  void _showCongratulationsDialog() {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: 'Completed',
+      transitionDuration: const Duration(milliseconds: 350),
+      pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
+      transitionBuilder: (context, anim1, anim2, child) {
+        return Transform.scale(
+          scale: anim1.value,
+          child: Opacity(
+            opacity: anim1.value,
+            child: AlertDialog(
+              title: const Text('Congratulations!'),
+              content: const Text('You have completed all the steps. Enjoy your meal!'),
+                actions: [
+                  TextButton(
+                    onPressed: () async {
+                      final navigatorContext = context;
+                      Navigator.of(navigatorContext).pop(); // Close congratulations dialog
+                      // Show feedback dialog instead of going back
+                      await _showFeedbackDialog();
+                    },
+                    child: const Text('Finish'),
+                  ),
+                ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showFeedbackDialog() async {
+    // Check if user is authenticated first
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      Navigator.of(context).pop(true); // Pop back to previous screen
+      return;
+    }
+
+    double rating = 0;
+    final commentController = TextEditingController();
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Rate Your Experience'),
+        content: StatefulBuilder(
+          builder: (context, setState) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('How would you rate this recipe?'),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        rating = index + 1;
+                      });
+                    },
+                    child: Icon(
+                      index < rating ? Icons.star : Icons.star_border,
+                      color: Colors.amber,
+                      size: 32,
+                    ),
+                  );
+                }),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: commentController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  hintText: 'Share your experience with this recipe...',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Close feedback dialog
+              // Navigate back to home page
+              if (mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder: (context) => const HomePage(),
+                  ),
+                  (route) => false,
+                );
+              }
+            },
+            child: const Text('Skip'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (rating > 0) {
+                Navigator.of(context).pop({
+                  'rating': rating,
+                  'comment': commentController.text.trim(),
+                });
+              }
+            },
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null) {
+      try {
+        await FeedbackService.addFeedback(
+          recipeId: widget.recipeId,
+          rating: result['rating'],
+          comment: result['comment'],
+        );
+
+        // Navigate to thank you page
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => FeedbackThankYouPage(
+                recipeTitle: widget.recipeTitle,
+              ),
+            ),
+          );
+        }
+      } catch (e) {
+        // If feedback submission fails, just go back to home
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (context) => const HomePage(),
+            ),
+            (route) => false,
+          );
+        }
+      }
+    } else {
+      // User skipped feedback, go back to home
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => const HomePage(),
+          ),
+          (route) => false,
+        );
+      }
+    }
   }
 } 
