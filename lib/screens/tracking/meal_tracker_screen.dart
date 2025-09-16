@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'dart:ui';
 import '../../models/meal_history_entry.dart';
 import '../../models/user_nutrition_goals.dart';
 import '../../widgets/meal_log_card.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 class MealTrackerScreen extends StatefulWidget {
   final bool showBackButton;
-  final VoidCallback? onTabActivated;
-  const MealTrackerScreen({super.key, this.showBackButton = false, this.onTabActivated});
+  const MealTrackerScreen({super.key, this.showBackButton = false});
 
   @override
   State<MealTrackerScreen> createState() => _MealTrackerScreenState();
@@ -28,24 +27,10 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
   
   // Flag to track if widget is mounted
   bool _mounted = true;
-  
-  // Scroll controller for glass morphism effects
-  late ScrollController _scrollController;
-  double _scrollOffset = 0.0;
-  
-  // Weekly and monthly data storage
-  DailySummary? _weeklySummary;
-  DailySummary? _monthlySummary;
-  bool _isLoadingWeekly = false;
-  bool _isLoadingMonthly = false;
 
   @override
   void initState() {
     super.initState();
-    _scrollController = ScrollController();
-    _scrollController.addListener(_onScroll);
-    // Reset scroll offset when screen is initialized (e.g., when switching from another tab)
-    _scrollOffset = 0.0;
     _fetchData();
     _fetchDatesWithMeals();
   }
@@ -53,189 +38,12 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
   @override
   void dispose() {
     _mounted = false;
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
     super.dispose();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Reset scroll offset when dependencies change (e.g., when switching back to this tab)
-    if (_mounted) {
-      _scrollOffset = 0.0;
-      // Notify parent that this tab is activated
-      widget.onTabActivated?.call();
-    }
-  }
-  
-  void _onScroll() {
-    if (!_mounted) return;
-    // Update scroll offset without triggering setState for smooth scrolling
-    _scrollOffset = _scrollController.offset;
-  }
-  
-  // Reset scroll offset to reset glass morphism effects
-  void _resetScrollOffset() {
-    if (!_mounted) return;
-    setState(() {
-      _scrollOffset = 0.0;
-    });
-  }
-  
-  // Glass morphism header widget
-  Widget _buildGlassMorphismHeader() {
-    // Calculate opacity based on scroll position
-    final opacity = (_scrollOffset / 100).clamp(0.0, 0.8);
-    final blurIntensity = (_scrollOffset / 50).clamp(0.0, 15.0);
-    
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blurIntensity, sigmaY: blurIntensity),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(opacity),
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(20),
-              bottomRight: Radius.circular(20),
-            ),
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  if (widget.showBackButton)
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-                      onPressed: () => Navigator.of(context).pop(),
-                    )
-                  else
-                    const SizedBox(),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Meal Tracker',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
-                        Text(
-                          'Track your nutrition goals',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-  
-  // Glass morphism tab section widget
-  Widget _buildGlassMorphismTabs() {
-    // Calculate opacity based on scroll position
-    final opacity = (_scrollOffset / 100).clamp(0.0, 0.6);
-    final blurIntensity = (_scrollOffset / 50).clamp(0.0, 10.0);
-    
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blurIntensity, sigmaY: blurIntensity),
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 20),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(opacity),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.2),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              _TabButton(
-                label: 'Today',
-                isSelected: _selectedTab == 'today',
-                onTap: () {
-                  if (!_mounted) return;
-                  setState(() {
-                    _selectedTab = 'today';
-                    _scrollOffset = 0.0; // Reset scroll offset for glass morphism
-                  });
-                  _fetchData();
-                },
-              ),
-              const SizedBox(width: 12),
-              _TabButton(
-                label: 'Weekly',
-                isSelected: _selectedTab == 'weekly',
-                onTap: () {
-                  if (!_mounted) return;
-                  setState(() {
-                    _selectedTab = 'weekly';
-                    _scrollOffset = 0.0; // Reset scroll offset for glass morphism
-                  });
-                  _fetchData();
-                },
-              ),
-              const SizedBox(width: 12),
-              _TabButton(
-                label: 'Monthly',
-                isSelected: _selectedTab == 'monthly',
-                onTap: () {
-                  if (!_mounted) return;
-                  setState(() {
-                    _selectedTab = 'monthly';
-                    _scrollOffset = 0.0; // Reset scroll offset for glass morphism
-                  });
-                  _fetchData();
-                },
-              ),
-              const Spacer(),
-              // Calendar button with glass effect
-              GestureDetector(
-                onTap: _showCalendar,
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.5),
-                      width: 1,
-                    ),
-                  ),
-                  child: Icon(Icons.calendar_today, size: 20, color: Colors.grey[600]),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   Future<void> _fetchData() async {
     if (!_mounted) return;
-    // Reset scroll offset for glass morphism when data is refreshed
-    _scrollOffset = 0.0;
     setState(() => isLoading = true);
-    
-    // Also fetch weekly and monthly data
-    _fetchWeeklyData();
-    _fetchMonthlyData();
     
     try {
       final user = Supabase.instance.client.auth.currentUser;
@@ -366,6 +174,17 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
     );
   }
 
+  // Get weekly summary
+  Future<DailySummary> _getWeeklySummary() async {
+    final weeklyMeals = await _fetchWeeklyData();
+    return _getDailySummary(weeklyMeals);
+  }
+
+  // Get monthly summary
+  Future<DailySummary> _getMonthlySummary() async {
+    final monthlyMeals = await _fetchMonthlyData();
+    return _getDailySummary(monthlyMeals);
+  }
 
   void _showCalendar() {
     showDialog(
@@ -378,7 +197,6 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
           if (!_mounted) return;
           setState(() {
             selectedDate = date;
-            _scrollOffset = 0.0; // Reset scroll offset for glass morphism
           });
           Navigator.of(context).pop();
           _fetchData();
@@ -391,16 +209,10 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
   }
 
   // Fetch weekly data
-  Future<void> _fetchWeeklyData() async {
-    if (!_mounted) return;
-    setState(() => _isLoadingWeekly = true);
-    
+  Future<List<MealHistoryEntry>> _fetchWeeklyData() async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) {
-        setState(() => _isLoadingWeekly = false);
-        return;
-      }
+      if (user == null) return [];
       
       // Get start and end of current week
       final now = DateTime.now();
@@ -430,29 +242,19 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
         }
       }
       
-      if (!_mounted) return;
-      setState(() {
-        _weeklySummary = _getDailySummary(mealList);
-        _isLoadingWeekly = false;
-      });
+      if (!_mounted) return [];
+      return mealList;
     } catch (e) {
       print('Error fetching weekly data: $e');
-      if (!_mounted) return;
-      setState(() => _isLoadingWeekly = false);
+      return [];
     }
   }
 
   // Fetch monthly data
-  Future<void> _fetchMonthlyData() async {
-    if (!_mounted) return;
-    setState(() => _isLoadingMonthly = true);
-    
+  Future<List<MealHistoryEntry>> _fetchMonthlyData() async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) {
-        setState(() => _isLoadingMonthly = false);
-        return;
-      }
+      if (user == null) return [];
       
       // Get start and end of current month
       final now = DateTime.now();
@@ -482,15 +284,11 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
         }
       }
       
-      if (!_mounted) return;
-      setState(() {
-        _monthlySummary = _getDailySummary(mealList);
-        _isLoadingMonthly = false;
-      });
+      if (!_mounted) return [];
+      return mealList;
     } catch (e) {
       print('Error fetching monthly data: $e');
-      if (!_mounted) return;
-      setState(() => _isLoadingMonthly = false);
+      return [];
     }
   }
 
@@ -507,13 +305,12 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
         return _buildTodayContent();
     }
   }
-  
-  // Build today's content with scroll controller
+
+  // Build today's content
   Widget _buildTodayContent() {
     final summary = _getDailySummary(meals);
     
     return SingleChildScrollView(
-      controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         children: [
@@ -576,34 +373,34 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                         ],
                       ),
                     ),
-                    // Circular progress indicator with centered percentage
-                    SizedBox(
-                      width: 150,
-                      height: 150,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          SizedBox(
-                            width: 100,
-                            height: 100,
-                            child: CircularProgressIndicator(
-                              value: (summary.calories / (goals?.calorieGoal ?? 2000)).clamp(0.0, 1.0),
-                              strokeWidth: 12,
-                              backgroundColor: Colors.white.withValues(alpha: 0.3),
-                              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          ),
-                          Text(
-                            '${((summary.calories / (goals?.calorieGoal ?? 2000)) * 100).toStringAsFixed(0)}%',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                                         // Circular progress indicator
+                     SizedBox(
+                       width: 150,
+                       height: 150,
+                       child: Column(
+                         children: [
+                           SizedBox(
+                             width: 100,
+                             height: 100,
+                             child: CircularProgressIndicator(
+                               value: (summary.calories / (goals?.calorieGoal ?? 2000)).clamp(0.0, 1.0),
+                               strokeWidth: 12,
+                               backgroundColor: Colors.white.withValues(alpha: 0.3),
+                               valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                             ),
+                           ),
+                           const SizedBox(height: 8),
+                           Text(
+                             '${((summary.calories / (goals?.calorieGoal ?? 2000)) * 100).toStringAsFixed(0)}%',
+                             style: const TextStyle(
+                               color: Colors.white,
+                               fontSize: 18,
+                               fontWeight: FontWeight.bold,
+                             ),
+                           ),
+                         ],
+                       ),
+                     ),
                   ],
                 ),
               ],
@@ -612,7 +409,7 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
           
           const SizedBox(height: 20),
           
-          // Macro cards in 2x3 grid (6 macros total)
+          // Macro cards in 2x2 grid
           GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -622,20 +419,20 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
             childAspectRatio: 1.2,
             children: [
               _MacroCard(
-                icon: Icons.grain,
-                title: 'Carbs',
-                value: summary.carbs.toStringAsFixed(0),
-                unit: 'g',
-                goal: goals?.carbGoal ?? 275,
-                color: Colors.orange,
-              ),
-              _MacroCard(
                 icon: Icons.fitness_center,
                 title: 'Protein',
                 value: summary.protein.toStringAsFixed(0),
                 unit: 'g',
                 goal: goals?.proteinGoal ?? 165,
                 color: Colors.blue,
+              ),
+              _MacroCard(
+                icon: Icons.grain,
+                title: 'Carbs',
+                value: summary.carbs.toStringAsFixed(0),
+                unit: 'g',
+                goal: goals?.carbGoal ?? 275,
+                color: Colors.orange,
               ),
               _MacroCard(
                 icon: Icons.water_drop,
@@ -652,22 +449,6 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                 unit: 'g',
                 goal: goals?.fiberGoal ?? 25,
                 color: Colors.green,
-              ),
-              _MacroCard(
-                icon: Icons.cake,
-                title: 'Sugar',
-                value: summary.sugar.toStringAsFixed(0),
-                unit: 'g',
-                goal: goals?.sugarGoal ?? 50,
-                color: Colors.pink,
-              ),
-              _MacroCard(
-                icon: Icons.favorite,
-                title: 'Cholesterol',
-                value: summary.cholesterol.toStringAsFixed(0),
-                unit: 'mg',
-                goal: goals?.cholesterolGoal ?? 300,
-                color: Colors.red,
               ),
             ],
           ),
@@ -741,98 +522,137 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
 
   // Build weekly content
   Widget _buildWeeklyContent() {
-    if (_isLoadingWeekly) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    
-    final summary = _weeklySummary ?? DailySummary(
-      calories: 0, protein: 0, carbs: 0, fat: 0, 
-      sugar: 0, fiber: 0, sodium: 0, cholesterol: 0
-    );
-    
-    return SingleChildScrollView(
-      controller: _scrollController,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _getWeeklyProgressData(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+        
+        final data = snapshot.data ?? {
+          'dailyCalories': List.filled(7, 0.0),
+          'totalCalories': 0.0,
+          'weeklyGoal': 14000.0,
+          'averageCalories': 0.0,
+          'daysOnTrack': 0,
+          'progressPercentage': 0.0,
+        };
+        
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
             children: [
-              // Weekly Calories card
+              // Weekly Progress Header Card
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2196F3),
-                  borderRadius: BorderRadius.circular(16),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF667eea).withValues(alpha: 0.3),
+                      blurRadius: 15,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      "This Week's Calories",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          "Weekly Progress",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '${data['daysOnTrack']}/7 days',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // Progress section with centered percentage
+                    Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text(
+                            '${((data['progressPercentage'] as double) * 100).round()}%',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 48,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'of goal',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.8),
+                              fontSize: 16,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    
+                    const SizedBox(height: 20),
+                    
+                    // Stats Row
                     Row(
                       children: [
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                summary.calories.toStringAsFixed(0),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 48,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const Text(
-                                'consumed this week',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'Weekly Goal: ${(goals?.calorieGoal ?? 2000) * 7} cal',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
+                          child: _buildWeeklyStatCard(
+                            'Total',
+                            '${(data['totalCalories'] as double).toStringAsFixed(0)}',
+                            'cal',
+                            Colors.white,
                           ),
                         ),
-                        // Circular progress indicator with centered percentage
-                        SizedBox(
-                          width: 150,
-                          height: 150,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              SizedBox(
-                                width: 100,
-                                height: 100,
-                                child: CircularProgressIndicator(
-                                  value: (summary.calories / ((goals?.calorieGoal ?? 2000) * 7)).clamp(0.0, 1.0),
-                                  strokeWidth: 12,
-                                  backgroundColor: Colors.white.withValues(alpha: 0.3),
-                                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
-                              ),
-                              Text(
-                                '${((summary.calories / ((goals?.calorieGoal ?? 2000) * 7)) * 100).toStringAsFixed(0)}%',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildWeeklyStatCard(
+                            'Average',
+                            '${(data['averageCalories'] as double).toStringAsFixed(0)}',
+                            'cal/day',
+                            Colors.white.withValues(alpha: 0.8),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildWeeklyStatCard(
+                            'Goal',
+                            '${(data['weeklyGoal'] as double).toStringAsFixed(0)}',
+                            'cal',
+                            Colors.white.withValues(alpha: 0.8),
                           ),
                         ),
                       ],
@@ -843,87 +663,130 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
               
               const SizedBox(height: 20),
               
+              // Weekly Chart Card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withValues(alpha: 0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Daily Calorie Trends",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 200,
+                      child: _buildWeeklyChart(data['dailyCalories'] as List<double>),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const SizedBox(height: 20),
+              
               // Weekly macro cards
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 1.2,
-                children: [
-                  _MacroCard(
-                    icon: Icons.grain,
-                    title: 'Carbs',
-                    value: summary.carbs.toStringAsFixed(0),
-                    unit: 'g',
-                    goal: (goals?.carbGoal ?? 275) * 7,
-                    color: Colors.orange,
-                  ),
-                  _MacroCard(
-                    icon: Icons.fitness_center,
-                    title: 'Protein',
-                    value: summary.protein.toStringAsFixed(0),
-                    unit: 'g',
-                    goal: (goals?.proteinGoal ?? 165) * 7,
-                    color: Colors.blue,
-                  ),
-                  _MacroCard(
-                    icon: Icons.water_drop,
-                    title: 'Fat',
-                    value: summary.fat.toStringAsFixed(0),
-                    unit: 'g',
-                    goal: (goals?.fatGoal ?? 75) * 7,
-                    color: Colors.purple,
-                  ),
-                  _MacroCard(
-                    icon: Icons.local_florist,
-                    title: 'Fiber',
-                    value: summary.fiber.toStringAsFixed(0),
-                    unit: 'g',
-                    goal: (goals?.fiberGoal ?? 25) * 7,
-                    color: Colors.green,
-                  ),
-                  _MacroCard(
-                    icon: Icons.cake,
-                    title: 'Sugar',
-                    value: summary.sugar.toStringAsFixed(0),
-                    unit: 'g',
-                    goal: (goals?.sugarGoal ?? 50) * 7,
-                    color: Colors.pink,
-                  ),
-                  _MacroCard(
-                    icon: Icons.favorite,
-                    title: 'Cholesterol',
-                    value: summary.cholesterol.toStringAsFixed(0),
-                    unit: 'mg',
-                    goal: (goals?.cholesterolGoal ?? 300) * 7,
-                    color: Colors.red,
-                  ),
-                ],
+              FutureBuilder<DailySummary>(
+                future: _getWeeklySummary(),
+                builder: (context, summarySnapshot) {
+                  if (summarySnapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  
+                  final summary = summarySnapshot.data ?? DailySummary(
+                    calories: 0, protein: 0, carbs: 0, fat: 0, 
+                    sugar: 0, fiber: 0, sodium: 0, cholesterol: 0
+                  );
+                  
+                  return GridView.count(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.2,
+                    children: [
+                      _MacroCard(
+                        icon: Icons.fitness_center,
+                        title: 'Weekly Protein',
+                        value: summary.protein.toStringAsFixed(0),
+                        unit: 'g',
+                        goal: (goals?.proteinGoal ?? 165) * 7,
+                        color: Colors.blue,
+                      ),
+                      _MacroCard(
+                        icon: Icons.grain,
+                        title: 'Weekly Carbs',
+                        value: summary.carbs.toStringAsFixed(0),
+                        unit: 'g',
+                        goal: (goals?.carbGoal ?? 275) * 7,
+                        color: Colors.orange,
+                      ),
+                      _MacroCard(
+                        icon: Icons.water_drop,
+                        title: 'Weekly Fat',
+                        value: summary.fat.toStringAsFixed(0),
+                        unit: 'g',
+                        goal: (goals?.fatGoal ?? 75) * 7,
+                        color: Colors.purple,
+                      ),
+                      _MacroCard(
+                        icon: Icons.local_florist,
+                        title: 'Weekly Fiber',
+                        value: summary.fiber.toStringAsFixed(0),
+                        unit: 'g',
+                        goal: (goals?.fiberGoal ?? 25) * 7,
+                        color: Colors.green,
+                      ),
+                    ],
+                  );
+                },
               ),
               
               const SizedBox(height: 20),
             ],
           ),
         );
+      },
+    );
   }
 
   // Build monthly content
   Widget _buildMonthlyContent() {
-    if (_isLoadingMonthly) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    
-    final summary = _monthlySummary ?? DailySummary(
-      calories: 0, protein: 0, carbs: 0, fat: 0, 
-      sugar: 0, fiber: 0, sodium: 0, cholesterol: 0
-    );
-    
-    return SingleChildScrollView(
-      controller: _scrollController,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
+    return FutureBuilder<DailySummary>(
+      future: _getMonthlySummary(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+        
+        final summary = snapshot.data ?? DailySummary(
+          calories: 0, protein: 0, carbs: 0, fat: 0, 
+          sugar: 0, fiber: 0, sodium: 0, cholesterol: 0
+        );
+        
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
             children: [
               // Monthly Calories card
               Container(
@@ -977,34 +840,6 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                             ],
                           ),
                         ),
-                        // Circular progress indicator with centered percentage
-                        SizedBox(
-                          width: 150,
-                          height: 150,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              SizedBox(
-                                width: 100,
-                                height: 100,
-                                child: CircularProgressIndicator(
-                                  value: (summary.calories / ((goals?.calorieGoal ?? 2000) * 30)).clamp(0.0, 1.0),
-                                  strokeWidth: 12,
-                                  backgroundColor: Colors.white.withValues(alpha: 0.3),
-                                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
-                              ),
-                              Text(
-                                '${((summary.calories / ((goals?.calorieGoal ?? 2000) * 30)) * 100).toStringAsFixed(0)}%',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                       ],
                     ),
                   ],
@@ -1023,24 +858,24 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                 childAspectRatio: 1.2,
                 children: [
                   _MacroCard(
-                    icon: Icons.grain,
-                    title: 'Carbs',
-                    value: summary.carbs.toStringAsFixed(0),
-                    unit: 'g',
-                    goal: (goals?.carbGoal ?? 275) * 30,
-                    color: Colors.orange,
-                  ),
-                  _MacroCard(
                     icon: Icons.fitness_center,
-                    title: 'Protein',
+                    title: 'Monthly Protein',
                     value: summary.protein.toStringAsFixed(0),
                     unit: 'g',
                     goal: (goals?.proteinGoal ?? 165) * 30,
                     color: Colors.blue,
                   ),
                   _MacroCard(
+                    icon: Icons.grain,
+                    title: 'Monthly Carbs',
+                    value: summary.carbs.toStringAsFixed(0),
+                    unit: 'g',
+                    goal: (goals?.carbGoal ?? 275) * 30,
+                    color: Colors.orange,
+                  ),
+                  _MacroCard(
                     icon: Icons.water_drop,
-                    title: 'Fat',
+                    title: 'Monthly Fat',
                     value: summary.fat.toStringAsFixed(0),
                     unit: 'g',
                     goal: (goals?.fatGoal ?? 75) * 30,
@@ -1048,27 +883,11 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                   ),
                   _MacroCard(
                     icon: Icons.local_florist,
-                    title: 'Fiber',
+                    title: 'Monthly Fiber',
                     value: summary.fiber.toStringAsFixed(0),
                     unit: 'g',
                     goal: (goals?.fiberGoal ?? 25) * 30,
                     color: Colors.green,
-                  ),
-                  _MacroCard(
-                    icon: Icons.cake,
-                    title: 'Sugar',
-                    value: summary.sugar.toStringAsFixed(0),
-                    unit: 'g',
-                    goal: (goals?.sugarGoal ?? 50) * 30,
-                    color: Colors.pink,
-                  ),
-                  _MacroCard(
-                    icon: Icons.favorite,
-                    title: 'Cholesterol',
-                    value: summary.cholesterol.toStringAsFixed(0),
-                    unit: 'mg',
-                    goal: (goals?.cholesterolGoal ?? 300) * 30,
-                    color: Colors.red,
                   ),
                 ],
               ),
@@ -1077,6 +896,8 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
             ],
           ),
         );
+      },
+    );
   }
 
   @override
@@ -1086,11 +907,101 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Glass morphism header
-            _buildGlassMorphismHeader(),
+            // Header with title and profile icon
+            Container(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  if (widget.showBackButton)
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+                      onPressed: () => Navigator.of(context).pop(),
+                    )
+                  else
+                    const SizedBox(),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Meal Tracker',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                        Text(
+                          'Track your nutrition goals',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
             
-            // Glass morphism tabs
-            _buildGlassMorphismTabs(),
+            // Tab buttons (Today, Weekly, Monthly)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  _TabButton(
+                    label: 'Today',
+                    isSelected: _selectedTab == 'today',
+                    onTap: () {
+                      if (!_mounted) return;
+                      setState(() {
+                        _selectedTab = 'today';
+                      });
+                      _fetchData();
+                    },
+                  ),
+                  const SizedBox(width: 12),
+                  _TabButton(
+                    label: 'Weekly',
+                    isSelected: _selectedTab == 'weekly',
+                    onTap: () {
+                      if (!_mounted) return;
+                      setState(() {
+                        _selectedTab = 'weekly';
+                      });
+                      _fetchData();
+                    },
+                  ),
+                  const SizedBox(width: 12),
+                  _TabButton(
+                    label: 'Monthly',
+                    isSelected: _selectedTab == 'monthly',
+                    onTap: () {
+                      if (!_mounted) return;
+                      setState(() {
+                        _selectedTab = 'monthly';
+                      });
+                      _fetchData();
+                    },
+                  ),
+                  const Spacer(),
+                  // Calendar button
+                  GestureDetector(
+                    onTap: _showCalendar,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: Icon(Icons.calendar_today, size: 20, color: Colors.grey[600]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             
             const SizedBox(height: 20),
             
@@ -1101,6 +1012,218 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // Get weekly progress data for the chart
+  Future<Map<String, dynamic>> _getWeeklyProgressData() async {
+    final now = DateTime.now();
+    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+    final dailyCalories = <double>[];
+    double totalCalories = 0.0;
+    int daysOnTrack = 0;
+    final dailyGoal = goals?.calorieGoal ?? 2000.0;
+
+    for (int i = 0; i < 7; i++) {
+      final date = startOfWeek.add(Duration(days: i));
+      final dayMeals = meals.where((meal) => 
+        meal.completedAt.year == date.year && 
+        meal.completedAt.month == date.month && 
+        meal.completedAt.day == date.day
+      ).toList();
+      
+      final dayCalories = dayMeals.fold<double>(0.0, (sum, meal) => sum + meal.calories);
+      dailyCalories.add(dayCalories);
+      totalCalories += dayCalories;
+      
+      if (dayCalories >= dailyGoal * 0.8 && dayCalories <= dailyGoal * 1.2) {
+        daysOnTrack++;
+      }
+    }
+
+    final weeklyGoal = dailyGoal * 7;
+    final progressPercentage = weeklyGoal > 0 ? (totalCalories / weeklyGoal).clamp(0.0, 1.0) : 0.0;
+
+    return {
+      'dailyCalories': dailyCalories,
+      'totalCalories': totalCalories,
+      'weeklyGoal': weeklyGoal,
+      'averageCalories': totalCalories / 7,
+      'daysOnTrack': daysOnTrack,
+      'progressPercentage': progressPercentage,
+    };
+  }
+
+  // Build weekly chart
+  Widget _buildWeeklyChart(List<double> dailyCalories) {
+    final dailyGoal = goals?.calorieGoal ?? 2000.0;
+    final maxCalories = dailyCalories.isEmpty ? dailyGoal : dailyCalories.reduce((a, b) => a > b ? a : b);
+    final chartMax = (maxCalories * 1.2).clamp(dailyGoal * 0.5, double.infinity);
+    
+    // Ensure we have exactly 7 data points
+    final chartData = List<double>.from(dailyCalories);
+    while (chartData.length < 7) {
+      chartData.add(0.0);
+    }
+    if (chartData.length > 7) {
+      chartData.removeRange(7, chartData.length);
+    }
+
+    return LineChart(
+      LineChartData(
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: 500, // Fixed interval of 500 calories
+          getDrawingHorizontalLine: (value) {
+            return FlLine(
+              color: Colors.grey.withValues(alpha: 0.2),
+              strokeWidth: 1,
+            );
+          },
+        ),
+        titlesData: FlTitlesData(
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 40,
+              interval: 500, // Fixed interval of 500 calories
+              getTitlesWidget: (value, meta) {
+                final labels = ['0.0k', '0.5k', '1.0k', '1.5k', '2.0k'];
+                final index = (value / 500).round();
+                if (index >= 0 && index < labels.length) {
+                  return Text(
+                    labels[index],
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 10,
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval: 1.0,
+              reservedSize: 30,
+              getTitlesWidget: (value, meta) {
+                const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                final index = value.toInt();
+                if (index >= 0 && index < days.length) {
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      days[index],
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 10,
+                      ),
+                    ),
+                  );
+                } 
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        borderData: FlBorderData(show: false),
+        lineBarsData: [
+          // Goal line
+          LineChartBarData(
+            spots: List.generate(7, (index) => FlSpot(index.toDouble(), dailyGoal)),
+            isCurved: false,
+            color: Colors.grey.withValues(alpha: 0.3),
+            barWidth: 2,
+            isStrokeCapRound: true,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              color: Colors.grey.withValues(alpha: 0.1),
+            ),
+          ),
+          // Actual calories line
+          LineChartBarData(
+            spots: chartData.asMap().entries.map((entry) => 
+              FlSpot(entry.key.toDouble(), entry.value)
+            ).toList(),
+            isCurved: true,
+            color: const Color(0xFF667eea),
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (spot, percent, barData, index) {
+                return FlDotCirclePainter(
+                  radius: 4,
+                  color: const Color(0xFF667eea),
+                  strokeWidth: 2,
+                  strokeColor: Colors.white,
+                );
+              },
+            ),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF667eea).withValues(alpha: 0.3),
+                  const Color(0xFF667eea).withValues(alpha: 0.1),
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+          ),
+        ],
+        minX: 0,
+        maxX: 6,
+        minY: 0,
+        maxY: 2000, // Fixed maximum of 2000 calories (2k)
+      ),
+    );
+  }
+
+  // Build weekly stat card
+  Widget _buildWeeklyStatCard(String title, String value, String unit, Color textColor) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              color: textColor,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            unit,
+            style: TextStyle(
+              color: textColor.withValues(alpha: 0.8),
+              fontSize: 10,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            title,
+            style: TextStyle(
+              color: textColor.withValues(alpha: 0.8),
+              fontSize: 10,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
@@ -1269,6 +1392,7 @@ class _MacroCard extends StatelessWidget {
       ),
     );
   }
+
 }
 
 // DailySummary class
