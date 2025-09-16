@@ -19,6 +19,7 @@ class InteractiveRecipePage extends StatefulWidget {
   final double? fiber;
   final double? sodium;
   final double? cholesterol;
+  final int? initialStep;
   
   const InteractiveRecipePage({
     super.key, 
@@ -35,6 +36,7 @@ class InteractiveRecipePage extends StatefulWidget {
     this.fiber,
     this.sodium,
     this.cholesterol,
+    this.initialStep,
   });
 
   @override
@@ -57,6 +59,9 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialStep != null) {
+      _currentStep = widget.initialStep!.clamp(0, widget.instructions.length - 1);
+    }
     _handleTimerOnStepChange();
   }
 
