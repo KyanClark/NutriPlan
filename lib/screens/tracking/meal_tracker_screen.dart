@@ -1485,8 +1485,8 @@ class _CalendarDialogState extends State<_CalendarDialog> {
                   child: Container(
                     margin: const EdgeInsets.all(2),
                     decoration: BoxDecoration(
-                      color: isSelected
-                          ? Colors.blue
+                      color: isSelected 
+                          ? Colors.blue 
                           : (isCurrentMonth ? Colors.white : Colors.grey[100]),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
@@ -1500,15 +1500,15 @@ class _CalendarDialogState extends State<_CalendarDialog> {
                           child: Text(
                             day.day.toString(),
                             style: TextStyle(
-                              color: isSelected
-                                  ? Colors.white
+                              color: isSelected 
+                                  ? Colors.white 
                                   : (isCurrentMonth
                                       ? (hasMeals ? Colors.green : Colors.black)
                                       : Colors.grey[400]),
                               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              ),
                             ),
                           ),
-                        ),
                         // Meal count badge
                         if (mealCount > 0)
                           Positioned(

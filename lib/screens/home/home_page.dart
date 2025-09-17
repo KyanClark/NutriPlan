@@ -40,7 +40,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _selectedIndex = widget.initialTab;
-    _fetchUserName(); // Fetch the user's name from Supabase
     _fetchCounts();
     _fetchRecipes();
     _bannerController.addListener(() {
@@ -91,24 +90,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     });
   }
 
-  Future<void> _fetchUserName() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
-    final profile = await Supabase.instance.client
-        .from('profiles')
-        .select('username')
-        .eq('id', user.id)
-        .maybeSingle();
-    if (profile != null && profile['username'] != null) {
-      final fullName = profile['username'] as String;
-      final firstName = fullName.split(' ').first;
-      if (!mounted) return;
-      setState(() {
-        userName = firstName;
-      });
-    }
-  }
-
   Future<void> _fetchRecipes() async {
     setState(() => _loadingRecipes = true);
     try {
@@ -131,8 +112,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     if (total <= 1) return;
     _bannerAutoTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (_bannerController.hasClients) {
-        final current = (_bannerController.page ?? 0).round();
-        final next = (current + 1) % total;
+      final current = (_bannerController.page ?? 0).round();
+      final next = (current + 1) % total;
         _bannerController.animateToPage(
           next,
           duration: const Duration(milliseconds: 500),
@@ -546,11 +527,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   ),
                 ],
               ),
-        child: ClipRRect(
+              child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
               // Centered asset (image or gif) with padding for floating effect
               Center(
                 child: Container(

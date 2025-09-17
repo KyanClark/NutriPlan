@@ -609,30 +609,38 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
       return Container(
         height: 300,
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1A1A),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              spreadRadius: 1,
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: const Center(
           child: Text(
             'No trend data available',
-            style: TextStyle(color: Colors.white70),
+            style: TextStyle(color: Colors.grey),
           ),
         ),
       );
     }
 
     return Container(
-      height: 300,
-      padding: const EdgeInsets.all(20),
+      height: 350,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            spreadRadius: 2,
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -646,7 +654,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
               const Text(
                 'Nutrition Trends',
                 style: TextStyle(
-                  color: Color(0xFF64B5F6),
+                  color: Color(0xFF1A1A1A),
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -654,7 +662,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
               Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.refresh, color: Color(0xFF64B5F6)),
+                    icon: const Icon(Icons.refresh, color: Color(0xFFFF6961)),
                     onPressed: () {
                       if (mounted) {
                         _loadAnalyticsData();
@@ -662,7 +670,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
                     },
                   ),
                   IconButton(
-                    icon: const Icon(Icons.code, color: Color(0xFF64B5F6)),
+                    icon: const Icon(Icons.code, color: Color(0xFFFF6961)),
                     onPressed: () {
                       // Could show chart data or export functionality
                     },
@@ -672,106 +680,16 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
             ],
           ),
           const SizedBox(height: 20),
-          // Legend
-          _buildChartLegend(),
-          const SizedBox(height: 10),
           // Chart
           Expanded(
-            child: LineChart(
-              LineChartData(
-                gridData: FlGridData(
-                  show: true,
-                  horizontalInterval: 1,
-                  verticalInterval: 1,
-                  getDrawingHorizontalLine: (value) {
-                    return FlLine(
-                      color: Colors.white.withOpacity(0.1),
-                      strokeWidth: 1,
-                    );
-                  },
-                  getDrawingVerticalLine: (value) {
-                    return FlLine(
-                      color: Colors.white.withOpacity(0.1),
-                      strokeWidth: 1,
-                    );
-                  },
-                ),
-                titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 40,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          _formatYAxisLabel(value),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 30,
-                      getTitlesWidget: (value, meta) {
-                        final index = value.toInt();
-                        if (index >= 0 && index < _trendData.length) {
-                          return Text(
-                            _trendData[index].label,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                            ),
-                          );
-                        }
-                        return const Text('');
-                      },
-                    ),
-                  ),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                ),
-                borderData: FlBorderData(
-                  show: true,
-                  border: Border(
-                    bottom: BorderSide(
-                      color: Colors.white.withOpacity(0.2),
-                      width: 1,
-                    ),
-                  ),
-                ),
-                lineBarsData: _buildMultipleLineData(),
-                lineTouchData: LineTouchData(
-                  enabled: true,
-                  touchTooltipData: LineTouchTooltipData(
-                    tooltipRoundedRadius: 8,
-                    tooltipPadding: const EdgeInsets.all(8),
-                    getTooltipItems: (touchedSpots) {
-                      return touchedSpots.map((touchedSpot) {
-                        return LineTooltipItem(
-                          '${_trendData[touchedSpot.x.toInt()].label}: ${touchedSpot.y.toStringAsFixed(1)}',
-                          const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                          ),
-                        );
-                      }).toList();
-                    },
-                  ),
-                ),
-              ),
-            ),
+            child: _buildFlChart(),
           ),
         ],
       ),
     );
   }
 
-  List<LineChartBarData> _buildMultipleLineData() {
-    // Create multiple lines for different nutrition metrics
+  Widget _buildFlChart() {
     final metrics = ['calories', 'protein', 'carbs', 'fat'];
     final colors = [
       const Color(0xFFE91E63), // Pink
@@ -780,8 +698,103 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
       const Color(0xFFFF9800), // Orange
     ];
 
-    return metrics.map((metric) {
-      // Use real data if available, otherwise fall back to demo data
+    return Column(
+      children: [
+        // Legend
+        _buildFlChartLegend(metrics, colors),
+        const SizedBox(height: 16),
+        // Chart Area
+        Expanded(
+          child: LineChart(
+            LineChartData(
+              gridData: FlGridData(
+                show: true,
+                drawVerticalLine: true,
+                horizontalInterval: 1,
+                verticalInterval: 1,
+                getDrawingHorizontalLine: (value) {
+                  return FlLine(
+                    color: Colors.grey.withOpacity(0.2),
+                    strokeWidth: 1,
+                  );
+                },
+                getDrawingVerticalLine: (value) {
+                  return FlLine(
+                    color: Colors.grey.withOpacity(0.2),
+                    strokeWidth: 1,
+                  );
+                },
+              ),
+              titlesData: FlTitlesData(
+                show: true,
+                rightTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                topTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 30,
+                    interval: 1,
+                    getTitlesWidget: (double value, TitleMeta meta) {
+                      if (value.toInt() < _trendData.length) {
+                        return SideTitleWidget(
+                          axisSide: meta.axisSide,
+                          child: Text(
+                            _trendData[value.toInt()].label,
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        );
+                      }
+                      return const Text('');
+                    },
+                  ),
+                ),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    interval: 1,
+                    getTitlesWidget: (double value, TitleMeta meta) {
+                      return Text(
+                        value.toInt().toString(),
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      );
+                    },
+                    reservedSize: 42,
+                  ),
+                ),
+              ),
+              borderData: FlBorderData(
+                show: true,
+                border: Border.all(color: Colors.grey.withOpacity(0.2)),
+              ),
+              minX: 0,
+              maxX: (_trendData.length - 1).toDouble(),
+              minY: 0,
+              maxY: _getMaxValue() * 1.1,
+              lineBarsData: _buildFlChartLines(metrics, colors),
+            ),
+            duration: const Duration(milliseconds: 0), // No animation for faster loading
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<LineChartBarData> _buildFlChartLines(List<String> metrics, List<Color> colors) {
+    return metrics.asMap().entries.map((entry) {
+      final index = entry.key;
+      final metric = entry.value;
       final dataPoints = _multipleTrendData[metric] ?? _trendData;
       
       return LineChartBarData(
@@ -792,30 +805,31 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
           if (_multipleTrendData[metric] == null) {
             switch (metric) {
               case 'protein':
-                value = entry.value.value * 0.3; // Protein is typically lower
+                value = entry.value.value * 0.3;
                 break;
               case 'carbs':
-                value = entry.value.value * 0.4; // Carbs are typically higher
+                value = entry.value.value * 0.4;
                 break;
               case 'fat':
-                value = entry.value.value * 0.2; // Fat is typically lower
+                value = entry.value.value * 0.2;
                 break;
               default:
-                value = entry.value.value; // Calories as base
+                value = entry.value.value;
             }
           }
           
           return FlSpot(entry.key.toDouble(), value);
         }).toList(),
         isCurved: true,
-        color: colors[metrics.indexOf(metric)],
-        barWidth: 4,
+        color: colors[index],
+        barWidth: 3,
+        isStrokeCapRound: true,
         dotData: FlDotData(
           show: true,
           getDotPainter: (spot, percent, barData, index) {
             return FlDotCirclePainter(
               radius: 4,
-              color: colors[metrics.indexOf(metric)],
+              color: colors[index],
               strokeWidth: 2,
               strokeColor: Colors.white,
             );
@@ -823,28 +837,13 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
         ),
         belowBarData: BarAreaData(
           show: true,
-          color: colors[metrics.indexOf(metric)].withOpacity(0.1),
+          color: colors[index].withOpacity(0.1),
         ),
       );
     }).toList();
   }
 
-  String _formatYAxisLabel(double value) {
-    if (value >= 1000) {
-      return '${(value / 1000).toStringAsFixed(1)}k';
-    }
-    return value.toStringAsFixed(0);
-  }
-
-  Widget _buildChartLegend() {
-    final metrics = ['Calories', 'Protein', 'Carbs', 'Fat'];
-    final colors = [
-      const Color(0xFFE91E63), // Pink
-      const Color(0xFF00BCD4), // Cyan
-      const Color(0xFF4CAF50), // Green
-      const Color(0xFFFF9800), // Orange
-    ];
-
+  Widget _buildFlChartLegend(List<String> metrics, List<Color> colors) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: metrics.asMap().entries.map((entry) {
@@ -863,9 +862,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
             ),
             const SizedBox(width: 6),
             Text(
-              metric,
+              _capitalizeFirst(metric),
               style: const TextStyle(
-                color: Colors.white70,
+                color: Colors.grey,
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),
@@ -875,6 +874,18 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
       }).toList(),
     );
   }
+
+  double _getMaxValue() {
+    double max = 0;
+    for (final dataPoint in _trendData) {
+      if (dataPoint.value > max) max = dataPoint.value;
+    }
+    return max;
+  }
+
+
+
+
 
   Widget _buildTrendInsights() {
     if (_trendData.length < 2) {
@@ -1096,3 +1107,4 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
     return text[0].toUpperCase() + text.substring(1);
   }
 }
+

@@ -61,7 +61,7 @@ class _SignupScreenState extends State<SignupScreen> {
     // Removed phone controller dispose
     super.dispose();
   }
-
+//SignupUpdated
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -209,17 +209,39 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
                 // Move the TextButton just below the card
                 const SizedBox(height: 16),
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const LoginScreen()),
-                    );
-                  },
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF4CAF50),
-                  ),
-                  child: const Text('Already have an account? Login here', style: TextStyle(color: Color(0xFF4CAF50), fontWeight: FontWeight.bold)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                      Text(
+                        'Already have an account?',
+                        style: TextStyle(
+                          color: Color.fromARGB(255, 112, 110, 110),
+                          fontWeight: FontWeight.bold,
+                        ),
+                    ),
+                    const SizedBox(width: 4),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const LoginScreen()),
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(0, 0),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        foregroundColor: const Color(0xFF4CAF50),
+                      ),
+                      child: const Text(
+                        'Login here',
+                        style: TextStyle(
+                          color: Color(0xFF4CAF50),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

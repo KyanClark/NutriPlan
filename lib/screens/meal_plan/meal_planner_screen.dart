@@ -257,17 +257,12 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
     final isSmallScreen = screenWidth <= 375;
     
     return Scaffold(
-      backgroundColor: const Color(0xFFC1E7AF),
-             appBar: AppBar(
-         backgroundColor: const Color(0xFFC1E7AF),
-         elevation: 0,
-         automaticallyImplyLeading: false,
-       ),
+      backgroundColor: const Color.fromARGB(255, 181, 243, 152),
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
                      child: Padding(
-             padding: const EdgeInsets.only(bottom: 8.0),
+            padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
             child: Column(
               children: [
                                                   // Header with 'My Meal Plan' text and delete button inline
@@ -283,7 +278,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                               style: TextStyle(
                                 fontSize: isSmallScreen ? 22 : 24,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                              color: Colors.white,
                                 letterSpacing: 1.1,
                               ),
                             ),
@@ -505,7 +500,8 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                       )
                 // Show empty state when no meal plans
                 else
-                  Padding(
+                  Container(
+                    height: MediaQuery.of(context).size.height * 0.6,
                     padding: EdgeInsets.symmetric(
                       horizontal: isSmallScreen ? 12.0 : 16.0,
                       vertical: 32.0,
@@ -518,7 +514,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                           Icon(
                             Icons.restaurant_menu_outlined,
                             size: 64,
-                            color: Colors.grey[400],
+                            color: Colors.white.withValues(alpha: 0.8),
                           ),
                           const SizedBox(height: 16),
                           Text(
@@ -526,7 +522,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
-                              color: Colors.grey[600],
+                              color: Colors.white,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -534,7 +530,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                               'Start planning your meals by adding recipes to your meal planner',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: Colors.grey[500],
+                              color: Colors.white.withValues(alpha: 0.8),
                               ),
                               textAlign: TextAlign.center,
                             ),
