@@ -209,18 +209,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           ],
         ),
         const SizedBox(height: 6),
-        Container(
-          height: 4,
-          width: 56,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: const LinearGradient(
-              colors: [Color(0xFF58A872), Color(0xFF4E9DD6)],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -517,11 +505,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             },
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: const Color.fromARGB(255, 255, 255, 255),
           borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-              color: Colors.black.withValues(alpha: 0.01),
+              color: Colors.black.withValues(alpha: 0.10),
               blurRadius: 1,
                     offset: const Offset(0, 2),
                   ),
@@ -557,20 +545,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   ),
                 ),
               ),
-              // Gradient overlay for better text readability
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                    colors: [
-                      Colors.black.withValues(alpha: 0.3),
-                      Colors.transparent,
-                      Colors.black.withValues(alpha: 0.6),
-                    ],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                        ),
-                      ),
-                    ),
+                  
               // Category name
                     Positioned(
                       left: 12,
@@ -581,17 +556,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: Colors.black,
                     shadows: [
                       Shadow(
                         offset: Offset(0, 1),
                         blurRadius: 2,
-                        color: Colors.black54,
+                        color: Colors.white54,
                       ),
                     ],
                   ),
                   textAlign: TextAlign.center,
-                      ),
+                ),
                     ),
                   ],
                 ),
