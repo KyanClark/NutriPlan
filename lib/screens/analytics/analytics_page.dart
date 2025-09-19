@@ -704,28 +704,28 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
         _buildFlChartLegend(metrics, colors),
         const SizedBox(height: 16),
         // Chart Area
-        Expanded(
-          child: LineChart(
-            LineChartData(
-              gridData: FlGridData(
-                show: true,
+          Expanded(
+            child: LineChart(
+              LineChartData(
+                gridData: FlGridData(
+                  show: true,
                 drawVerticalLine: true,
-                horizontalInterval: 1,
-                verticalInterval: 1,
-                getDrawingHorizontalLine: (value) {
-                  return FlLine(
+                  horizontalInterval: 1,
+                  verticalInterval: 1,
+                  getDrawingHorizontalLine: (value) {
+                    return FlLine(
                     color: Colors.grey.withOpacity(0.2),
-                    strokeWidth: 1,
-                  );
-                },
-                getDrawingVerticalLine: (value) {
-                  return FlLine(
+                      strokeWidth: 1,
+                    );
+                  },
+                  getDrawingVerticalLine: (value) {
+                    return FlLine(
                     color: Colors.grey.withOpacity(0.2),
-                    strokeWidth: 1,
-                  );
-                },
-              ),
-              titlesData: FlTitlesData(
+                      strokeWidth: 1,
+                    );
+                  },
+                ),
+                titlesData: FlTitlesData(
                 show: true,
                 rightTitles: const AxisTitles(
                   sideTitles: SideTitles(showTitles: false),
@@ -734,8 +734,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
                   sideTitles: SideTitles(showTitles: false),
                 ),
                 bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
+                    sideTitles: SideTitles(
+                      showTitles: true,
                     reservedSize: 30,
                     interval: 1,
                     getTitlesWidget: (double value, TitleMeta meta) {
@@ -744,38 +744,38 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
                           axisSide: meta.axisSide,
                           child: Text(
                             _trendData[value.toInt()].label,
-                            style: const TextStyle(
+                          style: const TextStyle(
                               color: Colors.grey,
                               fontWeight: FontWeight.bold,
-                              fontSize: 12,
+                            fontSize: 12,
                             ),
                           ),
                         );
                       }
                       return const Text('');
-                    },
+                      },
+                    ),
                   ),
-                ),
                 leftTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
+                    sideTitles: SideTitles(
+                      showTitles: true,
                     interval: 1,
                     getTitlesWidget: (double value, TitleMeta meta) {
-                      return Text(
+                          return Text(
                         value.toInt().toString(),
-                        style: const TextStyle(
+                            style: const TextStyle(
                           color: Colors.grey,
                           fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      );
-                    },
+                              fontSize: 12,
+                            ),
+                          );
+                      },
                     reservedSize: 42,
+                    ),
                   ),
                 ),
-              ),
-              borderData: FlBorderData(
-                show: true,
+                borderData: FlBorderData(
+                  show: true,
                 border: Border.all(color: Colors.grey.withOpacity(0.2)),
               ),
               minX: 0,
@@ -785,9 +785,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
               lineBarsData: _buildFlChartLines(metrics, colors),
             ),
             duration: const Duration(milliseconds: 0), // No animation for faster loading
+            ),
           ),
-        ),
-      ],
+        ],
     );
   }
 

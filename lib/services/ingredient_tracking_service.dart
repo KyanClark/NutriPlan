@@ -1,8 +1,14 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'fnri_nutrition_service.dart';
+import 'measurement_converter.dart';
 
 class IngredientTrackingService {
   static final SupabaseClient _client = Supabase.instance.client;
+
+  /// Extract quantity from ingredient string (public method)
+  static Map<String, dynamic> extractQuantity(String ingredientStr) {
+    return MeasurementConverter.parseMeasurement(ingredientStr);
+  }
 
   /// Enhanced ingredient parsing with validation and correction
   static Future<Map<String, dynamic>> parseAndValidateIngredient(String ingredientStr) async {
@@ -37,95 +43,9 @@ class IngredientTrackingService {
     };
   }
 
-  /// Extract quantity and unit from ingredient string
+  /// Extract quantity and unit from ingredient string using clean converter
   static Map<String, dynamic> _extractQuantityAndUnit(String ingredientStr) {
-    double quantity = 0;
-    String unit = 'g';
-    
-    // Handle fractions first
-    final fractionMatch = RegExp(r'(\d+)/(\d+)').firstMatch(ingredientStr);
-    if (fractionMatch != null) {
-      final numerator = double.tryParse(fractionMatch.group(1) ?? '1');
-      final denominator = double.tryParse(fractionMatch.group(2) ?? '1');
-      quantity = (numerator ?? 1) / (denominator ?? 1);
-      
-      // Determine unit for fraction
-      if (ingredientStr.contains('cup')) {
-        unit = 'cup';
-        quantity *= 240; // Convert to grams
-      } else if (ingredientStr.contains('tbsp')) {
-        unit = 'tbsp';
-        quantity *= 15; // Convert to grams
-      } else if (ingredientStr.contains('tsp')) {
-        unit = 'tsp';
-        quantity *= 5; // Convert to grams
-      } else if (ingredientStr.contains('piece')) {
-        unit = 'piece';
-        quantity *= 30; // Convert to grams
-      }
-    }
-    
-    // Handle specific units
-    final lbsMatch = RegExp(r'(\d+(?:\.\d+)?)\s*lbs?').firstMatch(ingredientStr);
-    if (lbsMatch != null) {
-      quantity = double.tryParse(lbsMatch.group(1) ?? '1') ?? 1;
-      unit = 'lbs';
-      quantity *= 453.59; // Convert to grams
-    }
-    
-    final ozMatch = RegExp(r'(\d+(?:\.\d+)?)\s*oz').firstMatch(ingredientStr);
-    if (ozMatch != null) {
-      quantity = double.tryParse(ozMatch.group(1) ?? '1') ?? 1;
-      unit = 'oz';
-      quantity *= 28.35; // Convert to grams
-    }
-    
-    final cupMatch = RegExp(r'(\d+(?:\.\d+)?)\s*cup').firstMatch(ingredientStr);
-    if (cupMatch != null) {
-      quantity = double.tryParse(cupMatch.group(1) ?? '1') ?? 1;
-      unit = 'cup';
-      quantity *= 240; // Convert to grams
-    }
-    
-    final tbspMatch = RegExp(r'(\d+(?:\.\d+)?)\s*tbsp').firstMatch(ingredientStr);
-    if (tbspMatch != null) {
-      quantity = double.tryParse(tbspMatch.group(1) ?? '1') ?? 1;
-      unit = 'tbsp';
-      quantity *= 15; // Convert to grams
-    }
-    
-    final tspMatch = RegExp(r'(\d+(?:\.\d+)?)\s*tsp').firstMatch(ingredientStr);
-    if (tspMatch != null) {
-      quantity = double.tryParse(tspMatch.group(1) ?? '1') ?? 1;
-      unit = 'tsp';
-      quantity *= 5; // Convert to grams
-    }
-    
-    final pieceMatch = RegExp(r'(\d+(?:\.\d+)?)\s*piece').firstMatch(ingredientStr);
-    if (pieceMatch != null) {
-      quantity = double.tryParse(pieceMatch.group(1) ?? '1') ?? 1;
-      unit = 'piece';
-      quantity = _estimatePieceWeight(ingredientStr, quantity);
-    }
-    
-    final bunchMatch = RegExp(r'(\d+(?:\.\d+)?)\s*bunch').firstMatch(ingredientStr);
-    if (bunchMatch != null) {
-      quantity = double.tryParse(bunchMatch.group(1) ?? '1') ?? 1;
-      unit = 'bunch';
-      quantity = _estimateBunchWeight(ingredientStr, quantity);
-    }
-    
-    final cloveMatch = RegExp(r'(\d+(?:\.\d+)?)\s*clove').firstMatch(ingredientStr);
-    if (cloveMatch != null) {
-      quantity = double.tryParse(cloveMatch.group(1) ?? '1') ?? 1;
-      unit = 'clove';
-      quantity *= 3; // Convert to grams
-    }
-    
-    return {
-      'quantity': quantity,
-      'unit': unit,
-    };
+    return MeasurementConverter.parseMeasurement(ingredientStr);
   }
 
   /// Clean ingredient name with improved accuracy
@@ -243,7 +163,6 @@ class IngredientTrackingService {
       'kangkong': 'water spinach',
       'repolyo': 'cabbage',
       'litsugas': 'lettuce',
-      'kangkong': 'spinach',
       'luya': 'ginger',
       'tanglad': 'lemongrass',
       'sampalok': 'tamarind',
@@ -299,48 +218,6 @@ class IngredientTrackingService {
     return suggestions.toSet().toList(); // Remove duplicates
   }
 
-  /// Estimate weight per piece based on ingredient type
-  static double _estimatePieceWeight(String ingredientStr, double pieces) {
-    final ingredientLower = ingredientStr.toLowerCase();
-    
-    // Vegetables
-    if (ingredientLower.contains('tomato')) return pieces * 60;
-    if (ingredientLower.contains('onion')) return pieces * 50;
-    if (ingredientLower.contains('eggplant')) return pieces * 60;
-    if (ingredientLower.contains('okra')) return pieces * 10;
-    if (ingredientLower.contains('potato')) return pieces * 60;
-    if (ingredientLower.contains('radish') || ingredientLower.contains('daikon')) return pieces * 40;
-    if (ingredientLower.contains('carrot')) return pieces * 40;
-    if (ingredientLower.contains('cucumber')) return pieces * 50;
-    if (ingredientLower.contains('bell pepper') || ingredientLower.contains('capsicum')) return pieces * 50;
-    
-    // Fruits
-    if (ingredientLower.contains('apple')) return pieces * 80;
-    if (ingredientLower.contains('banana')) return pieces * 40;
-    if (ingredientLower.contains('orange')) return pieces * 60;
-    if (ingredientLower.contains('mango')) return pieces * 70;
-    
-    // Meat/Fish
-    if (ingredientLower.contains('chicken')) return pieces * 100;
-    if (ingredientLower.contains('fish')) return pieces * 80;
-    if (ingredientLower.contains('shrimp')) return pieces * 20;
-    
-    return pieces * 30; // Default
-  }
-
-  /// Estimate weight per bunch based on ingredient type
-  static double _estimateBunchWeight(String ingredientStr, double bunches) {
-    final ingredientLower = ingredientStr.toLowerCase();
-    
-    if (ingredientLower.contains('spinach') || ingredientLower.contains('kangkong')) return bunches * 100;
-    if (ingredientLower.contains('string beans') || ingredientLower.contains('sitaw')) return bunches * 180;
-    if (ingredientLower.contains('water spinach')) return bunches * 120;
-    if (ingredientLower.contains('bok choy') || ingredientLower.contains('pechay')) return bunches * 150;
-    if (ingredientLower.contains('lettuce')) return bunches * 200;
-    if (ingredientLower.contains('celery')) return bunches * 250;
-    
-    return bunches * 80; // Default
-  }
 
   /// Analyze recipe ingredients for accuracy
   static Future<Map<String, dynamic>> analyzeRecipeIngredients(List<String> ingredients) async {
@@ -382,9 +259,6 @@ class IngredientTrackingService {
           .eq('id', recipeId)
           .single();
 
-      if (recipeData == null) {
-        return {'error': 'Recipe not found'};
-      }
 
       final ingredients = (recipeData['ingredients'] as List).cast<String>();
       final title = recipeData['title'] as String;
