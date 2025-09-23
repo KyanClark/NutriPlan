@@ -120,9 +120,9 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
       } catch (e) {
         print('Error fetching user preferences: $e');
         if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading preferences: $e')),
-        );
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error loading preferences: $e')),
+          );
         }
       }
     }
@@ -274,6 +274,11 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
                 height: 20,
                 child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
               ),
+            )
+          else
+            TextButton(
+              onPressed: _saveUserPreferences,
+              child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
         ],
       ),
@@ -292,8 +297,8 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
                         padding: const EdgeInsets.all(16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
+                          children: [
+                            const Text(
                               '📊 Your Current Goals',
                               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF388E3C)),
                             ),
@@ -344,8 +349,8 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
                   // Preferences Section
                   const Text(
                     'Food Preferences',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 12),
                   
                   // Dish Preferences
@@ -367,12 +372,12 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
                   const SizedBox(height: 12),
                   
                   // Health Conditions
-                Card(
-                  child: ListTile(
+                  Card(
+                    child: ListTile(
                       title: const Text('Health Conditions'),
                       subtitle: Text(_getDisplayText(_healthConditions, _healthOptions, 'key')),
                       leading: const Icon(Icons.medical_services, color: Colors.red),
-                    trailing: const Icon(Icons.edit),
+                      trailing: const Icon(Icons.edit),
                       onTap: () => _showMultiSelectDialog(
                         'Health Conditions',
                         _healthOptions,
@@ -382,17 +387,17 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
                         allowMultiple: true,
                         hasNoneOption: true,
                       ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                
-                // Allergies
-                Card(
-                  child: ListTile(
+                  const SizedBox(height: 12),
+                  
+                  // Allergies
+                  Card(
+                    child: ListTile(
                       title: const Text('Allergies & Restrictions'),
-                    subtitle: Text(_allergies.isEmpty ? 'None selected' : _allergies.join(', ')),
-                    leading: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
-                    trailing: const Icon(Icons.edit),
+                      subtitle: Text(_allergies.isEmpty ? 'None selected' : _allergies.join(', ')),
+                      leading: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                      trailing: const Icon(Icons.edit),
                       onTap: () => _showSimpleMultiSelectDialog(
                         'Allergies & Restrictions',
                         _allergyOptions,
@@ -415,86 +420,31 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
                     children: [
                       Expanded(
                         child: Card(
-                          child: InkWell(
-                            onTap: () => _showAgeDialog(),
-                            borderRadius: BorderRadius.circular(12),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                children: [
-                                  const Icon(Icons.cake, color: Color(0xFF4CAF50)),
-                                  const SizedBox(height: 8),
-                                  Text('${_age ?? "Not set"}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  const Text('Age', style: TextStyle(fontSize: 12)),
-                                ],
-                              ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                const Icon(Icons.cake, color: Color(0xFF4CAF50)),
+                                const SizedBox(height: 8),
+                                Text('${_age ?? "Not set"}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                const Text('Age', style: TextStyle(fontSize: 12)),
+                              ],
                             ),
                           ),
                         ),
                       ),
                       Expanded(
                         child: Card(
-                          child: InkWell(
-                            onTap: () => _showGenderDialog(),
-                            borderRadius: BorderRadius.circular(12),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                children: [
-                                  Icon(_gender == 'male' ? Icons.male : _gender == 'female' ? Icons.female : Icons.person, 
-                                       color: const Color(0xFF4CAF50)),
-                                  const SizedBox(height: 8),
-                                  Text(_gender?.toUpperCase() ?? "Not set", style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  const Text('Gender', style: TextStyle(fontSize: 12)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                const SizedBox(height: 12),
-                
-                  // Height/Weight Row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Card(
-                          child: InkWell(
-                            onTap: () => _showHeightDialog(),
-                            borderRadius: BorderRadius.circular(12),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                children: [
-                                  const Icon(Icons.height, color: Color(0xFF4CAF50)),
-                                  const SizedBox(height: 8),
-                                  Text('${_heightCm?.toInt() ?? "Not set"}${_heightCm != null ? " cm" : ""}', 
-                                       style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  const Text('Height', style: TextStyle(fontSize: 12)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Card(
-                          child: InkWell(
-                            onTap: () => _showWeightDialog(),
-                            borderRadius: BorderRadius.circular(12),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                children: [
-                                  const Icon(Icons.monitor_weight, color: Color(0xFF4CAF50)),
-                                  const SizedBox(height: 8),
-                                  Text('${_weightKg?.toInt() ?? "Not set"}${_weightKg != null ? " kg" : ""}', 
-                                       style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  const Text('Weight', style: TextStyle(fontSize: 12)),
-                                ],
-                              ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                Icon(_gender == 'male' ? Icons.male : _gender == 'female' ? Icons.female : Icons.person, 
+                                     color: const Color(0xFF4CAF50)),
+                                const SizedBox(height: 8),
+                                Text(_gender?.toUpperCase() ?? "Not set", style: const TextStyle(fontWeight: FontWeight.bold)),
+                                const Text('Gender', style: TextStyle(fontSize: 12)),
+                              ],
                             ),
                           ),
                         ),
@@ -503,47 +453,37 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
                   ),
                   const SizedBox(height: 12),
                   
-                  // Activity Level & Weight Goal Row
+                  // Height/Weight Row
                   Row(
                     children: [
                       Expanded(
                         child: Card(
-                          child: InkWell(
-                            onTap: () => _showActivityLevelDialog(),
-                            borderRadius: BorderRadius.circular(12),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                children: [
-                                  const Icon(Icons.fitness_center, color: Color(0xFF4CAF50)),
-                                  const SizedBox(height: 8),
-                                  Text(_activityLevel?.replaceAll('_', ' ').split(' ').map((word) => 
-                                    word.isEmpty ? '' : word[0].toUpperCase() + word.substring(1)).join(' ') ?? "Not set", 
-                                    style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  const Text('Activity Level', style: TextStyle(fontSize: 12)),
-                                ],
-                              ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                const Icon(Icons.height, color: Color(0xFF4CAF50)),
+                                const SizedBox(height: 8),
+                                Text('${_heightCm?.toInt() ?? "Not set"}${_heightCm != null ? " cm" : ""}', 
+                                     style: const TextStyle(fontWeight: FontWeight.bold)),
+                                const Text('Height', style: TextStyle(fontSize: 12)),
+                              ],
                             ),
                           ),
                         ),
                       ),
                       Expanded(
                         child: Card(
-                          child: InkWell(
-                            onTap: () => _showWeightGoalDialog(),
-                            borderRadius: BorderRadius.circular(12),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                children: [
-                                  const Icon(Icons.trending_up, color: Color(0xFF4CAF50)),
-                                  const SizedBox(height: 8),
-                                  Text(_weightGoal?.replaceAll('_', ' ').split(' ').map((word) => 
-                                    word.isEmpty ? '' : word[0].toUpperCase() + word.substring(1)).join(' ') ?? "Not set", 
-                                    style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  const Text('Weight Goal', style: TextStyle(fontSize: 12)),
-                                ],
-                              ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                const Icon(Icons.monitor_weight, color: Color(0xFF4CAF50)),
+                                const SizedBox(height: 8),
+                                Text('${_weightKg?.toInt() ?? "Not set"}${_weightKg != null ? " kg" : ""}', 
+                                     style: const TextStyle(fontWeight: FontWeight.bold)),
+                                const Text('Weight', style: TextStyle(fontSize: 12)),
+                              ],
                             ),
                           ),
                         ),
@@ -551,33 +491,33 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
                     ],
                   ),
                   const SizedBox(height: 32),
-                
-                // Save Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _saving ? null : _saveUserPreferences,
-                    style: ElevatedButton.styleFrom(
+                  
+                  // Save Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _saving ? null : _saveUserPreferences,
+                      style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF4CAF50),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                    ),
-                    child: _saving
-                        ? const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                              ),
-                              SizedBox(width: 12),
-                              Text('Saving...'),
-                            ],
-                          )
+                      child: _saving
+                          ? const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                ),
+                                SizedBox(width: 12),
+                                Text('Saving...'),
+                              ],
+                            )
                           : const Text('Save All Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ),
@@ -710,269 +650,9 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
               Navigator.pop(context);
             },
             child: const Text('Done'),
-                ),
-              ],
-            ),
-    );
-  }
-
-  void _showAgeDialog() {
-    final TextEditingController ageController = TextEditingController(text: _age?.toString() ?? '');
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Age'),
-        content: TextField(
-          controller: ageController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Age',
-            hintText: 'Enter your age',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final age = int.tryParse(ageController.text);
-              if (age != null && age > 0 && age < 150) {
-                setState(() {
-                  _age = age;
-                });
-                Navigator.pop(context);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter a valid age (1-149)')),
-                );
-              }
-            },
-            child: const Text('Save'),
           ),
         ],
       ),
     );
   }
-
-  void _showGenderDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Gender'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            RadioListTile<String>(
-              title: const Text('Male'),
-              value: 'male',
-              groupValue: _gender,
-              onChanged: (value) {
-                setState(() {
-                  _gender = value;
-                });
-                Navigator.pop(context);
-              },
-            ),
-            RadioListTile<String>(
-              title: const Text('Female'),
-              value: 'female',
-              groupValue: _gender,
-              onChanged: (value) {
-                setState(() {
-                  _gender = value;
-                });
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showHeightDialog() {
-    final TextEditingController heightController = TextEditingController(text: _heightCm?.toString() ?? '');
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Height'),
-        content: TextField(
-          controller: heightController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Height (cm)',
-            hintText: 'Enter your height in centimeters',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final height = double.tryParse(heightController.text);
-              if (height != null && height > 50 && height < 300) {
-                setState(() {
-                  _heightCm = height;
-                });
-                Navigator.pop(context);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter a valid height (50-300 cm)')),
-                );
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showWeightDialog() {
-    final TextEditingController weightController = TextEditingController(text: _weightKg?.toString() ?? '');
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Weight'),
-        content: TextField(
-          controller: weightController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Weight (kg)',
-            hintText: 'Enter your weight in kilograms',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final weight = double.tryParse(weightController.text);
-              if (weight != null && weight > 20 && weight < 300) {
-                setState(() {
-                  _weightKg = weight;
-                });
-                Navigator.pop(context);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter a valid weight (20-300 kg)')),
-                );
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showActivityLevelDialog() {
-    final List<Map<String, dynamic>> activityOptions = [
-      {'key': 'sedentary', 'title': 'Sedentary', 'desc': 'Little to no exercise'},
-      {'key': 'lightly_active', 'title': 'Lightly Active', 'desc': 'Light exercise 1-3 days/week'},
-      {'key': 'moderately_active', 'title': 'Moderately Active', 'desc': 'Moderate exercise 3-5 days/week'},
-      {'key': 'very_active', 'title': 'Very Active', 'desc': 'Heavy exercise 6-7 days/week'},
-      {'key': 'extremely_active', 'title': 'Extremely Active', 'desc': 'Very heavy exercise, physical job'},
-    ];
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Activity Level'),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 300,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: activityOptions.length,
-            itemBuilder: (context, index) {
-              final option = activityOptions[index];
-              
-              return RadioListTile<String>(
-                title: Text(option['title']),
-                subtitle: Text(option['desc']),
-                value: option['key'],
-                groupValue: _activityLevel,
-                onChanged: (value) {
-                  setState(() {
-                    _activityLevel = value;
-                  });
-                  Navigator.pop(context);
-                },
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showWeightGoalDialog() {
-    final List<Map<String, dynamic>> weightGoalOptions = [
-      {'key': 'lose_weight', 'title': 'Lose Weight', 'desc': 'Create a calorie deficit'},
-      {'key': 'maintain_weight', 'title': 'Maintain Weight', 'desc': 'Keep current weight'},
-      {'key': 'gain_weight', 'title': 'Gain Weight', 'desc': 'Create a calorie surplus'},
-    ];
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Weight Goal'),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 200,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: weightGoalOptions.length,
-            itemBuilder: (context, index) {
-              final option = weightGoalOptions[index];
-              
-              return RadioListTile<String>(
-                title: Text(option['title']),
-                subtitle: Text(option['desc']),
-                value: option['key'],
-                groupValue: _weightGoal,
-                onChanged: (value) {
-                  setState(() {
-                    _weightGoal = value;
-                  });
-                  Navigator.pop(context);
-                },
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
-    );
-  }
-} 
+}

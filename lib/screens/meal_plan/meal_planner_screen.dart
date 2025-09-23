@@ -351,7 +351,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                             crossAxisCount: isSmallScreen ? 1 : 2, // Single column on small screens
                             crossAxisSpacing: isSmallScreen ? 0 : 12,
                             mainAxisSpacing: 20,
-                            childAspectRatio: isSmallScreen ? 1.2 : 0.75, // Taller cards on small screens
+                            childAspectRatio: isSmallScreen ? 1.4 : 0.8, // Fixed aspect ratio for consistent sizing
                           ),
                           shrinkWrap: true,
                           physics: NeverScrollableScrollPhysics(),
@@ -607,143 +607,139 @@ class _RecipeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final cardWidth = isSmallScreen ? constraints.maxWidth * 0.95 : constraints.maxWidth < 220 ? constraints.maxWidth : 200.0;
-        return Material(
-          color: Colors.transparent,
-          child: GestureDetector(
-            onTap: onTap,
-            child: Container(
-              width: cardWidth,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+    return Material(
+      color: Colors.transparent,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
               ),
-              child: Stack(
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(14),
-                          topRight: Radius.circular(14),
-                        ),
-                        child: Image.network(
-                          recipe.imageUrl,
-                          height: isSmallScreen ? 140 : 120, // Taller image on small screens
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            height: isSmallScreen ? 140 : 120,
-                            color: Colors.grey[200],
-                            child: Icon(Icons.broken_image, size: isSmallScreen ? 32 : 24),
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.all(isSmallScreen ? 12.0 : 10.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              recipe.title,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: isSmallScreen ? 16 : 18,
-                                color: Colors.black87,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                                                         if (mealType != null && mealType!.isNotEmpty || mealTime != null && mealTime!.isNotEmpty) ...[
-                               SizedBox(height: isSmallScreen ? 6 : 4),
-                               Wrap(
-                                 spacing: 6,
-                                 runSpacing: 4,
-                                 children: [
-                                   if (mealType != null && mealType!.isNotEmpty)
-                                     Container(
-                                       padding: EdgeInsets.symmetric(
-                                         horizontal: isSmallScreen ? 8 : 6, 
-                                         vertical: isSmallScreen ? 4 : 3
-                                       ),
-                                       decoration: BoxDecoration(
-                                         color: _getMealTypeColor(mealType!),
-                                         borderRadius: BorderRadius.circular(8),
-                                       ),
-                                       child: Text(
-                                         mealType!.capitalize(),
-                                         style: TextStyle(
-                                           color: Colors.white,
-                                           fontSize: isSmallScreen ? 10 : 11,
-                                           fontWeight: FontWeight.w600,
-                                         ),
-                                       ),
-                                     ),
-                                   if (mealTime != null && mealTime!.isNotEmpty)
-                                     Container(
-                                       padding: EdgeInsets.symmetric(
-                                         horizontal: isSmallScreen ? 6 : 5, 
-                                         vertical: isSmallScreen ? 4 : 3
-                                       ),
-                                       decoration: BoxDecoration(
-                                         color: Colors.grey[100],
-                                         borderRadius: BorderRadius.circular(8),
-                                         border: Border.all(color: Colors.grey[300]!),
-                                       ),
-                                       child: Row(
-                                         mainAxisSize: MainAxisSize.min,
-                                         children: [
-                                           Icon(
-                                             Icons.access_time, 
-                                             size: isSmallScreen ? 12 : 11, 
-                                             color: Colors.grey[600]
-                                           ),
-                                           SizedBox(width: isSmallScreen ? 4 : 3),
-                                           Text(
-                                             mealTime!,
-                                             style: TextStyle(
-                                               fontSize: isSmallScreen ? 10 : 11,
-                                               color: Colors.grey[600],
-                                               fontWeight: FontWeight.w500,
-                                             ),
-                                           ),
-                                         ],
-                                       ),
-                                     ),
-                                 ],
-                               ),
-                             ] else ...[
-                               SizedBox(height: isSmallScreen ? 6 : 4),
-                               Text(
-                                 'No meal type/time set',
-                                 style: TextStyle(
-                                   fontSize: isSmallScreen ? 10 : 11,
-                                   color: Colors.grey[500],
-                                   fontStyle: FontStyle.italic,
-                                 ),
-                               ),
-                             ],
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+            ],
           ),
-        );
-      },
+          child: Stack(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(14),
+                      topRight: Radius.circular(14),
+                    ),
+                    child: Image.network(
+                      recipe.imageUrl,
+                      height: isSmallScreen ? 160 : 130, // Fixed height for consistency
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        height: isSmallScreen ? 160 : 130,
+                        color: Colors.grey[200],
+                        child: Icon(Icons.broken_image, size: isSmallScreen ? 32 : 24),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.all(isSmallScreen ? 12.0 : 10.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            recipe.title,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: isSmallScreen ? 16 : 18,
+                              color: Colors.black87,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (mealType != null && mealType!.isNotEmpty || mealTime != null && mealTime!.isNotEmpty) ...[
+                            SizedBox(height: isSmallScreen ? 6 : 4),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              children: [
+                                if (mealType != null && mealType!.isNotEmpty)
+                                  Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: isSmallScreen ? 8 : 6, 
+                                      vertical: isSmallScreen ? 4 : 3
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: _getMealTypeColor(mealType!),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      mealType!.capitalize(),
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: isSmallScreen ? 10 : 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                if (mealTime != null && mealTime!.isNotEmpty)
+                                  Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: isSmallScreen ? 6 : 5, 
+                                      vertical: isSmallScreen ? 4 : 3
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[100],
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.grey[300]!),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.access_time, 
+                                          size: isSmallScreen ? 12 : 11, 
+                                          color: Colors.grey[600]
+                                        ),
+                                        SizedBox(width: isSmallScreen ? 4 : 3),
+                                        Text(
+                                          mealTime!,
+                                          style: TextStyle(
+                                            fontSize: isSmallScreen ? 10 : 11,
+                                            color: Colors.grey[600],
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ] else ...[
+                            SizedBox(height: isSmallScreen ? 6 : 4),
+                            Text(
+                              'No meal type/time set',
+                              style: TextStyle(
+                                fontSize: isSmallScreen ? 10 : 11,
+                                color: Colors.grey[500],
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

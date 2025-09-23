@@ -232,7 +232,7 @@ class FNRINutritionService {
 
       if (_ingredientsCache != null) {
         print('✅ Loaded ${_ingredientsCache!.length} FNRI ingredients from Supabase');
-        return _ingredientsCache!;
+      return _ingredientsCache!;
       } else {
         print('❌ Failed to create ingredients cache');
         return [];
@@ -537,6 +537,11 @@ class FNRINutritionService {
       r'hotdogs?': 'hotdog',
       r'sausages?': 'sausage',
       
+      // Seafood
+      r'shrimp.*': 'shrimp',
+      r'hipon.*': 'shrimp',
+      r'prawns?.*': 'shrimp',
+      
       // Rice
       r'garlic fried rice': 'rice',
       r'fried rice': 'rice',
@@ -668,6 +673,46 @@ class FNRINutritionService {
       }
     }
 
+    // Special handling for shrimp - default to tiger shrimp (common in Philippines)
+    if (cleanedName.toLowerCase().contains('shrimp') || 
+        cleanedName.toLowerCase().contains('hipon') ||
+        cleanedName.toLowerCase().contains('prawn')) {
+      
+      // Search for tiger shrimp first (most common in Philippines)
+      final tigerShrimpResults = await searchIngredients('giant tiger prawn');
+      if (tigerShrimpResults.isNotEmpty) {
+        final validShrimp = tigerShrimpResults.where((ingredient) => _isValidNutritionData(ingredient)).toList();
+        if (validShrimp.isNotEmpty) {
+          print('    🔄 Using ${validShrimp.first.foodName} as substitute for shrimp');
+          return validShrimp.first;
+        }
+      }
+      
+      // If no tiger shrimp, try banana prawn
+      final bananaShrimp = await searchIngredients('banana prawn');
+      if (bananaShrimp.isNotEmpty) {
+        final validShrimp = bananaShrimp.where((ingredient) => _isValidNutritionData(ingredient)).toList();
+        if (validShrimp.isNotEmpty) {
+          print('    🔄 Using ${validShrimp.first.foodName} as substitute for shrimp');
+          return validShrimp.first;
+        }
+      }
+      
+      // If none found, try any shrimp
+      final anyShrimp = await searchIngredients('shrimp');
+      if (anyShrimp.isNotEmpty) {
+        final validShrimp = anyShrimp.where((ingredient) => 
+          _isValidNutritionData(ingredient) && 
+          !ingredient.foodName.toLowerCase().contains('paste') &&
+          !ingredient.foodName.toLowerCase().contains('chips')
+        ).toList();
+        if (validShrimp.isNotEmpty) {
+          print('    🔄 Using ${validShrimp.first.foodName} as substitute for shrimp');
+          return validShrimp.first;
+        }
+      }
+    }
+
     // Special handling for eggs - find the best egg match
     if (cleanedName.toLowerCase().contains('egg') || 
         cleanedName.toLowerCase().contains('eggs') ||
@@ -699,6 +744,35 @@ class FNRINutritionService {
         if (validEggs.isNotEmpty) {
           print('    🔄 Using ${validEggs.first.foodName} as substitute for eggs');
           return validEggs.first;
+        }
+      }
+    }
+
+    // Note: Black pepper (Piper nigrum) is not available in FNRI data
+    // The app will return null for black pepper ingredients
+
+    // Special handling for cooking oil - default to corn oil (most common cooking oil)
+    if (cleanedName.toLowerCase().contains('oil') && 
+        !cleanedName.toLowerCase().contains('olive') &&
+        !cleanedName.toLowerCase().contains('coconut')) {
+      
+      // Try corn oil first (most common cooking oil in Philippines)
+      final cornOilResults = await searchIngredients('oil corn');
+      if (cornOilResults.isNotEmpty) {
+        final validOil = cornOilResults.where((ingredient) => _isValidNutritionData(ingredient)).toList();
+        if (validOil.isNotEmpty) {
+          print('    🔄 Using ${validOil.first.foodName} as substitute for cooking oil');
+          return validOil.first;
+        }
+      }
+      
+      // Fallback to coconut oil
+      final coconutOilResults = await searchIngredients('oil coconut');
+      if (coconutOilResults.isNotEmpty) {
+        final validOil = coconutOilResults.where((ingredient) => _isValidNutritionData(ingredient)).toList();
+        if (validOil.isNotEmpty) {
+          print('    🔄 Using ${validOil.first.foodName} as substitute for cooking oil');
+          return validOil.first;
         }
       }
     }

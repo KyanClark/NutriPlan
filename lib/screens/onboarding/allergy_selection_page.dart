@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../meal_plan/servings_selection_page.dart';
+import '../home/home_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AllergySelectionPage extends StatefulWidget {
@@ -241,9 +241,10 @@ class _AllergySelectionPageState extends State<AllergySelectionPage> {
                           'allergies': selectedAllergies,
                         });
                     }
-                    Navigator.push(
+                    Navigator.pushAndRemoveUntil(
                       context,
-                      MaterialPageRoute(builder: (context) => const ServingsSelectionPage()),
+                      MaterialPageRoute(builder: (context) => const HomePage()),
+                      (route) => false,
                     );
                   } : null,
                   child: const Text('Confirm', style: TextStyle(fontSize: 18)),
