@@ -84,14 +84,43 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
 
   List<Recipe> _getFilteredRecipes(List<Recipe> recipes) {
     switch (widget.category) {
+      // Original categories
       case 'soup':
         return _getSoupRecipes(recipes);
       case 'fish':
+      case 'fish_seafood':
         return _getFishRecipes(recipes);
       case 'pork':
         return _getPorkRecipes(recipes);
       case 'silog':
+      case 'egg_silog':
         return _getSilogRecipes(recipes);
+      
+      // New protein-based categories
+      case 'poultry':
+      case 'chicken':
+        return _getChickenRecipes(recipes);
+      case 'beef':
+        return _getBeefRecipes(recipes);
+      case 'vegetarian':
+        return _getVegetarianRecipes(recipes);
+      
+      // Health-oriented categories
+      case 'healthy_low_cal':
+        return _getHealthyRecipes(recipes);
+      case 'high_protein':
+        return _getHighProteinRecipes(recipes);
+      case 'low_carb':
+        return _getLowCarbRecipes(recipes);
+      case 'heart_healthy':
+        return _getHeartHealthyRecipes(recipes);
+      case 'low_sodium':
+        return _getLowSodiumRecipes(recipes);
+      case 'diabetic_friendly':
+        return _getDiabeticFriendlyRecipes(recipes);
+      case 'weight_loss':
+        return _getWeightLossRecipes(recipes);
+      
       default:
         return recipes;
     }
@@ -145,6 +174,109 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
       recipe.title.toLowerCase().contains('hotsilog') ||
       recipe.title.toLowerCase().contains('cornsilog') ||
       recipe.title.toLowerCase().contains('spamsilog')
+    ).toList();
+  }
+
+  // New protein-based filtering methods
+  List<Recipe> _getChickenRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      recipe.title.toLowerCase().contains('chicken') ||
+      recipe.title.toLowerCase().contains('manok') ||
+      recipe.title.toLowerCase().contains('adobo') ||
+      recipe.title.toLowerCase().contains('tinola') ||
+      recipe.title.toLowerCase().contains('inasal') ||
+      recipe.title.toLowerCase().contains('fried chicken') ||
+      recipe.ingredients.any((ingredient) => 
+        ingredient.toLowerCase().contains('chicken') ||
+        ingredient.toLowerCase().contains('manok')
+      )
+    ).toList();
+  }
+
+  List<Recipe> _getBeefRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      recipe.title.toLowerCase().contains('beef') ||
+      recipe.title.toLowerCase().contains('baka') ||
+      recipe.title.toLowerCase().contains('tapa') ||
+      recipe.title.toLowerCase().contains('bulalo') ||
+      recipe.title.toLowerCase().contains('kare-kare') ||
+      recipe.title.toLowerCase().contains('kaldereta') ||
+      recipe.ingredients.any((ingredient) => 
+        ingredient.toLowerCase().contains('beef') ||
+        ingredient.toLowerCase().contains('baka')
+      )
+    ).toList();
+  }
+
+  List<Recipe> _getVegetarianRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      recipe.dietTypes.contains('Vegetarian') ||
+      recipe.dietTypes.contains('Vegan') ||
+      recipe.title.toLowerCase().contains('vegetarian') ||
+      recipe.title.toLowerCase().contains('vegan') ||
+      recipe.title.toLowerCase().contains('pinakbet') ||
+      recipe.title.toLowerCase().contains('laing') ||
+      recipe.title.toLowerCase().contains('ginataang gulay') ||
+      recipe.title.toLowerCase().contains('tofu') ||
+      recipe.ingredients.any((ingredient) => 
+        ingredient.toLowerCase().contains('tofu') ||
+        ingredient.toLowerCase().contains('vegetable')
+      )
+    ).toList();
+  }
+
+  // Health-oriented filtering methods
+  List<Recipe> _getHealthyRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      recipe.calories < 400 &&
+      (recipe.dietTypes.contains('Healthy') ||
+       recipe.title.toLowerCase().contains('healthy') ||
+       recipe.title.toLowerCase().contains('light') ||
+       recipe.title.toLowerCase().contains('grilled') ||
+       recipe.title.toLowerCase().contains('steamed'))
+    ).toList();
+  }
+
+  List<Recipe> _getHighProteinRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      (recipe.macros['protein'] ?? 0.0) > 20.0
+    ).toList();
+  }
+
+  List<Recipe> _getLowCarbRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      (recipe.macros['carbs'] ?? 0.0) < 30.0 ||
+      recipe.dietTypes.contains('Keto') ||
+      recipe.title.toLowerCase().contains('keto')
+    ).toList();
+  }
+
+  List<Recipe> _getHeartHealthyRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      (recipe.macros['sodium'] ?? 0.0) < 600 &&
+      (recipe.macros['fat'] ?? 0.0) < 15.0 &&
+      (recipe.macros['cholesterol'] ?? 0.0) < 100
+    ).toList();
+  }
+
+  List<Recipe> _getLowSodiumRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      (recipe.macros['sodium'] ?? 0.0) < 400
+    ).toList();
+  }
+
+  List<Recipe> _getDiabeticFriendlyRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      (recipe.macros['sugar'] ?? 0.0) < 10.0 &&
+      (recipe.macros['carbs'] ?? 0.0) < 50.0
+    ).toList();
+  }
+
+  List<Recipe> _getWeightLossRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      recipe.calories < 350 &&
+      (recipe.macros['protein'] ?? 0.0) > 15.0 &&
+      (recipe.macros['fiber'] ?? 0.0) > 5.0
     ).toList();
   }
 

@@ -49,11 +49,49 @@ class _SeeAllRecipePageState extends State<SeeAllRecipePage> {
   }
 
   Future<void> _toggleFavorite(Recipe recipe) async {
-    if (userId == null) return;
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to add favorites')),
+      );
+      return;
+    }
+
     final isFav = favoriteRecipeIds.contains(recipe.id);
-    await RecipeService.toggleFavorite(userId!, recipe.id, isFav);
-    if (!mounted) return;
-    await _fetchAll();
+    
+    try {
+      await RecipeService.toggleFavorite(userId!, recipe.id, isFav);
+      
+      if (!mounted) return;
+      await _fetchAll();
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            !isFav 
+              ? '${recipe.title} added to favorites!' 
+              : '${recipe.title} removed from favorites!',
+            style: const TextStyle(fontFamily: 'Geist'),
+          ),
+          backgroundColor: !isFav ? Colors.green : Colors.grey,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          duration: const Duration(seconds: 2),
+          elevation: 8,
+        ),
+      );
+    } catch (e) {
+      print('Error toggling favorite: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update favorite: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   List<Recipe> get filteredRecipes {

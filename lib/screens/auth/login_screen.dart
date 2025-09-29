@@ -34,16 +34,13 @@ class _LoginScreenState extends State<LoginScreen> {
         _isLoading = true;
       });
 
-      // Store context before async operations
       final navigatorContext = context;
 
       try {
-        // Check if Supabase client is properly initialized
         if (Supabase.instance.client.auth.currentUser != null) {
           await Supabase.instance.client.auth.signOut();
         }
 
-        // Save email to login history on successful login
         await LoginHistoryService.saveEmailToHistory(_emailController.text);
 
         final response = await Supabase.instance.client.auth.signInWithPassword(
@@ -60,7 +57,6 @@ class _LoginScreenState extends State<LoginScreen> {
           final user = response.user;
 
           if (user?.emailConfirmedAt == null) {
-            // Email not verified
             ScaffoldMessenger.of(navigatorContext).showSnackBar(
               const SnackBar(
                 content: Text('Please verify your email before logging in.'),
@@ -70,7 +66,6 @@ class _LoginScreenState extends State<LoginScreen> {
             return;
           }
 
-          // Check if user has completed onboarding
           final prefs = await Supabase.instance.client
               .from('user_preferences')
               .select()
@@ -80,20 +75,17 @@ class _LoginScreenState extends State<LoginScreen> {
           if (!mounted) return;
 
           if (prefs == null) {
-            // Navigate to onboarding
             await Navigator.pushReplacement(
               navigatorContext,
               MaterialPageRoute(builder: (context) => const DietTypePage()),
             );
           } else {
-            // Navigate to home
             await Navigator.pushReplacement(
               navigatorContext,
               MaterialPageRoute(builder: (context) => const HomePage()),
             );
           }
         } else {
-          // If no user, show a generic error
           ScaffoldMessenger.of(navigatorContext).showSnackBar(
             const SnackBar(content: Text('Login failed. Please try again.')),
           );
@@ -121,33 +113,31 @@ class _LoginScreenState extends State<LoginScreen> {
           userMsg = 'Login failed: $e';
         }
 
-        ScaffoldMessenger.of(
-          navigatorContext,
-        ).showSnackBar(SnackBar(content: Text(userMsg)));
+        ScaffoldMessenger.of(navigatorContext).showSnackBar(
+          SnackBar(content: Text(userMsg)),
+        );
       }
     }
   }
 
-  /// Load email suggestions based on current input
   Future<void> _loadEmailSuggestions(String input) async {
     final suggestions = await LoginHistoryService.getFilteredHistory(input);
-    setState(() {
-      _emailSuggestions = suggestions;
-      _showSuggestions = suggestions.isNotEmpty && input.isNotEmpty;
-    });
+    if (mounted) {
+      setState(() {
+        _emailSuggestions = suggestions;
+        _showSuggestions = suggestions.isNotEmpty && input.isNotEmpty;
+      });
+    }
   }
 
-  /// Handle email selection from suggestions
   void _selectEmail(String email) {
     setState(() {
       _emailController.text = email;
       _showSuggestions = false;
     });
-    // Move focus to password field
     FocusScope.of(context).nextFocus();
   }
 
-  /// Hide suggestions
   void _hideSuggestions() {
     setState(() {
       _showSuggestions = false;
@@ -160,15 +150,13 @@ class _LoginScreenState extends State<LoginScreen> {
     _passwordController.dispose();
     super.dispose();
   }
-//loginUpdated
+
   @override
   Widget build(BuildContext context) {
-    final double horizontalPadding = MediaQuery.of(context).size.width < 430
-        ? 16.0
-        : 24.0;
-    final double verticalPadding = MediaQuery.of(context).size.height < 900
-        ? 16.0
-        : 24.0;
+    final double horizontalPadding =
+        MediaQuery.of(context).size.width < 430 ? 16.0 : 24.0;
+    final double verticalPadding =
+        MediaQuery.of(context).size.height < 900 ? 16.0 : 24.0;
 
     return Scaffold(
       body: DecorativeAuthBackground(
@@ -186,15 +174,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     const AnimatedLogo(),
                     const SizedBox(height: 32),
-                    // Move the Login title just above the card
                     const Align(
                       alignment: Alignment.centerLeft,
                       child: Padding(
-                        padding: EdgeInsets.only(
-                          left: 20.0,
-                          top: 50,
-                          bottom: 16.0,
-                        ),
+                        padding:
+                            EdgeInsets.only(left: 20.0, top: 50, bottom: 16.0),
                         child: Text(
                           'Login',
                           style: TextStyle(
@@ -207,189 +191,204 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     GestureDetector(
                       onTap: _hideSuggestions,
-                      child: Form(
-                        key: _formKey,
-                        child: Column(
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Form(
+                            key: _formKey,
+                            child: Column(
                               children: [
-                                TextFormField(
-                                  controller: _emailController,
-                                  decoration: InputDecoration(
-                                    labelText: 'Email address',
-                                    prefixIcon: const Icon(Icons.email),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(
-                                        30,
-                                      ),
-                                    ),
-                                  ),
-                                  keyboardType: TextInputType.emailAddress,
-                                  onChanged: (value) {
-                                    _loadEmailSuggestions(value);
-                                  },
-                                  onTap: () {
-                                    if (_emailController.text.isNotEmpty) {
-                                      _loadEmailSuggestions(
-                                        _emailController.text,
-                                      );
-                                    }
-                                  },
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Please enter your email';
-                                    }
-                                    if (!RegExp(
-                                      r'^[^@\s]+@[^@\s]+\.[^@\s]+',
-                                    ).hasMatch(value)) {
-                                      return 'Please enter a valid email';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                                // Email suggestions dropdown
-                                if (_showSuggestions &&
-                                    _emailSuggestions.isNotEmpty)
-                                  Container(
-                                    margin: const EdgeInsets.only(top: 4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(
-                                        12,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withValues(
-                                            alpha: 0.1,
-                                          ),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 2),
+                                SizedBox(
+                                  width:
+                                      MediaQuery.of(context).size.width * 0.8,
+                                  child: TextFormField(
+                                    controller: _emailController,
+                                    decoration: InputDecoration(
+                                      labelText: 'Email address',
+                                      prefixIcon: Padding(
+                                        padding: const EdgeInsets.all(12.0),
+                                        child: Icon(
+                                          Icons.email,
+                                          size: 20,
+                                          color: Colors.grey[600],
                                         ),
-                                      ],
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(30),
+                                      ),
                                     ),
-                                    child: Column(
-                                      children: _emailSuggestions
-                                          .map(
-                                            (email) => Material(
-                                              color: Colors.transparent,
-                                              child: InkWell(
-                                                onTap: () =>
-                                                    _selectEmail(email),
-                                                borderRadius:
-                                                    BorderRadius.circular(
-                                                      12,
-                                                    ),
-                                                child: Padding(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 16,
-                                                        vertical: 12,
-                                                      ),
-                                                  child: Row(
-                                                    children: [
-                                                      const Icon(
-                                                        Icons
-                                                            .email_outlined,
-                                                        size: 20,
-                                                        color: Colors.grey,
-                                                      ),
-                                                      const SizedBox(
-                                                        width: 12,
-                                                      ),
-                                                      Expanded(
-                                                        child: Text(
-                                                          email,
-                                                          style:
-                                                              const TextStyle(
-                                                                fontSize:
-                                                                    14,
-                                                                color: Colors
-                                                                    .black87,
-                                                              ),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          )
-                                          .toList(),
-                                    ),
+                                    keyboardType: TextInputType.emailAddress,
+                                    onChanged: (value) {
+                                      _loadEmailSuggestions(value);
+                                    },
+                                    onTap: () {
+                                      if (_emailController.text.isNotEmpty) {
+                                        _loadEmailSuggestions(
+                                            _emailController.text);
+                                      }
+                                    },
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Please enter your email';
+                                      }
+                                      if (!RegExp(
+                                              r'^[^@\s]+@[^@\s]+\.[^@\s]+')
+                                          .hasMatch(value)) {
+                                        return 'Please enter a valid email';
+                                      }
+                                      return null;
+                                    },
                                   ),
+                                ),
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                  width: MediaQuery.of(context).size.width * 0.8,
+                                  child: TextFormField(
+                                    controller: _passwordController,
+                                    decoration: InputDecoration(
+                                      labelText: 'Password',
+                                      prefixIcon: Padding(
+                                        padding: const EdgeInsets.all(12.0),
+                                        child: Icon(
+                                          Icons.lock,
+                                          size: 20,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                      suffixIcon: Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: IconButton(
+                                          icon: Icon(
+                                            _obscurePassword
+                                                ? Icons.visibility_off
+                                                : Icons.visibility,
+                                            size: 20,
+                                            color: Colors.grey[600],
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              _obscurePassword = !_obscurePassword;
+                                            });
+                                          },
+                                        ),
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(30),
+                                      ),
+                                    ),
+                                    obscureText: _obscurePassword,
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Please enter your password';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                _isLoading
+                                    ? const CircularProgressIndicator()
+                                    : SizedBox(
+                                        width: MediaQuery.of(context).size.width * 0.8,
+                                        child: ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                const Color(0xFF4CAF50),
+                                            foregroundColor: Colors.white,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(30),
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 18,
+                                            ),
+                                          ),
+                                          onPressed: _login,
+                                          child: const Text(
+                                            'Login',
+                                            style: TextStyle(fontSize: 18),
+                                          ),
+                                        ),
+                                      ),
                               ],
                             ),
-                            const SizedBox(height: 16),
-                            TextFormField(
-                              controller: _passwordController,
-                              decoration: InputDecoration(
-                                labelText: 'Password',
-                                prefixIcon: const Icon(Icons.lock),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility_off
-                                        : Icons.visibility,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _obscurePassword = !_obscurePassword;
-                                    });
-                                  },
+                          ),
+                          if (_showSuggestions &&
+                              _emailSuggestions.isNotEmpty)
+                            Positioned(
+                              top: 60,
+                              left: 0,
+                              right: 0,
+                              child: Container(
+                                width:
+                                    MediaQuery.of(context).size.width * 0.8,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
                                 ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(30),
+                                child: Column(
+                                  children: _emailSuggestions
+                                      .map(
+                                        (email) => Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            onTap: () => _selectEmail(email),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 16,
+                                                vertical: 12,
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  const Icon(
+                                                    Icons.email_outlined,
+                                                    size: 20,
+                                                    color: Colors.grey,
+                                                  ),
+                                                  const SizedBox(width: 12),
+                                                  Expanded(
+                                                    child: Text(
+                                                      email,
+                                                      style: const TextStyle(
+                                                        fontSize: 14,
+                                                        color: Colors.black87,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
                                 ),
                               ),
-                              obscureText: _obscurePassword,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter your password';
-                                }
-                                return null;
-                              },
                             ),
-                            const SizedBox(height: 24),
-                            _isLoading
-                                ? const CircularProgressIndicator()
-                                : SizedBox(
-                                    width: double.infinity,
-                                    child: ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(
-                                          0xFF4CAF50,
-                                        ),
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(30),
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 16,
-                                        ),
-                                      ),
-                                      onPressed: _login,
-                                      child: const Text(
-                                        'Login',
-                                        style: TextStyle(fontSize: 18),
-                                      ),
-                                    ),
-                                  ),
-                          ],
-                        ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 24),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                         const Text(
-                            "Don't have an account?",
-                            style: TextStyle(
-                              color: Color.fromARGB(255, 112, 110, 110),
-                              fontWeight: FontWeight.bold,
-                            ),
+                        const Text(
+                          "Don't have an account?",
+                          style: TextStyle(
+                            color: Color.fromARGB(255, 112, 110, 110),
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         const SizedBox(width: 4),
                         TextButton(

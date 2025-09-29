@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'see_all_recipe.dart';
 import 'package:nutriplan/screens/meal_plan/meal_summary_page.dart';
 import 'package:nutriplan/screens/meal_plan/meal_plan_confirmation_page.dart';
+import '../../widgets/loading_skeletons.dart';
 // import 'package:nutriplan/screens/home/home_page.dart';
 
 class RecipesPage extends StatefulWidget {
@@ -78,12 +79,50 @@ class _RecipesPageState extends State<RecipesPage> {
   }
 
   Future<void> _toggleFavorite(Recipe recipe) async {
-    if (userId == null) return;
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to add favorites')),
+      );
+      return;
+    }
+
     final isFav = favoriteRecipeIds.contains(recipe.id);
-    await RecipeService.toggleFavorite(userId!, recipe.id, isFav);
-    if (!mounted) return;
-    await _fetchFavorites();
-    if (widget.onChanged != null) widget.onChanged!();
+    
+    try {
+      await RecipeService.toggleFavorite(userId!, recipe.id, isFav);
+      
+      if (!mounted) return;
+      await _fetchFavorites();
+      if (widget.onChanged != null) widget.onChanged!();
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            !isFav 
+              ? '${recipe.title} added to favorites!' 
+              : '${recipe.title} removed from favorites!',
+            style: const TextStyle(fontFamily: 'Geist'),
+          ),
+          backgroundColor: !isFav ? Colors.green : Colors.grey,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          duration: const Duration(seconds: 2),
+          elevation: 8,
+        ),
+      );
+    } catch (e) {
+      print('Error toggling favorite: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update favorite: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _addToMealPlan(Recipe recipe) {
@@ -109,19 +148,25 @@ class _RecipesPageState extends State<RecipesPage> {
     // Show success message
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          '${recipe.title} added to meal plan!',
-          style: const TextStyle(fontFamily: 'Geist'),
+        content: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Text(
+            '${recipe.title} added to meal plan!',
+            style: const TextStyle(
+              fontFamily: 'Geist',
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ),
         backgroundColor: Colors.green,
-        action: SnackBarAction(
-          label: 'View Plan',
-          textColor: Colors.white,
-          onPressed: () {
-            // Scroll to bottom to show the Build Meal Plan button
-            // This will be handled by the UI automatically
-          },
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(20),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
+        duration: const Duration(seconds: 2),
+        elevation: 8,
       ),
     );
   }
@@ -130,26 +175,6 @@ class _RecipesPageState extends State<RecipesPage> {
     setState(() {
       _mealsForPlan.removeWhere((meal) => meal.id == recipe.id);
     });
-
-    // Show removal message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '${recipe.title} removed from meal plan',
-          style: const TextStyle(fontFamily: 'Geist'),
-        ),
-                       backgroundColor: const Color(0xFFFF6961),
-        action: SnackBarAction(
-          label: 'Undo',
-          textColor: Colors.white,
-          onPressed: () {
-            setState(() {
-              _mealsForPlan.add(recipe);
-            });
-          },
-        ),
-      ),
-    );
   }
 
   // Helper methods for recipe categorization
@@ -286,9 +311,6 @@ class _RecipesPageState extends State<RecipesPage> {
                     ),
                   );
                 },
-
-                      // RECIPE CARD //
-
                 child: Container(
                   width: 200,
                   margin: const EdgeInsets.only(right: 16),
@@ -555,7 +577,9 @@ class _RecipesPageState extends State<RecipesPage> {
               future: RecipeService.fetchRecipes(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return RecipeListSkeleton(
+                    itemCount: 6,
+                  );
                 }
                 if (snapshot.hasError) {
                   return Center(

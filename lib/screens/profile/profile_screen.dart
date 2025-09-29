@@ -642,7 +642,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   // Profile content with proper spacing
                   Transform.translate(
-                     offset: const Offset(0, -10), // Reduced from -20 to -10 to bring content closer
+                     offset: const Offset(0, -20), // Increased from -10 to -20 to bring content closer
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Column(
@@ -659,14 +659,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           if (_email != null)
                             Padding(
-                               padding: const EdgeInsets.only(top: 4.0, bottom: 8.0, left: 16, right: 16), // Reduced bottom padding from 16 to 8
+                               padding: const EdgeInsets.only(top: 2.0, bottom: 4.0, left: 16, right: 16), // Reduced top padding from 4 to 2
                               child: Text(
                                 _email!,
                                 style: const TextStyle(fontSize: 15, color: Colors.black54, fontWeight: FontWeight.w400),
                                 textAlign: TextAlign.center,
                               ),
                             ),
-                           const SizedBox(height: 8), // Reduced from 16 to 8
+                          const SizedBox(height: 8), // Added small spacing before options
                           // Options List
                           Container(
                             width: double.infinity,
