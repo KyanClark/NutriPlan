@@ -8,8 +8,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../widgets/bottom_navigation.dart'; 
 import '../recipes/recipes_page.dart';
 import '../recipes/filtered_recipes_page.dart';
-import '../../models/recipes.dart';
-import '../../services/recipe_service.dart';
+import '../../models/smart_suggestion_models.dart';
+import '../../models/meal_history_entry.dart';
+import '../../services/smart_meal_suggestion_service.dart';
+import '../recipes/recipe_info_screen.dart';
+import '../../widgets/smart_suggestions_loading_animation.dart';
 
 class HomePage extends StatefulWidget {
   final bool forceMealPlanRefresh;
@@ -28,8 +31,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   int _mealPlanCount = 0;
   bool _loadingCounts = false;
-  bool _loadingRecipes = false;
-  List<Recipe> _recipes = [];
+  bool _loadingSuggestions = false;
+  List<SmartMealSuggestion> _smartSuggestions = [];
   final PageController _bannerController = PageController(viewportFraction: 0.88);
   double _bannerPage = 0.0;
   Timer? _bannerAutoTimer;
@@ -41,7 +44,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _selectedIndex = widget.initialTab;
     _fetchCounts();
-    _fetchRecipes();
+    _fetchSmartSuggestions();
     _bannerController.addListener(() {
       setState(() {
         _bannerPage = _bannerController.page ?? 0.0;
@@ -62,6 +65,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _fetchCounts();
+      _fetchSmartSuggestions();
     }
   }
 
@@ -90,27 +94,67 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     });
   }
 
-  Future<void> _fetchRecipes() async {
-    setState(() => _loadingRecipes = true);
+  Future<void> _fetchSmartSuggestions() async {
+      if (!mounted) return;
+    setState(() => _loadingSuggestions = true);
+    
     try {
-      final list = await RecipeService.fetchRecipes();
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        if (!mounted) return;
+        setState(() {
+          _smartSuggestions = [];
+          _loadingSuggestions = false;
+        });
+        return;
+      }
+
+      // Test AI integration first
+      final aiWorking = await SmartMealSuggestionService.testAIIntegration();
+      print('AI Integration Status: ${aiWorking ? "Working" : "Failed"}');
+
+      // Get suggestions for the current meal time
+      final now = DateTime.now();
+      MealCategory currentMealCategory;
+      if (now.hour < 11) {
+        currentMealCategory = MealCategory.breakfast;
+      } else if (now.hour < 15) {
+        currentMealCategory = MealCategory.lunch;
+      } else if (now.hour < 20) {
+        currentMealCategory = MealCategory.dinner;
+      } else {
+        currentMealCategory = MealCategory.snack;
+      }
+
+      final suggestions = await SmartMealSuggestionService.getSmartSuggestions(
+        userId: user.id,
+        mealCategory: currentMealCategory,
+        targetTime: now,
+        useAI: aiWorking, // Only use AI if it's working
+      );
+
       if (!mounted) return;
       setState(() {
-        _recipes = list;
-        _loadingRecipes = false;
+        _smartSuggestions = suggestions;
+        _loadingSuggestions = false;
       });
       _startBannerAutoplay();
-    } catch (_) {
+    } catch (e) {
+      print('Error fetching smart suggestions: $e');
       if (!mounted) return;
-      setState(() => _loadingRecipes = false);
+      setState(() {
+        _smartSuggestions = [];
+        _loadingSuggestions = false;
+      });
+      _startBannerAutoplay();
     }
   }
 
   void _startBannerAutoplay() {
     _bannerAutoTimer?.cancel();
-    final total = _recipes.take(4).length;
+    final total = _getNutritionTips().length;
     if (total <= 1) return;
-    _bannerAutoTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+    _bannerAutoTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (_bannerController.hasClients) {
       final current = (_bannerController.page ?? 0).round();
       final next = (current + 1) % total;
@@ -155,13 +199,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             children: [
               _buildBanner(),
               const SizedBox(height: 20),
+              _buildSectionHeader('Smart Meal Suggestions for You', showSeeAll: false),
+              const SizedBox(height: 12),
+              _buildSmartSuggestions(),
+              const SizedBox(height: 20),
               _buildSectionHeader('Meal Categories'),
               const SizedBox(height: 12),
               _buildMealCategories(),
               const SizedBox(height: 20),
-              _buildSectionHeader('Recipe Features'),
+              _buildSectionHeader('Health-Oriented Categories'),
               const SizedBox(height: 12),
-              _buildFeaturesGrid(),
+              _buildHealthCategories(),
               const SizedBox(height: 20),
               _buildRecentActivity(),
               const SizedBox(height: 28),
@@ -172,7 +220,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(String title, {bool showSeeAll = true}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -186,6 +234,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 fontWeight: FontWeight.bold,
               ),
             ),
+            if (showSeeAll)
             TextButton(
               onPressed: () async {
                 await Navigator.of(context).push(
@@ -214,24 +263,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Widget _buildBanner() {
-    final bannerItems = _recipes.take(4).toList();
+    final nutritionTips = _getNutritionTips();
     return SizedBox(
       height: 160,
-      child: bannerItems.isEmpty
-          ? Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF58A872), Color(0xFF4E9DD6)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: const Center(
-                child: Icon(Icons.ramen_dining, color: Colors.white, size: 36),
-              ),
-            )
-          : Column(
+      child: Column(
               children: [
                 Expanded(
                   child: PageView.builder(
@@ -239,9 +274,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     physics: const BouncingScrollPhysics(),
                     allowImplicitScrolling: true,
                     clipBehavior: Clip.none,
-                    itemCount: bannerItems.length,
+              itemCount: nutritionTips.length,
                     itemBuilder: (context, index) {
-                      final recipe = bannerItems[index];
+                final tip = nutritionTips[index];
                       final distance = (_bannerPage - index).abs().clamp(0.0, 1.0);
                       final scale = 0.92 + (1 - distance) * 0.08; // 0.92..1.00
                       final opacity = 0.6 + (1 - distance) * 0.4;   // 0.6..1.0
@@ -256,44 +291,66 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                             margin: const EdgeInsets.symmetric(horizontal: 6),
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(16),
+                        gradient: LinearGradient(
+                          colors: tip['gradientColors'],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.10 * opacity),
+                            color: Colors.black.withValues(alpha: 0.15 * opacity),
                                   blurRadius: 8 + (1 - distance) * 6,
                                   offset: const Offset(0, 4),
                                 ),
                               ],
                             ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: Stack(
-                                fit: StackFit.expand,
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  recipe.imageUrl.isNotEmpty
-                                      ? Image.network(
-                                          recipe.imageUrl,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stack) => Container(color: Colors.grey[200], child: const Center(child: Icon(Icons.broken_image))),
-                                        )
-                                      : Container(color: Colors.grey[200], child: const Center(child: Icon(Icons.image, color: Colors.grey))),
+                            // Icon
                                   Container(
+                              padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [Colors.black.withValues(alpha: 0.35), Colors.transparent],
-                                        begin: Alignment.bottomCenter,
-                                        end: Alignment.topCenter,
-                                      ),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    left: 12,
-                                    bottom: 12,
-                                    right: 12,
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Icon(
+                                tip['icon'],
+                                color: Colors.white,
+                                size: 32,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            // Tip text
+                            Text(
+                              tip['tip'],
+                              textAlign: TextAlign.center,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
+                                height: 1.3,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            // Category label
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                                     child: Text(
-                                      recipe.title,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                                tip['category'],
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
                                     ),
                                   ),
                                 ],
@@ -308,7 +365,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(bannerItems.length, (i) {
+            children: List.generate(nutritionTips.length, (i) {
                     final active = _bannerPage.round() == i;
                     return AnimatedContainer(
                       duration: const Duration(milliseconds: 250),
@@ -327,101 +384,188 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildFeaturesGrid() {
-    if (_loadingRecipes) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    final items = _recipes.take(4).toList();
-    if (items.isEmpty) {
-      return const Text('No recipes available');
-    }
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 1.1,
-      ),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final r = items[index];
-        return _buildFeatureCard(r);
+  List<Map<String, dynamic>> _getNutritionTips() {
+    return [
+      {
+        'tip': '🍋 Hydration is key — drink water before meals to aid digestion.',
+        'category': 'Hydration',
+        'icon': Icons.water_drop,
+        'gradientColors': [const Color(0xFF4CAF50), const Color(0xFF66BB6A)],
       },
+      {
+        'tip': '🥗 Fill half your plate with vegetables for better balance.',
+        'category': 'Portion Control',
+        'icon': Icons.eco,
+        'gradientColors': [const Color(0xFF8BC34A), const Color(0xFF9CCC65)],
+      },
+      {
+        'tip': '💤 Better sleep = better metabolism. Rest well, eat well.',
+        'category': 'Lifestyle',
+        'icon': Icons.bedtime,
+        'gradientColors': [const Color(0xFF673AB7), const Color(0xFF7E57C2)],
+      },
+      {
+        'tip': '🥑 Include healthy fats like avocado and nuts for brain health.',
+        'category': 'Brain Health',
+        'icon': Icons.psychology,
+        'gradientColors': [const Color(0xFFFF9800), const Color(0xFFFFB74D)],
+      },
+      {
+        'tip': '🍎 Eat the rainbow — colorful fruits provide diverse nutrients.',
+        'category': 'Variety',
+        'icon': Icons.local_florist,
+        'gradientColors': [const Color(0xFFE91E63), const Color(0xFFF06292)],
+      },
+      {
+        'tip': '🏃‍♀️ Combine protein with carbs post-workout for muscle recovery.',
+        'category': 'Fitness',
+        'icon': Icons.fitness_center,
+        'gradientColors': [const Color(0xFF2196F3), const Color(0xFF64B5F6)],
+      },
+      {
+        'tip': '🧘‍♀️ Mindful eating: chew slowly and savor each bite.',
+        'category': 'Mindfulness',
+        'icon': Icons.self_improvement,
+        'gradientColors': [const Color(0xFF00BCD4), const Color(0xFF4DD0E1)],
+      },
+      {
+        'tip': '🌱 Start your day with fiber-rich foods for sustained energy.',
+        'category': 'Energy',
+        'icon': Icons.wb_sunny,
+        'gradientColors': [const Color(0xFFFFC107), const Color(0xFFFFD54F)],
+      },
+    ];
+  }
+
+  Widget _buildSmartSuggestions() {
+    if (_loadingSuggestions) {
+      return SmartSuggestionsLoadingAnimation(
+        loadingMessage: 'Analyzing eating pattern...',
+      );
+    }
+    
+    if (_smartSuggestions.isEmpty) {
+      return Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: const Center(
+            child: Text(
+              'No suggestions available. Start tracking meals to get personalized recommendations!',
+              style: TextStyle(color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: _smartSuggestions.take(2).map((suggestion) => 
+        _buildSmartSuggestionCard(suggestion)
+      ).toList(),
     );
   }
 
-  Widget _buildFeatureCard(Recipe recipe) {
-    return GestureDetector(
-      onTap: () async {
-        await Navigator.of(context).push(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => RecipesPage(onChanged: _fetchCounts),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              const begin = Offset(0.0, 1.0);
-              const end = Offset.zero;
-              const curve = Curves.ease;
-              final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-              return SlideTransition(
-                position: animation.drive(tween),
-                child: child,
-              );
-            },
-          ),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
+  Widget _buildSmartSuggestionCard(SmartMealSuggestion suggestion) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () async {
+          await Navigator.of(context).push(
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => RecipeInfoScreen(
+                recipe: suggestion.recipe,
+              ),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                const begin = Offset(0.0, 1.0);
+                const end = Offset.zero;
+                const curve = Curves.ease;
+                final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                return SlideTransition(
+                  position: animation.drive(tween),
+                  child: child,
+                );
+              },
             ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Stack(
-            fit: StackFit.expand,
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
             children: [
-              recipe.imageUrl.isNotEmpty
+              // Recipe image
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    color: Colors.grey[200],
+                    child: suggestion.recipe.imageUrl.isNotEmpty
                   ? Image.network(
-                      recipe.imageUrl,
+                            suggestion.recipe.imageUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(color: Colors.grey[200], child: const Center(child: Icon(Icons.broken_image, color: Colors.grey))),
-                    )
-                  : Container(color: Colors.grey[200], child: const Center(child: Icon(Icons.ramen_dining, size: 36, color: Colors.grey))),
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.black.withValues(alpha: 0.45), Colors.transparent],
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
+                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.grey),
+                          )
+                        : const Icon(Icons.ramen_dining, color: Colors.grey),
                   ),
                 ),
-              ),
-              Positioned(
-                left: 12,
-                right: 12,
-                bottom: 12,
+                const SizedBox(width: 12),
+                // Recipe info
+                Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            recipe.title,
+                        suggestion.recipe.title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        suggestion.reasoning,
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          _buildSuggestionTypeChip(suggestion.type),
+                          const SizedBox(width: 8),
+                          Text(
+                            '₱${suggestion.recipe.cost.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: Colors.green[600],
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
                           ),
-                          const SizedBox(height: 2),
-                          Text('₱${recipe.cost.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
+              // Arrow icon
+              Icon(
+                Icons.arrow_forward_ios,
+                color: Colors.grey[400],
+                size: 16,
               ),
             ],
           ),
@@ -430,8 +574,76 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
   }
 
+  Widget _buildSuggestionTypeChip(SuggestionType type) {
+    Color chipColor;
+    String chipText;
+    IconData chipIcon;
+
+    switch (type) {
+      case SuggestionType.fillGap:
+        chipColor = Colors.blue[100]!;
+        chipText = 'Fill Gap';
+        chipIcon = Icons.trending_up;
+        break;
+      case SuggestionType.perfectTiming:
+        chipColor = Colors.green[100]!;
+        chipText = 'Perfect Timing';
+        chipIcon = Icons.access_time;
+        break;
+      case SuggestionType.userFavorites:
+        chipColor = Colors.orange[100]!;
+        chipText = 'Your Favorite';
+        chipIcon = Icons.favorite;
+        break;
+      case SuggestionType.trySomethingNew:
+        chipColor = Colors.purple[100]!;
+        chipText = 'Try New';
+        chipIcon = Icons.explore;
+        break;
+      case SuggestionType.healthBoost:
+        chipColor = Colors.red[100]!;
+        chipText = 'Health Boost';
+        chipIcon = Icons.health_and_safety;
+        break;
+      case SuggestionType.budgetFriendly:
+        chipColor = Colors.yellow[100]!;
+        chipText = 'Budget';
+        chipIcon = Icons.account_balance_wallet;
+        break;
+      case SuggestionType.quickPrep:
+        chipColor = Colors.teal[100]!;
+        chipText = 'Quick';
+        chipIcon = Icons.speed;
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: chipColor,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(chipIcon, size: 10, color: chipColor.computeLuminance() > 0.5 ? Colors.black87 : Colors.white),
+          const SizedBox(width: 2),
+          Text(
+            chipText,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: chipColor.computeLuminance() > 0.5 ? Colors.black87 : Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMealCategories() {
     final categories = [
+      // Original categories
       {
         'name': 'Soup',
         'asset': 'assets/widgets/soup-vid.gif',
@@ -439,10 +651,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         'category': 'soup',
       },
       {
-        'name': 'Fish',
+        'name': 'Fish & Seafood',
         'asset': 'assets/widgets/fish.png',
         'assetType': 'image',
-        'category': 'fish',
+        'category': 'fish_seafood',
       },
       {
         'name': 'Pork',
@@ -454,7 +666,26 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         'name': 'Silog Meals',
         'asset': 'assets/widgets/silog-meals.jpg',
         'assetType': 'image',
-        'category': 'silog',
+        'category': 'egg_silog',
+      },
+      // New protein-based categories
+      {
+        'name': 'Poultry',
+        'asset': 'assets/widgets/fish.png', // Using fish as placeholder
+        'assetType': 'image',
+        'category': 'chicken',
+      },
+      {
+        'name': 'Beef',
+        'asset': 'assets/widgets/pork.png', // Using pork as placeholder
+        'assetType': 'image',
+        'category': 'beef',
+      },
+      {
+        'name': 'Plant-Based',
+        'asset': 'assets/widgets/soup-vid.gif', // Using soup as placeholder
+        'assetType': 'gif',
+        'category': 'vegetarian',
       },
     ];
 
@@ -477,6 +708,195 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           category['category'] as String,
         );
       },
+    );
+  }
+
+  Widget _buildHealthCategories() {
+    final healthCategories = [
+      {
+        'name': 'Healthy / Low-Calorie',
+        'asset': 'assets/widgets/fish.png', // Using fish as placeholder
+        'assetType': 'image',
+        'category': 'healthy_low_cal',
+        'icon': Icons.favorite,
+        'color': Colors.green[400]!,
+      },
+      {
+        'name': 'High-Protein / Gym Meals',
+        'asset': 'assets/widgets/pork.png', // Using pork as placeholder
+        'assetType': 'image',
+        'category': 'high_protein',
+        'icon': Icons.fitness_center,
+        'color': Colors.purple[400]!,
+      },
+      {
+        'name': 'Low-Carb / Keto Friendly',
+        'asset': 'assets/widgets/silog-meals.jpg', // Using silog as placeholder
+        'assetType': 'image',
+        'category': 'low_carb',
+        'icon': Icons.grass,
+        'color': Colors.teal[400]!,
+      },
+      {
+        'name': 'Heart-Healthy 🫀',
+        'asset': 'assets/widgets/soup-vid.gif', // Using soup as placeholder
+        'assetType': 'gif',
+        'category': 'heart_healthy',
+        'icon': Icons.favorite_border,
+        'color': Colors.red[300]!,
+      },
+      {
+        'name': 'Low Sodium',
+        'asset': 'assets/widgets/fish.png', // Using fish as placeholder
+        'assetType': 'image',
+        'category': 'low_sodium',
+        'icon': Icons.water_drop,
+        'color': Colors.cyan[400]!,
+      },
+      {
+        'name': 'Diabetic-Friendly',
+        'asset': 'assets/widgets/pork.png', // Using pork as placeholder
+        'assetType': 'image',
+        'category': 'diabetic_friendly',
+        'icon': Icons.medical_services,
+        'color': Colors.blue[300]!,
+      },
+      {
+        'name': 'Hypertension-Friendly',
+        'asset': 'assets/widgets/silog-meals.jpg', // Using silog as placeholder
+        'assetType': 'image',
+        'category': 'heart_healthy', // Same as heart-healthy for now
+        'icon': Icons.health_and_safety,
+        'color': Colors.orange[300]!,
+      },
+      {
+        'name': 'Weight-Loss Meals',
+        'asset': 'assets/widgets/soup-vid.gif', // Using soup as placeholder
+        'assetType': 'gif',
+        'category': 'weight_loss',
+        'icon': Icons.trending_down,
+        'color': Colors.pink[300]!,
+      },
+    ];
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 1.2,
+      ),
+      itemCount: healthCategories.length,
+      itemBuilder: (context, index) {
+        final category = healthCategories[index];
+        return _buildHealthCategoryCard(
+          category['name'] as String,
+          category['asset'] as String,
+          category['assetType'] as String,
+          category['category'] as String,
+          category['icon'] as IconData,
+          category['color'] as Color,
+        );
+      },
+    );
+  }
+
+  Widget _buildHealthCategoryCard(String name, String asset, String assetType, String category, IconData icon, Color color) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => FilteredRecipesPage(
+              category: category,
+              categoryName: name,
+              onChanged: _fetchCounts,
+            ),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              const begin = Offset(0.0, 1.0);
+              const end = Offset.zero;
+              const curve = Curves.ease;
+              final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+              return SlideTransition(
+                position: animation.drive(tween),
+                child: child,
+              );
+            },
+          ),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color.fromARGB(255, 255, 255, 255),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.10),
+              blurRadius: 1,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Health-themed gradient background
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      color.withOpacity(0.1),
+                      color.withOpacity(0.05),
+                    ],
+                  ),
+                ),
+              ),
+              // Centered content
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Health icon
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Icon(
+                        icon,
+                        size: 28,
+                        color: color,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // Category name
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      child: Text(
+                        name,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -575,10 +995,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
   }
 
-
-  // Search bar, Quick Actions, and Why NutriPlan sections removed per request
-
-  // Explore Recipes and How it works sections removed per request
 
   Widget _buildRecentActivity() {
     return Column(
@@ -684,6 +1100,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       forceRefresh: widget.forceMealPlanRefresh,
       onChanged: _fetchCounts,
     ),
+    const SizedBox.shrink(), // Empty widget for the plus button space
     const MealTrackerScreen(),
     const ProfileScreen(),
   ];
@@ -712,9 +1129,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         ),
       ],
     ),
-    floatingActionButton: _selectedIndex == 0
-        ? FloatingActionButton(
-            onPressed: () async {
+    floatingActionButton: null, // Removed - now using elevated plus button in bottom navigation
+    bottomNavigationBar: BottomNavigation(
+      selectedIndex: _selectedIndex,
+      onTap: (index) {
+        setState(() {
+          _selectedIndex = index;
+        });
+      },
+      mealPlanCount: _mealPlanCount,
+      isSmallScreen: isSmallScreen,
+      onAddMealPressed: () async {
               await Navigator.of(context).push(
                 PageRouteBuilder(
                   pageBuilder: (context, animation, secondaryAnimation) => RecipesPage(onChanged: _fetchCounts),
@@ -733,23 +1158,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               // Ensure counts refresh in case onChanged wasn't triggered
               await _fetchCounts();
             },
-            backgroundColor: const Color.fromARGB(255, 81, 209, 87),
-            child: const Icon(
-              Icons.add,
-              color: Colors.white,
-              size: 32,
-            ),
-          )
-        : null,
-    bottomNavigationBar: BottomNavigation(
-      selectedIndex: _selectedIndex,
-      onTap: (index) {
-        setState(() {
-          _selectedIndex = index;
-        });
-      },
-      mealPlanCount: _mealPlanCount,
-      isSmallScreen: isSmallScreen,
     ),
   );
 }
