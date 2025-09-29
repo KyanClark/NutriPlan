@@ -1,7 +1,4 @@
-import 'dart:convert';
-import 'dart:io';
-import 'package:path/path.dart' as path;
-import 'package:csv/csv.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class FNRIIngredientNutrition {
   final String foodId;
@@ -76,38 +73,38 @@ class FNRIIngredientNutrition {
     required this.cholesterol,
   });
 
-  factory FNRIIngredientNutrition.fromCsvRow(List<dynamic> row) {
+  factory FNRIIngredientNutrition.fromSupabase(Map<String, dynamic> data) {
     return FNRIIngredientNutrition(
-      foodId: row[0]?.toString() ?? '',
-      foodName: row[1]?.toString() ?? '',
-      scientificName: row[2]?.toString() ?? '',
-      alternateNames: row[3]?.toString() ?? '',
-      ediblePortion: row[4]?.toString() ?? '',
-      water: _parseDouble(row[6]) ?? 0.0,        // Proximates_Water_g
-      energyKcal: _parseDouble(row[7]) ?? 0.0,   // Proximates_Energy_calculated_kcal
-      protein: _parseDouble(row[8]) ?? 0.0,      // Proximates_Protein_g
-      totalFat: _parseDouble(row[9]) ?? 0.0,     // Proximates_Total_Fat_g
-      totalCarbohydrate: _parseDouble(row[10]) ?? 0.0, // Proximates_Carbohydrate_total_g
-      availableCarbohydrate: _parseDouble(row[11]) ?? 0.0, // Proximates_Carbohydrate_available_g
-      ash: _parseDouble(row[12]) ?? 0.0,         // Proximates_Ash_total_g
-      fiber: _parseDouble(row[13]) ?? 0.0,       // Other_Carbohydrate_Fiber_total_dietary_g
-      sugars: _parseDouble(row[14]) ?? 0.0,      // Other_Carbohydrate_Sugars_total_g
-      calcium: _parseDouble(row[15]) ?? 0.0,     // Minerals_Calcium_Ca_mg
-      phosphorus: _parseDouble(row[16]) ?? 0.0,  // Minerals_Phosphorus_P_mg
-      iron: _parseDouble(row[17]) ?? 0.0,        // Minerals_Iron_Fe_mg
-      sodium: _parseDouble(row[18]) ?? 0.0,      // Minerals_Sodium_Na_mg
-      potassium: _parseDouble(row[19]) ?? 0.0,   // Vitamins_Retinol_Vitamin_A_µg (wrong column)
-      zinc: _parseDouble(row[20]) ?? 0.0,        // Vitamins_beta-Carotene_µg (wrong column)
-      retinol: _parseDouble(row[21]) ?? 0.0,     // Vitamins_Retinol_Activity_Equivalent_RAE_µg (wrong column)
-      betaCarotene: _parseDouble(row[22]) ?? 0.0, // Vitamins_Thiamin_Vitamin_B1_mg (wrong column)
-      thiamin: _parseDouble(row[23]) ?? 0.0,     // Vitamins_Riboflavin_Vitamin_B2_mg (wrong column)
-      riboflavin: _parseDouble(row[24]) ?? 0.0,  // Vitamins_Niacin_mg (wrong column)
-      niacin: _parseDouble(row[25]) ?? 0.0,      // Vitamins_Ascorbic_Acid_Vitamin_C_mg (wrong column)
-      vitaminC: _parseDouble(row[26]) ?? 0.0,    // Lipids_Fatty_acids_saturated_total_g (wrong column)
-      saturatedFat: _parseDouble(row[27]) ?? 0.0, // Lipids_Fatty_acids_monounsaturated_total_g (wrong column)
-      monounsaturatedFat: _parseDouble(row[28]) ?? 0.0, // Lipids_Fatty_acids_polyunsaturated_totalg (wrong column)
-      polyunsaturatedFat: _parseDouble(row[29]) ?? 0.0, // Lipids_Cholesterol_mg (wrong column)
-      cholesterol: _parseDouble(row[30]) ?? 0.0,  // Minerals_Potassium_K_mg (wrong column)
+      foodId: data['Food_ID']?.toString() ?? '',
+      foodName: data['Food_name_and_Description']?.toString() ?? '',
+      scientificName: data['Scientific_name']?.toString() ?? '',
+      alternateNames: data['Alternate_Common_names']?.toString() ?? '',
+      ediblePortion: data['Edible_portion']?.toString() ?? '100%',
+      water: _parseDouble(data['Proximates_Water_g']) ?? 0.0,
+      energyKcal: _parseDouble(data['Proximates_Energy_calculated_kcal']) ?? 0.0,
+      protein: _parseDouble(data['Proximates_Protein_g']) ?? 0.0,
+      totalFat: _parseDouble(data['Proximates_Total_Fat_g']) ?? 0.0,
+      totalCarbohydrate: _parseDouble(data['Proximates_Carbohydrate_total_g']) ?? 0.0,
+      availableCarbohydrate: _parseDouble(data['Proximates_Carbohydrate_available_g']) ?? 0.0,
+      ash: _parseDouble(data['Proximates_Ash_total_g']) ?? 0.0,
+      fiber: _parseDouble(data['Other_Carbohydrate_Fiber_total_dietary_g']) ?? 0.0,
+      sugars: _parseDouble(data['Other_Carbohydrate_Sugars_total_g']) ?? 0.0,
+      calcium: _parseDouble(data['Minerals_Calcium_Ca_mg']) ?? 0.0,
+      phosphorus: _parseDouble(data['Minerals_Phosphorus_P_mg']) ?? 0.0,
+      iron: _parseDouble(data['Minerals_Iron_Fe_mg']) ?? 0.0,
+      sodium: _parseDouble(data['Minerals_Sodium_Na_mg']) ?? 0.0,
+      potassium: _parseDouble(data['Minerals_Potassium_K_mg']) ?? 0.0,
+      zinc: _parseDouble(data['Minerals_Zinc_Zn_mg']) ?? 0.0,
+      retinol: _parseDouble(data['Vitamins_Retinol_Vitamin_A_µg']) ?? 0.0,
+      betaCarotene: _parseDouble(data['Vitamins_beta-Carotene_µg']) ?? 0.0,
+      thiamin: _parseDouble(data['Vitamins_Thiamin_Vitamin_B1_mg']) ?? 0.0,
+      riboflavin: _parseDouble(data['Vitamins_Riboflavin_Vitamin_B2_mg']) ?? 0.0,
+      niacin: _parseDouble(data['Vitamins_Niacin_mg']) ?? 0.0,
+      vitaminC: _parseDouble(data['Vitamins_Ascorbic_Acid_Vitamin_C_mg']) ?? 0.0,
+      saturatedFat: _parseDouble(data['Lipids_Fatty_acids_saturated_total_g']) ?? 0.0,
+      monounsaturatedFat: _parseDouble(data['Lipids_Fatty_acids_monounsaturated_total_g']) ?? 0.0,
+      polyunsaturatedFat: _parseDouble(data['Lipids_Fatty_acids_polyunsaturated_totalg']) ?? 0.0,
+      cholesterol: _parseDouble(data['Lipids_Cholesterol_mg']) ?? 0.0,
     );
   }
 
@@ -213,50 +210,97 @@ class FNRINutritionService {
   static List<FNRIIngredientNutrition>? _ingredientsCache;
   static Map<String, FNRIIngredientNutrition>? _searchCache;
 
-  /// Load FNRI nutrition data from CSV file
+  /// Load FNRI nutrition data from Supabase
   static Future<List<FNRIIngredientNutrition>> loadFNRIData() async {
     if (_ingredientsCache != null) {
       return _ingredientsCache!;
     }
 
     try {
-      // Path to the CSV file in the fnri-food-composition-scraper directory
-      final csvPath = path.join(
-        Directory.current.path,
-        'fnri-food-composition-scraper',
-        'fnri_detailed_nutritional_data.csv'
-      );
-
-      final file = File(csvPath);
-      if (!await file.exists()) {
-        throw Exception('FNRI CSV file not found at: $csvPath');
-      }
-
-      final csvString = await file.readAsString();
-      final csvTable = const CsvToListConverter().convert(csvString);
-
-      // Skip header row
-      final dataRows = csvTable.skip(1).toList();
+      final supabase = Supabase.instance.client;
       
-      _ingredientsCache = dataRows
-          .map((row) => FNRIIngredientNutrition.fromCsvRow(row))
+      // Fetch all nutrition data from Supabase
+      final response = await supabase
+          .from('nutrition_data_import')
+          .select()
+          .order('Food_name_and_Description')
+          .limit(2000); // Limit to prevent memory issues
+      
+      _ingredientsCache = response
+          .map((data) => FNRIIngredientNutrition.fromSupabase(data))
           .toList();
 
       if (_ingredientsCache != null) {
-      print('✅ Loaded ${_ingredientsCache!.length} FNRI ingredients');
+        print('✅ Loaded ${_ingredientsCache!.length} FNRI ingredients from Supabase');
       return _ingredientsCache!;
       } else {
         print('❌ Failed to create ingredients cache');
         return [];
       }
     } catch (e) {
-      print('❌ Error loading FNRI data: $e');
+      print('❌ Error loading FNRI data from Supabase: $e');
       return [];
     }
   }
 
-  /// Search for ingredients in FNRI data
+  /// Search for ingredients in FNRI data using Supabase
   static Future<List<FNRIIngredientNutrition>> searchIngredients(String query) async {
+    try {
+      final supabase = Supabase.instance.client;
+      final queryLower = query.toLowerCase().trim();
+      
+      // Clean the query to avoid PostgreSQL syntax errors
+      final cleanQuery = queryLower
+          .replaceAll(',', ' ')  // Remove commas that break PostgreSQL
+          .replaceAll('(', ' ')  // Remove parentheses
+          .replaceAll(')', ' ')
+          .replaceAll(RegExp(r'\s+'), ' ')  // Multiple spaces to single space
+          .trim();
+      
+      print('🔍 Searching Supabase for: "$cleanQuery"');
+      
+      // Use simple LIKE search to avoid PostgreSQL parsing errors
+      final response = await supabase
+          .from('nutrition_data_import')
+          .select()
+          .ilike('Food_name_and_Description', '%$cleanQuery%')
+          .limit(20);
+      
+      print('📊 Found ${response.length} results from Supabase');
+      
+      final results = response
+          .map((data) => FNRIIngredientNutrition.fromSupabase(data))
+          .toList();
+      
+      // If no results, try alternate names
+      if (results.isEmpty) {
+        print('🔍 No results in food names, trying alternate names...');
+        final altResponse = await supabase
+            .from('nutrition_data_import')
+            .select()
+            .ilike('Alternate_Common_names', '%$cleanQuery%')
+            .limit(20);
+        
+        print('📊 Found ${altResponse.length} results in alternate names');
+        
+        results.addAll(altResponse
+            .map((data) => FNRIIngredientNutrition.fromSupabase(data))
+            .toList());
+      }
+      
+      // Apply additional filtering and sorting
+      return _filterAndSortResults(results, query);
+      
+    } catch (e) {
+      print('❌ Error searching ingredients in Supabase: $e');
+      // Fallback to cached search
+      print('❌ Supabase search failed, falling back to cached search');
+      return await _searchIngredientsCached(query);
+    }
+  }
+
+  /// Fallback search using cached data
+  static Future<List<FNRIIngredientNutrition>> _searchIngredientsCached(String query) async {
     if (_searchCache == null) {
       await loadFNRIData();
       // Populate search cache for faster lookups
@@ -281,35 +325,124 @@ class FNRINutritionService {
     final queryLower = query.toLowerCase();
     final results = <FNRIIngredientNutrition>[];
 
-    // Common ingredient synonyms and variations
-    final ingredientSynonyms = {
+    // Apply ingredient synonyms logic
+    final ingredientSynonyms = _getIngredientSynonyms();
+    String searchQuery = queryLower;
+    for (final entry in ingredientSynonyms.entries) {
+      if (entry.value.contains(queryLower)) {
+        searchQuery = entry.key;
+        break;
+      }
+    }
+
+    // Search with multiple strategies using cached data
+    if (_searchCache != null) {
+      // Strategy 1: Exact matches first
+      for (final entry in _searchCache!.entries) {
+        if (entry.key == searchQuery) {
+          results.add(entry.value);
+        }
+      }
+      
+      // Strategy 2: Contains matches
+      for (final entry in _searchCache!.entries) {
+        if (entry.key.contains(searchQuery) || searchQuery.contains(entry.key)) {
+          if (!results.contains(entry.value)) {
+            results.add(entry.value);
+          }
+        }
+      }
+      
+      // Strategy 3: Word-by-word matching for multi-word ingredients
+      final searchWords = searchQuery.split(' ');
+      if (searchWords.length > 1) {
+        for (final entry in _searchCache!.entries) {
+          final entryWords = entry.key.split(' ');
+          // Check if at least 2 words match
+          int matches = 0;
+          for (final searchWord in searchWords) {
+            if (entryWords.any((entryWord) => entryWord.contains(searchWord) || searchWord.contains(entryWord))) {
+              matches++;
+            }
+          }
+          if (matches >= 2 && !results.contains(entry.value)) {
+            results.add(entry.value);
+          }
+        }
+      }
+    }
+
+    return _filterAndSortResults(results, query);
+  }
+
+  /// Filter and sort search results
+  static List<FNRIIngredientNutrition> _filterAndSortResults(
+    List<FNRIIngredientNutrition> results, 
+    String query
+  ) {
+    final queryLower = query.toLowerCase();
+    
+    // Apply ingredient synonyms logic
+    final ingredientSynonyms = _getIngredientSynonyms();
+    String searchQuery = queryLower;
+    for (final entry in ingredientSynonyms.entries) {
+      if (entry.value.contains(queryLower)) {
+        searchQuery = entry.key;
+        break;
+      }
+    }
+
+    // Sort by relevance and quality
+    results.sort((a, b) {
+      // First priority: exact matches
+      final aExact = a.foodName.toLowerCase() == searchQuery;
+      final bExact = b.foodName.toLowerCase() == searchQuery;
+      if (aExact && !bExact) return -1;
+      if (!aExact && bExact) return 1;
+      
+      // Second priority: avoid processed/snack foods when looking for raw ingredients
+      final aIsProcessed = _isProcessedFood(a.foodName);
+      final bIsProcessed = _isProcessedFood(b.foodName);
+      if (!aIsProcessed && bIsProcessed) return -1;
+      if (aIsProcessed && !bIsProcessed) return 1;
+      
+      // Third priority: alphabetical
+      return a.foodName.compareTo(b.foodName);
+    });
+
+    return results.take(10).toList(); // Limit to top 10 results
+  }
+
+  /// Get ingredient synonyms mapping
+  static Map<String, List<String>> _getIngredientSynonyms() {
+    return {
       'pork': ['pork', 'baboy', 'pig', 'sus'],
       'ground pork': ['ground pork', 'minced pork', 'pork ground', 'baboy giniling', 'giniling na baboy', 'pork butt', 'boston butt', 'baboy paypay'],
       'pork ribs': ['pork ribs', 'baboy tadyang', 'ribs', 'tadyang'],
       'pork belly': ['pork belly', 'baboy liempo', 'liempo', 'belly'],
-      'pork shoulder': ['pork shoulder', 'pork butt', 'boston butt', 'baboy paypay'],
-      'pork butt': ['pork butt', 'boston butt', 'baboy paypay', 'pork shoulder'],
+      'pork shoulder': ['pork shoulder', 'boston butt', 'baboy paypay'],
+      'pork butt': ['pork butt', 'boston butt', 'baboy paypay'],
       'chicken': ['chicken', 'manok', 'gallus'],
       'chicken breast': ['chicken breast', 'manok dibdib', 'breast', 'dibdib'],
       'egg': ['egg', 'eggs', 'itlog', 'chicken egg', 'whole egg'],
       'beef': ['beef', 'baka', 'cattle', 'bos'],
       'fish': ['fish', 'isda', 'tilapia', 'bangus'],
       'shrimp': ['shrimp', 'hipon', 'prawn', 'crustacean'],
-      'crab': ['crab', 'alimango', 'crab', 'crustacean'],
+      'crab': ['crab', 'alimango', 'crustacean'],
       'rice': ['rice', 'kanin', 'bigas', 'oryza'],
-      'brown rice': ['brown rice', 'brown rice', 'undermilled', 'rice'],
+      'brown rice': ['brown rice', 'undermilled', 'rice'],
       'onion': ['onion', 'sibuyas', 'allium', 'bulb'],
       'garlic': ['garlic', 'bawang', 'allium', 'bulb'],
       'tomato': ['tomato', 'kamatis', 'solanum', 'fruit'],
       'carrot': ['carrot', 'karot', 'daucus', 'root'],
-      'broccoli': ['broccoli', 'broccoli', 'brassica', 'vegetable'],
+      'broccoli': ['broccoli', 'brassica', 'vegetable'],
       'cabbage': ['cabbage', 'repolyo', 'brassica', 'vegetable'],
       'lettuce': ['lettuce', 'litsugas', 'lactuca', 'leafy'],
       'spinach': ['spinach', 'kangkong', 'spinacia', 'leafy'],
       'water spinach': ['water spinach', 'kangkong', 'swamp cabbage', 'ipomoea'],
       'string beans': ['string beans', 'sitaw', 'yard long bean', 'vigna'],
       'eggplant': ['eggplant', 'talong', 'solanum', 'vegetable'],
-      'okra': ['okra', 'okra', 'abelmoschus', 'vegetable'],
+      'okra': ['okra', 'abelmoschus', 'vegetable'],
       'potato': ['potato', 'patatas', 'solanum', 'tuber'],
       'sweet potato': ['sweet potato', 'kamote', 'ipomoea', 'tuber'],
       'cassava': ['cassava', 'kamoteng kahoy', 'manihot', 'tuber'],
@@ -362,72 +495,6 @@ class FNRINutritionService {
       'herbs': ['herbs', 'herbal', 'plant', 'mixed'],
       'spices': ['spices', 'pampalasa', 'plant', 'mixed'],
     };
-
-    // Try to find synonyms for the ingredient
-    String searchQuery = queryLower;
-    for (final entry in ingredientSynonyms.entries) {
-      if (entry.value.contains(queryLower)) {
-        searchQuery = entry.key;
-        break;
-      }
-    }
-
-    // Search with multiple strategies
-    if (_searchCache != null) {
-      // Strategy 1: Exact matches first
-      for (final entry in _searchCache!.entries) {
-        if (entry.key == searchQuery) {
-          results.add(entry.value);
-        }
-      }
-      
-      // Strategy 2: Contains matches
-      for (final entry in _searchCache!.entries) {
-        if (entry.key.contains(searchQuery) || searchQuery.contains(entry.key)) {
-          if (!results.contains(entry.value)) {
-            results.add(entry.value);
-          }
-        }
-      }
-      
-      // Strategy 3: Word-by-word matching for multi-word ingredients
-      final searchWords = searchQuery.split(' ');
-      if (searchWords.length > 1) {
-        for (final entry in _searchCache!.entries) {
-          final entryWords = entry.key.split(' ');
-          // Check if at least 2 words match
-          int matches = 0;
-          for (final searchWord in searchWords) {
-            if (entryWords.any((entryWord) => entryWord.contains(searchWord) || searchWord.contains(entryWord))) {
-              matches++;
-            }
-          }
-          if (matches >= 2 && !results.contains(entry.value)) {
-            results.add(entry.value);
-          }
-        }
-      }
-    }
-
-    // Sort by relevance and quality
-    results.sort((a, b) {
-      // First priority: exact matches
-      final aExact = a.foodName.toLowerCase() == searchQuery;
-      final bExact = b.foodName.toLowerCase() == searchQuery;
-      if (aExact && !bExact) return -1;
-      if (!aExact && bExact) return 1;
-      
-      // Second priority: avoid processed/snack foods when looking for raw ingredients
-      final aIsProcessed = _isProcessedFood(a.foodName);
-      final bIsProcessed = _isProcessedFood(b.foodName);
-      if (!aIsProcessed && bIsProcessed) return -1;
-      if (aIsProcessed && !bIsProcessed) return 1;
-      
-      // Third priority: alphabetical
-      return a.foodName.compareTo(b.foodName);
-    });
-
-    return results.take(10).toList(); // Limit to top 10 results
   }
 
   /// Check if a food item is processed/snack food
@@ -443,14 +510,104 @@ class FNRINutritionService {
     return processedKeywords.any((keyword) => nameLower.contains(keyword));
   }
 
+  /// Extract the actual ingredient name from recipe strings with portions/quantities
+  static String _extractIngredientName(String ingredientString) {
+    String cleaned = ingredientString.toLowerCase().trim();
+    
+    // Remove common quantity patterns
+    cleaned = cleaned
+        // Remove numbers and fractions at the start
+        .replaceAll(RegExp(r'^\d+(/\d+)?\s*'), '')
+        // Remove common measurement units
+        .replaceAll(RegExp(r'^\d*\s*(pieces?|pcs?|cups?|tbsp|tablespoons?|tsp|teaspoons?|lbs?|pounds?|oz|ounces?|kg|grams?|g|ml|liters?|l)\s+'), '')
+        // Remove size descriptors
+        .replaceAll(RegExp(r'^(small|medium|large|big|tiny)\s+'), '')
+        // Remove preparation methods
+        .replaceAll(RegExp(r'\s+(sliced|diced|chopped|minced|crushed|ground|cooked|fried|boiled|steamed|raw)$'), '')
+        .trim();
+    
+    // Handle specific ingredient patterns
+    final ingredientMappings = {
+      // Eggs
+      r'^\d+\s*eggs?$': 'egg',
+      r'eggs?$': 'egg',
+      
+      // Hotdogs/Sausages
+      r'red hotdogs?': 'hotdog',
+      r'hotdogs?': 'hotdog',
+      r'sausages?': 'sausage',
+      
+      // Seafood
+      r'shrimp.*': 'shrimp',
+      r'hipon.*': 'shrimp',
+      r'prawns?.*': 'shrimp',
+      
+      // Rice
+      r'garlic fried rice': 'rice',
+      r'fried rice': 'rice',
+      r'cooked rice': 'rice',
+      r'steamed rice': 'rice',
+      
+      // Vegetables
+      r'tomato.*': 'tomato',
+      r'onion.*': 'onion', 
+      r'garlic.*': 'garlic',
+      
+      // Peppers/Chilies
+      r'long green chilies.*': 'green pepper',
+      r'long red chilies.*': 'red pepper',
+      r'green chilies.*': 'green pepper',
+      r'red chilies.*': 'red pepper',
+      r'chili.*': 'pepper',
+      
+      // Liquids
+      r'water': 'water',
+      r'cooking oil': 'vegetable oil',
+      r'vegetable oil': 'vegetable oil',
+      r'olive oil': 'olive oil',
+      r'^oil$': 'vegetable oil',
+      
+      // Meat
+      r'chicken thighs?': 'chicken',
+      r'chicken breast': 'chicken',
+      r'chicken.*': 'chicken',
+      r'pork.*': 'pork',
+      r'beef.*': 'beef',
+      
+      // Condiments
+      r'soy sauce': 'soy sauce',
+      r'fish sauce': 'fish sauce',
+      r'vinegar': 'vinegar',
+      
+      // Herbs and spices
+      r'bay leaves?': 'bay leaves',
+      r'peppercorns?': 'black pepper',
+      r'black pepper': 'black pepper',
+    };
+    
+    // Apply mappings
+    for (final entry in ingredientMappings.entries) {
+      if (RegExp(entry.key).hasMatch(cleaned)) {
+        cleaned = entry.value;
+        break;
+      }
+    }
+    
+    return cleaned;
+  }
+
   /// Find best matching ingredient for a recipe ingredient
   static Future<FNRIIngredientNutrition?> findBestMatch(String ingredientName) async {
-    final results = await searchIngredients(ingredientName);
+    // Extract the actual ingredient name from portions/quantities
+    final cleanedName = _extractIngredientName(ingredientName);
+    print('    🧹 Cleaned ingredient: "$ingredientName" → "$cleanedName"');
+    
+    final results = await searchIngredients(cleanedName);
 
     // Special handling for ground pork - find the best pork cut substitute
-    if (ingredientName.toLowerCase().contains('ground pork') || 
-        ingredientName.toLowerCase().contains('minced pork') ||
-        ingredientName.toLowerCase().contains('baboy giniling')) {
+    if (cleanedName.toLowerCase().contains('ground pork') || 
+        cleanedName.toLowerCase().contains('minced pork') ||
+        cleanedName.toLowerCase().contains('baboy giniling')) {
       
       // Search for pork cuts that are commonly used for ground pork
       final porkCutResults = await searchIngredients('pork boston butt');
@@ -481,12 +638,12 @@ class FNRINutritionService {
     }
 
     // Special handling for bell peppers - find the best pepper match
-    if (ingredientName.toLowerCase().contains('bell pepper') || 
-        ingredientName.toLowerCase().contains('bell peppers') ||
-        ingredientName.toLowerCase().contains('sweet pepper') ||
-        ingredientName.toLowerCase().contains('green pepper') ||
-        ingredientName.toLowerCase().contains('red pepper') ||
-        ingredientName.toLowerCase().contains('yellow pepper')) {
+    if (cleanedName.toLowerCase().contains('bell pepper') || 
+        cleanedName.toLowerCase().contains('bell peppers') ||
+        cleanedName.toLowerCase().contains('sweet pepper') ||
+        cleanedName.toLowerCase().contains('green pepper') ||
+        cleanedName.toLowerCase().contains('red pepper') ||
+        cleanedName.toLowerCase().contains('yellow pepper')) {
       
       // Search for bell pepper entries in FNRI data
       final bellPepperResults = await searchIngredients('pepper sweet bell');
@@ -516,20 +673,60 @@ class FNRINutritionService {
       }
     }
 
+    // Special handling for shrimp - default to tiger shrimp (common in Philippines)
+    if (cleanedName.toLowerCase().contains('shrimp') || 
+        cleanedName.toLowerCase().contains('hipon') ||
+        cleanedName.toLowerCase().contains('prawn')) {
+      
+      // Search for tiger shrimp first (most common in Philippines)
+      final tigerShrimpResults = await searchIngredients('giant tiger prawn');
+      if (tigerShrimpResults.isNotEmpty) {
+        final validShrimp = tigerShrimpResults.where((ingredient) => _isValidNutritionData(ingredient)).toList();
+        if (validShrimp.isNotEmpty) {
+          print('    🔄 Using ${validShrimp.first.foodName} as substitute for shrimp');
+          return validShrimp.first;
+        }
+      }
+      
+      // If no tiger shrimp, try banana prawn
+      final bananaShrimp = await searchIngredients('banana prawn');
+      if (bananaShrimp.isNotEmpty) {
+        final validShrimp = bananaShrimp.where((ingredient) => _isValidNutritionData(ingredient)).toList();
+        if (validShrimp.isNotEmpty) {
+          print('    🔄 Using ${validShrimp.first.foodName} as substitute for shrimp');
+          return validShrimp.first;
+        }
+      }
+      
+      // If none found, try any shrimp
+      final anyShrimp = await searchIngredients('shrimp');
+      if (anyShrimp.isNotEmpty) {
+        final validShrimp = anyShrimp.where((ingredient) => 
+          _isValidNutritionData(ingredient) && 
+          !ingredient.foodName.toLowerCase().contains('paste') &&
+          !ingredient.foodName.toLowerCase().contains('chips')
+        ).toList();
+        if (validShrimp.isNotEmpty) {
+          print('    🔄 Using ${validShrimp.first.foodName} as substitute for shrimp');
+          return validShrimp.first;
+        }
+      }
+    }
+
     // Special handling for eggs - find the best egg match
-    if (ingredientName.toLowerCase().contains('egg') || 
-        ingredientName.toLowerCase().contains('eggs') ||
-        ingredientName.toLowerCase().contains('itlog')) {
+    if (cleanedName.toLowerCase().contains('egg') || 
+        cleanedName.toLowerCase().contains('eggs') ||
+        cleanedName.toLowerCase().contains('itlog')) {
       
       // Search for egg entries in FNRI data
-      final eggResults = await searchIngredients('egg chicken whole');
+      final eggResults = await searchIngredients('egg chicken');
       if (eggResults.isNotEmpty) {
         // Prefer whole eggs over processed egg products
         final wholeEggs = eggResults.where((r) => 
           r.foodName.toLowerCase().contains('egg') &&
-          r.foodName.toLowerCase().contains('whole') &&
-          !r.foodName.toLowerCase().contains('white') &&
-          !r.foodName.toLowerCase().contains('yolk') &&
+          (r.foodName.toLowerCase().contains('whole') || 
+           (!r.foodName.toLowerCase().contains('white') &&
+            !r.foodName.toLowerCase().contains('yolk'))) &&
           !r.foodName.toLowerCase().contains('powdered') &&
           !r.foodName.toLowerCase().contains('dried')
         ).toList();
@@ -551,6 +748,35 @@ class FNRINutritionService {
       }
     }
 
+    // Note: Black pepper (Piper nigrum) is not available in FNRI data
+    // The app will return null for black pepper ingredients
+
+    // Special handling for cooking oil - default to corn oil (most common cooking oil)
+    if (cleanedName.toLowerCase().contains('oil') && 
+        !cleanedName.toLowerCase().contains('olive') &&
+        !cleanedName.toLowerCase().contains('coconut')) {
+      
+      // Try corn oil first (most common cooking oil in Philippines)
+      final cornOilResults = await searchIngredients('oil corn');
+      if (cornOilResults.isNotEmpty) {
+        final validOil = cornOilResults.where((ingredient) => _isValidNutritionData(ingredient)).toList();
+        if (validOil.isNotEmpty) {
+          print('    🔄 Using ${validOil.first.foodName} as substitute for cooking oil');
+          return validOil.first;
+        }
+      }
+      
+      // Fallback to coconut oil
+      final coconutOilResults = await searchIngredients('oil coconut');
+      if (coconutOilResults.isNotEmpty) {
+        final validOil = coconutOilResults.where((ingredient) => _isValidNutritionData(ingredient)).toList();
+        if (validOil.isNotEmpty) {
+          print('    🔄 Using ${validOil.first.foodName} as substitute for cooking oil');
+          return validOil.first;
+        }
+      }
+    }
+
     // If no special handling worked and no results found, return null
     if (results.isEmpty) return null;
 
@@ -558,7 +784,7 @@ class FNRINutritionService {
     final validResults = results.where((ingredient) => _isValidNutritionData(ingredient)).toList();
     
     if (validResults.isEmpty) {
-      print('⚠️ All matches for "$ingredientName" had invalid nutrition data');
+      print('⚠️ All matches for "$cleanedName" had invalid nutrition data');
       return null;
     }
 
@@ -600,14 +826,14 @@ class FNRINutritionService {
       return false;
     }
     
-    // Sodium: 0-5000mg per 100g is realistic (some processed foods are very high)
-    if (ingredient.sodium < 0 || ingredient.sodium > 5000) {
+    // Sodium: 0-10000mg per 100g is realistic (fish sauce, soy sauce can be very high)
+    if (ingredient.sodium < 0 || ingredient.sodium > 10000) {
       print('    ❌ Invalid sodium: ${ingredient.sodium}mg per 100g for ${ingredient.foodName}');
       return false;
     }
     
-    // Cholesterol: 0-500mg per 100g is realistic (egg yolks, organ meats)
-    if (ingredient.cholesterol < 0 || ingredient.cholesterol > 500) {
+    // Cholesterol: 0-1500mg per 100g is realistic (egg yolks can be ~1100mg, organ meats higher)
+    if (ingredient.cholesterol < 0 || ingredient.cholesterol > 1500) {
       print('    ❌ Invalid cholesterol: ${ingredient.cholesterol}mg per 100g for ${ingredient.foodName}');
       return false;
     }
@@ -728,194 +954,6 @@ class FNRINutritionService {
     };
   }
 
-  /// Try to find a complete dish match based on recipe name
-  static Future<FNRIIngredientNutrition?> _findCompleteDishMatch(String recipeName) async {
-    final data = await loadFNRIData();
-    
-    // Common Filipino dish keywords and their variations
-    final dishKeywords = {
-      'lumpia shanghai': ['lumpia shanghai', 'spring roll shanghai', 'lumpiang shanghai', 'shanghai pork roll', 'lumpia'],
-      'lumpia': ['lumpia', 'spring roll', 'lumpiang'],
-      'adobo': ['adobo', 'adobong'],
-      'sinigang': ['sinigang', 'sinigang na'],
-      'afritada': ['afritada', 'apritada'],
-      'kaldereta': ['kaldereta', 'caldereta'],
-      'kare kare': ['kare kare', 'kare-kare'],
-      'sisig': ['sisig'],
-      'lechon': ['lechon', 'litson'],
-      'pancit': ['pancit', 'pansit'],
-      'arroz caldo': ['arroz caldo', 'arroz caldo'],
-      'tinola': ['tinola'],
-      'nilaga': ['nilaga'],
-      'bulalo': ['bulalo'],
-      'dinuguan': ['dinuguan'],
-      'menudo': ['menudo'],
-      'mechado': ['mechado'],
-      'estopado': ['estopado'],
-      'morcon': ['morcon'],
-      'relleno': ['relleno'],
-      'embutido': ['embutido'],
-      'galantina': ['galantina'],
-      'pochero': ['pochero'],
-      'callos': ['callos'],
-      'paella': ['paella'],
-      'kari': ['kari', 'curry'],
-      'bicol express': ['bicol express', 'bicol express'],
-      'laing': ['laing'],
-      'pinakbet': ['pinakbet'],
-      'dinengdeng': ['dinengdeng'],
-      'bulanglang': ['bulanglang'],
-      'pakbet': ['pakbet'],
-      'ginataang': ['ginataang'],
-      'ginisaang': ['ginisaang'],
-      'tinolang': ['tinolang'],
-      'nilagang': ['nilagang'],
-      'sinigang na': ['sinigang na'],
-      'adobong': ['adobong'],
-      'pritong': ['pritong'],
-      'inihaw na': ['inihaw na'],
-      'nilagang': ['nilagang'],
-      'ginataang': ['ginataang'],
-      'ginisaang': ['ginisaang'],
-    };
-    
-    // Check for exact dish matches
-    for (final entry in dishKeywords.entries) {
-      for (final keyword in entry.value) {
-        if (recipeName.contains(keyword)) {
-          print('🔍 Looking for dish: ${entry.key}');
-          
-          // Search for the dish in FNRI data
-          for (final item in data) {
-            final itemName = item.foodName.toLowerCase();
-            final alternateNames = item.alternateNames.toLowerCase();
-            
-            // Check if this item matches the dish we're looking for
-            if (itemName.contains(entry.key) || 
-                alternateNames.contains(entry.key) ||
-                itemName.contains(keyword) ||
-                alternateNames.contains(keyword)) {
-              
-              // Prefer cooked/prepared versions over raw ingredients
-              if (itemName.contains('prep') || 
-                  itemName.contains('cooked') || 
-                  itemName.contains('luto') ||
-                  itemName.contains('fried') ||
-                  itemName.contains('roasted') ||
-                  itemName.contains('grilled')) {
-                print('  ✅ Found prepared dish: ${item.foodName}');
-                return item;
-              }
-            }
-          }
-          
-          // If no prepared version found, return the first match
-          for (final item in data) {
-            final itemName = item.foodName.toLowerCase();
-            final alternateNames = item.alternateNames.toLowerCase();
-            
-            if (itemName.contains(entry.key) || 
-                alternateNames.contains(entry.key) ||
-                itemName.contains(keyword) ||
-                alternateNames.contains(keyword)) {
-              print('  ✅ Found dish: ${item.foodName}');
-              return item;
-            }
-          }
-        }
-      }
-    }
-    
-    return null;
-  }
-
-  /// Get realistic nutrition data for common Filipino dishes when not found in FNRI
-  static Map<String, dynamic> _getRealisticDishNutrition(String dishName) {
-    final dishLower = dishName.toLowerCase();
-    
-    // Realistic nutrition data for common Filipino dishes (per serving ~250g)
-    if (dishLower.contains('lumpia shanghai') || dishLower.contains('lumpia')) {
-      return {
-        'protein': 12.0,    // Pork + wrapper
-        'fat': 18.0,        // Fried in oil
-        'carbs': 25.0,      // Wrapper + vegetables
-        'fiber': 2.0,       // Vegetables
-        'sugar': 1.0,       // Minimal
-        'sodium': 450.0,    // Soy sauce + seasoning
-        'cholesterol': 45.0, // Pork + egg
-        'calories': 280,     // Realistic for fried spring rolls
-      };
-    }
-    
-    if (dishLower.contains('adobo')) {
-      return {
-        'protein': 25.0,    // Meat
-        'fat': 15.0,        // Meat fat + oil
-        'carbs': 8.0,       // Minimal
-        'fiber': 1.0,       // Minimal
-        'sugar': 2.0,       // Minimal
-        'sodium': 800.0,    // Soy sauce
-        'cholesterol': 80.0, // Meat
-        'calories': 280,     // Realistic for adobo
-      };
-    }
-    
-    if (dishLower.contains('sinigang')) {
-      return {
-        'protein': 20.0,    // Meat
-        'fat': 8.0,         // Meat fat
-        'carbs': 15.0,      // Vegetables
-        'fiber': 4.0,       // Vegetables
-        'sugar': 3.0,       // Vegetables
-        'sodium': 600.0,    // Fish sauce
-        'cholesterol': 60.0, // Meat
-        'calories': 220,     // Realistic for soup
-      };
-    }
-    
-    // Default realistic values for Filipino dishes
-    return {
-      'protein': 20.0,      // Typical meat portion
-      'fat': 12.0,          // Typical fat content
-      'carbs': 18.0,        // Typical carb content
-      'fiber': 3.0,         // Typical fiber content
-      'sugar': 2.0,         // Typical sugar content
-      'sodium': 500.0,      // Typical sodium content
-      'cholesterol': 70.0,  // Typical cholesterol content
-      'calories': 250,      // Typical calorie content
-    };
-  }
-
-  /// Identify the type of dish based on ingredients
-  static String _identifyDishType(List<String> ingredients) {
-    final ingredientsLower = ingredients.map((e) => e.toLowerCase()).toList();
-    
-    // Check for Lumpia Shanghai
-    if (ingredientsLower.any((e) => e.contains('pork')) && 
-        ingredientsLower.any((e) => e.contains('wrapper') || e.contains('wonton'))) {
-      return 'lumpia shanghai';
-    }
-    
-    // Check for Adobo
-    if (ingredientsLower.any((e) => e.contains('pork') || e.contains('chicken') || e.contains('beef')) &&
-        ingredientsLower.any((e) => e.contains('soy') || e.contains('vinegar'))) {
-      return 'adobo';
-    }
-    
-    // Check for Sinigang
-    if (ingredientsLower.any((e) => e.contains('pork') || e.contains('beef')) &&
-        ingredientsLower.any((e) => e.contains('tamarind') || e.contains('gabi'))) {
-      return 'sinigang';
-    }
-    
-    // Check for other common dishes
-    if (ingredientsLower.any((e) => e.contains('pork') || e.contains('chicken')) &&
-        ingredientsLower.any((e) => e.contains('tomato') || e.contains('potato'))) {
-      return 'afritada';
-    }
-    
-    return '';
-  }
 
   /// Get statistics about the FNRI database
   static Future<Map<String, dynamic>> getDatabaseStats() async {
@@ -938,7 +976,6 @@ class FNRINutritionService {
   static double _estimateServings(List<String> ingredients, Map<String, double> quantities) {
     double totalWeight = 0;
     int meatCount = 0;
-    int vegetableCount = 0;
     
     for (final ingredient in ingredients) {
       final quantity = quantities[ingredient] ?? 0;
@@ -948,12 +985,6 @@ class FNRINutritionService {
       if (ingredientLower.contains('pork') || ingredientLower.contains('beef') || 
           ingredientLower.contains('chicken') || ingredientLower.contains('fish')) {
         meatCount++;
-      }
-      if (ingredientLower.contains('tomato') || ingredientLower.contains('onion') ||
-          ingredientLower.contains('garlic') || ingredientLower.contains('spinach') ||
-          ingredientLower.contains('eggplant') || ingredientLower.contains('okra') ||
-          ingredientLower.contains('beans') || ingredientLower.contains('radish')) {
-        vegetableCount++;
       }
     }
     

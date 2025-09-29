@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'allergy_selection_page.dart';
+import 'user_profile_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DietTypePage extends StatefulWidget {
@@ -10,46 +10,64 @@ class DietTypePage extends StatefulWidget {
 }
 
 class _DietTypePreferencePageState extends State<DietTypePage> {
-  final List<Map<String, String>> dietTypes = [
+  final List<Map<String, dynamic>> dishPreferences = [
     {
-      'title': 'Balance Diet',
-      'desc': 'Provides the right amounts of all the essential nutrients your body needs to function properly',
+      'title': '🐟 Fish & Seafood',
+      'desc': 'Bangus, tilapia, shrimp, crab, squid',
+      'icon': '🐟',
+      'key': 'fish_seafood',
     },
     {
-      'title': 'Vegan',
-      'desc': '100% plant-based, no animal products',
+      'title': '🥩 Meat & Poultry',
+      'desc': 'Chicken, pork, beef, turkey',
+      'icon': '🥩',
+      'key': 'meat_poultry',
     },
     {
-      'title': 'Vegetarian',
-      'desc': 'No meat, may include eggs/dairy',
+      'title': '🍲 Soups & Stews',
+      'desc': 'Sinigang, tinola, bulalo, nilaga',
+      'icon': '🍲',
+      'key': 'soups_stews',
     },
     {
-      'title': 'Keto/ Low Carbs Diet',
-      'desc': 'For Fat-loss & Definition',
+      'title': '🍚 Rice Dishes',
+      'desc': 'Fried rice, silog meals, biryani',
+      'icon': '🍚',
+      'key': 'rice_dishes',
     },
     {
-      'title': 'Dairy-Free Diet',
-      'desc': 'Excludes all forms of dairy: milk, cheese, butter, cream, yogurt, etc.',
+      'title': '🥗 Vegetables',
+      'desc': 'Adobong kangkong, pinakbet, chopsuey',
+      'icon': '🥗',
+      'key': 'vegetables',
     },
     {
-      'title': 'High Protein Diet',
-      'desc': 'For Gym Fitness',
+      'title': '🍜 Noodles & Pasta',
+      'desc': 'Pancit, spaghetti, bihon, mami',
+      'icon': '🍜',
+      'key': 'noodles_pasta',
     },
     {
-      'title': 'Gluten-Free',
-      'desc': 'No wheat, barley, or rye (for allergies or preference)',
+      'title': '🥘 Adobo & Braised',
+      'desc': 'Chicken adobo, pork adobo, humba',
+      'icon': '🥘',
+      'key': 'adobo_braised',
     },
     {
-      'title': 'Pescatarian',
-      'desc': 'Vegetarian + fish/seafood (Balanced option with lean protein)',
+      'title': '🍳 Egg Dishes',
+      'desc': 'Tortang talong, scrambled eggs, omelet',
+      'icon': '🍳',
+      'key': 'egg_dishes',
     },
     {
-      'title': 'Flexitarian Diet',
-      'desc': 'Mostly plant-based, but allows occasional meat',
+      'title': '🌶️ Spicy Food',
+      'desc': 'Bicol express, sisig, spicy wings',
+      'icon': '🌶️',
+      'key': 'spicy_food',
     },
   ];
 
-  int? selectedIndex;
+  final Set<int> selectedIndexes = {};
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -87,7 +105,7 @@ class _DietTypePreferencePageState extends State<DietTypePage> {
           children: [
             const SizedBox(height: 24),
             const Text(
-              'What is your diet type?',
+              'What dishes do you enjoy?',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -95,19 +113,28 @@ class _DietTypePreferencePageState extends State<DietTypePage> {
                 letterSpacing: 1.2,
               ),
             ),
+            const SizedBox(height: 8),
+            const Text(
+              'Select your favorite types of dishes. This helps us recommend recipes you\'ll love!',
+              style: TextStyle(fontSize: 14, color: Colors.black87),
+            ),
             const SizedBox(height: 24),
             Expanded(
               child: ListView.separated(
                 controller: _scrollController,
                 physics: const BouncingScrollPhysics(),
-                itemCount: dietTypes.length,
+                itemCount: dishPreferences.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
-                  final isSelected = selectedIndex == index;
+                  final isSelected = selectedIndexes.contains(index);
                   return GestureDetector(
                     onTap: () {
                       setState(() {
-                        selectedIndex = index;
+                        if (isSelected) {
+                          selectedIndexes.remove(index);
+                        } else {
+                          selectedIndexes.add(index);
+                        }
                       });
                       _scrollToIndex(index);
                     },
@@ -123,23 +150,43 @@ class _DietTypePreferencePageState extends State<DietTypePage> {
                       ),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
                           children: [
-                            Text(
-                              dietTypes[index]['title']!,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: isSelected ? Colors.white : Colors.black87,
-                              ),
+                            Checkbox(
+                              value: isSelected,
+                              onChanged: (val) {
+                                setState(() {
+                                  if (isSelected) {
+                                    selectedIndexes.remove(index);
+                                  } else {
+                                    selectedIndexes.add(index);
+                                  }
+                                });
+                              },
+                              activeColor: const Color(0xFF388E3C),
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              dietTypes[index]['desc']!,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: isSelected ? Colors.white70 : Colors.black54,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    dishPreferences[index]['title']!,
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: isSelected ? Colors.white : Colors.black87,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    dishPreferences[index]['desc']!,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: isSelected ? Colors.white70 : Colors.black54,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -163,20 +210,20 @@ class _DietTypePreferencePageState extends State<DietTypePage> {
                       borderRadius: BorderRadius.circular(30),
                     ),
                   ),
-                  onPressed: selectedIndex != null ? () async {
+                  onPressed: selectedIndexes.isNotEmpty ? () async {
                     final user = Supabase.instance.client.auth.currentUser;
-                    if (user != null && selectedIndex != null) {
-                      final selectedDiet = dietTypes[selectedIndex!]['title'];
+                    if (user != null) {
+                      final selectedDishes = selectedIndexes.map((i) => dishPreferences[i]['key']).toList();
                       await Supabase.instance.client
                         .from('user_preferences')
                         .upsert({
                           'user_id': user.id,
-                          'diet_type': selectedDiet,
+                          'dish_preferences': selectedDishes,
                         });
                     }
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const AllergySelectionPage()),
+                      MaterialPageRoute(builder: (context) => const UserProfilePage()),
                     );
                   } : null,
                   child: const Text('Confirm', style: TextStyle(fontSize: 18)),

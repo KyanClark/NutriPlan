@@ -23,10 +23,12 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
   Future<void> _fetchHistory() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
-      setState(() {
-        _history = [];
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _history = [];
+          _loading = false;
+        });
+      }
       return;
     }
     final response = await Supabase.instance.client
@@ -34,10 +36,12 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
         .select()
         .eq('user_id', user.id)
         .order('completed_at', ascending: false);
-    setState(() {
-      _history = List<Map<String, dynamic>>.from(response);
-      _loading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _history = List<Map<String, dynamic>>.from(response);
+        _loading = false;
+      });
+    }
   }
 
 

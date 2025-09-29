@@ -6,6 +6,7 @@ import '../../models/user_nutrition_goals.dart';
 import '../../widgets/meal_log_card.dart';
 import '../../screens/analytics/analytics_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../widgets/loading_skeletons.dart';
 
 class MealTrackerScreen extends StatefulWidget {
   final bool showBackButton;
@@ -76,13 +77,6 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
     _scrollOffset = _scrollController.offset;
   }
   
-  // Reset scroll offset to reset glass morphism effects
-  void _resetScrollOffset() {
-    if (!_mounted) return;
-    setState(() {
-      _scrollOffset = 0.0;
-    });
-  }
   
   // Glass morphism header widget
   Widget _buildGlassMorphismHeader() {
@@ -232,20 +226,48 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                 },
               ),
               const Spacer(),
-              // Calendar button with glass effect
+              // Current date button with glass effect
               GestureDetector(
                 onTap: _showCalendar,
                 child: Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.3),
+                    color: Colors.white.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.5),
+                      color: Colors.white.withValues(alpha: 0.5),
                       width: 1,
                     ),
                   ),
-                  child: Icon(Icons.calendar_today, size: 20, color: Colors.grey[600]),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        DateFormat('MMM').format(selectedDate),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                      Text(
+                        selectedDate.day.toString(),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                      Text(
+                        DateFormat('EEE').format(selectedDate),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -588,7 +610,7 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            'Goal: ${goals?.calorieGoal?.toStringAsFixed(0) ?? '2000'} cal',
+                            'Goal: ${(goals?.calorieGoal ?? 2000).toStringAsFixed(0)} cal',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 14,
@@ -770,7 +792,10 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
   // Build weekly content
   Widget _buildWeeklyContent() {
     if (_isLoadingWeekly) {
-      return const Center(child: CircularProgressIndicator());
+      return MealHistorySkeleton(
+        itemCount: 4,
+        loadingMessage: 'Analyzing weekly patterns...',
+      );
     }
     
     final summary = _weeklySummary ?? DailySummary(
@@ -940,7 +965,10 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
   // Build monthly content
   Widget _buildMonthlyContent() {
     if (_isLoadingMonthly) {
-      return const Center(child: CircularProgressIndicator());
+      return MealHistorySkeleton(
+        itemCount: 6,
+        loadingMessage: 'Calculating monthly insights...',
+      );
     }
     
     final summary = _monthlySummary ?? DailySummary(
@@ -1124,11 +1152,116 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
             
             Expanded(
               child: isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? MealHistorySkeleton(
+                      itemCount: 5,
+                      loadingMessage: 'Loading your meal history...',
+                    )
                   : _buildTabContent(),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // Get weekly progress data for the chart
+  Future<Map<String, dynamic>> _getWeeklyProgressData() async {
+    final now = DateTime.now();
+    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+    final dailyCalories = <double>[];
+    double totalCalories = 0.0;
+    int daysOnTrack = 0;
+    final dailyGoal = goals?.calorieGoal ?? 2000.0;
+
+    for (int i = 0; i < 7; i++) {
+      final date = startOfWeek.add(Duration(days: i));
+      final dayMeals = meals.where((meal) => 
+        meal.completedAt.year == date.year && 
+        meal.completedAt.month == date.month && 
+        meal.completedAt.day == date.day
+      ).toList();
+      
+      final dayCalories = dayMeals.fold<double>(0.0, (sum, meal) => sum + meal.calories);
+      dailyCalories.add(dayCalories);
+      totalCalories += dayCalories;
+      
+      if (dayCalories >= dailyGoal * 0.8 && dayCalories <= dailyGoal * 1.2) {
+        daysOnTrack++;
+      }
+    }
+
+    final weeklyGoal = dailyGoal * 7;
+    final progressPercentage = weeklyGoal > 0 ? (totalCalories / weeklyGoal).clamp(0.0, 1.0) : 0.0;
+
+    return {
+      'dailyCalories': dailyCalories,
+      'totalCalories': totalCalories,
+      'weeklyGoal': weeklyGoal,
+      'averageCalories': totalCalories / 7,
+      'daysOnTrack': daysOnTrack,
+      'progressPercentage': progressPercentage,
+    };
+  }
+
+  // Build weekly chart (simplified version)
+  Widget _buildWeeklyChart(List<double> dailyCalories) {
+    final dailyGoal = goals?.calorieGoal ?? 2000.0;
+    
+    // Ensure we have exactly 7 data points
+    final chartData = List<double>.from(dailyCalories);
+    while (chartData.length < 7) {
+      chartData.add(0.0);
+    }
+    if (chartData.length > 7) {
+      chartData.removeRange(7, chartData.length);
+    }
+
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    
+    return Container(
+      height: 200,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: chartData.asMap().entries.map((entry) {
+          final index = entry.key;
+          final calories = entry.value;
+          final height = (calories / dailyGoal * 150).clamp(10.0, 150.0);
+          
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text(
+                calories.toStringAsFixed(0),
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                width: 20,
+                height: height,
+                decoration: BoxDecoration(
+                  color: calories >= dailyGoal * 0.8 && calories <= dailyGoal * 1.2
+                      ? Colors.green
+                      : calories < dailyGoal * 0.8
+                          ? Colors.orange
+                          : Colors.red,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                days[index],
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey,
+                ),
+              ),
+            ],
+          );
+        }).toList(),
       ),
     );
   }
@@ -1485,8 +1618,8 @@ class _CalendarDialogState extends State<_CalendarDialog> {
                   child: Container(
                     margin: const EdgeInsets.all(2),
                     decoration: BoxDecoration(
-                      color: isSelected
-                          ? Colors.blue
+                      color: isSelected 
+                          ? Colors.blue 
                           : (isCurrentMonth ? Colors.white : Colors.grey[100]),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
@@ -1500,15 +1633,15 @@ class _CalendarDialogState extends State<_CalendarDialog> {
                           child: Text(
                             day.day.toString(),
                             style: TextStyle(
-                              color: isSelected
-                                  ? Colors.white
+                              color: isSelected 
+                                  ? Colors.white 
                                   : (isCurrentMonth
                                       ? (hasMeals ? Colors.green : Colors.black)
                                       : Colors.grey[400]),
                               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              ),
                             ),
                           ),
-                        ),
                         // Meal count badge
                         if (mealCount > 0)
                           Positioned(
