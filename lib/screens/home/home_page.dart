@@ -265,7 +265,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Widget _buildBanner() {
     final nutritionTips = _getNutritionTips();
     return SizedBox(
-      height: 160,
+      height: 175,
       child: Column(
               children: [
                 Expanded(
@@ -327,7 +327,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                             Text(
                               tip['tip'],
                               textAlign: TextAlign.center,
-                              maxLines: 3,
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: Colors.white,
@@ -362,7 +362,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     },
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(nutritionTips.length, (i) {
