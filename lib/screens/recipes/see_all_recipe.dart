@@ -149,7 +149,7 @@ class _SeeAllRecipePageState extends State<SeeAllRecipePage> {
                 ),
                 Expanded(
                   child: GridView.builder(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                        crossAxisCount: 2,
                        crossAxisSpacing: 16,

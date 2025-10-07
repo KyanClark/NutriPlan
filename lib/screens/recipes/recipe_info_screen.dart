@@ -515,9 +515,9 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
       if (mounted) {
-        setState(() {
-          isLoadingFavorite = false;
-        });
+      setState(() {
+        isLoadingFavorite = false;
+      });
       }
       return;
     }
@@ -525,17 +525,17 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
     try {
       final favoriteIds = await RecipeService.fetchFavoriteRecipeIds(user.id);
       if (mounted) {
-        setState(() {
-          isFavorite = favoriteIds.contains(widget.recipe.id);
-          isLoadingFavorite = false;
-        });
+      setState(() {
+        isFavorite = favoriteIds.contains(widget.recipe.id);
+        isLoadingFavorite = false;
+      });
       }
     } catch (e) {
       print('Error checking favorite status: $e');
       if (mounted) {
-        setState(() {
-          isLoadingFavorite = false;
-        });
+      setState(() {
+        isLoadingFavorite = false;
+      });
       }
     }
   }
@@ -667,14 +667,14 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
 
       // Determine meal type based on time
       String mealType;
-      if (time.hour >= 5 && time.hour < 11) {
-        mealType = 'breakfast';
-      } else if (time.hour >= 11 && time.hour < 16) {
-        mealType = 'lunch';
-      } else if (time.hour >= 16 && time.hour < 22) {
-        mealType = 'dinner';
+      if (time.hour >= 4 && time.hour < 12) {
+        mealType = 'breakfast';    // 4 AM - 12 PM (more flexible)
+      } else if (time.hour >= 12 && time.hour < 17) {
+        mealType = 'lunch';        // 12 PM - 5 PM
+      } else if (time.hour >= 17 && time.hour < 23) {
+        mealType = 'dinner';       // 5 PM - 11 PM
       } else {
-        mealType = 'snack';
+        mealType = 'snack';        // 11 PM - 4 AM
       }
 
       // Save to meal_plans table as one row per meal (with required date and time)
@@ -884,25 +884,25 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F6),
       body: Stack(
-        children: [
-          // Main card (scrollable, image at top, no padding)
-          Positioned.fill(
-            top: 0,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 80),
-              child: Column(
-                children: [
+          children: [
+            // Main card (scrollable, image at top, no padding)
+            Positioned.fill(
+              top: 0,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: 80),
+                child: Column(
+                  children: [
                   // Full-width square image at the top (extends behind system UI)
-                  Stack(
-                    children: [
-                      AspectRatio(
-                        aspectRatio: 1,
-                        child: Image.network(
-                          recipe.imageUrl,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
+                    Stack(
+                      children: [
+                        AspectRatio(
+                          aspectRatio: 1,
+                          child: Image.network(
+                            recipe.imageUrl,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                          ),
                         ),
-                      ),
                         // Back button on top of image (accounting for system UI)
                         Positioned(
                           top: MediaQuery.of(context).padding.top + 16,
@@ -966,223 +966,223 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(20.0),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    recipe.title,
+                                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                                                 Text(
+                                   '🍽️ ${updatedNutrition?['calories'] ?? recipe.calories ?? 'Calculating...'} kcal', 
+                                   style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.orange)
+                                 ),
+                              ],
+                            ),
+                            if (recipe.cost > 0)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
+                                child: Text('Cost: ₱${recipe.cost.toStringAsFixed(2)}', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.blueGrey, fontWeight: FontWeight.w600)),
+                              ),
+                              const SizedBox(height: 8),
+                            Text(
+                              recipe.shortDescription,
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
+                            ),
+                              const SizedBox(height: 20),
+                            if (recipe.dietTypes.isNotEmpty)
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
-                                  Expanded(
-                                    child: Text(
-                                      recipe.title,
-                                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                                  const Icon(Icons.eco, color: Colors.green, size: 18),
+                                  ...recipe.dietTypes.map((type) => Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green[50],
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '🍽️ ${updatedNutrition?['calories'] ?? recipe.calories ?? 'Calculating...'} kcal', 
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.orange)
-                                  ),
+                                    child: Text(
+                                      type,
+                                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                                    ),
+                                  )),
                                 ],
                               ),
-                              if (recipe.cost > 0)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
-                                  child: Text('Cost: ₱${recipe.cost.toStringAsFixed(2)}', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.blueGrey, fontWeight: FontWeight.w600)),
-                                ),
-                              const SizedBox(height: 8),
-                              Text(
-                                recipe.shortDescription,
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
-                              ),
                               const SizedBox(height: 20),
-                              if (recipe.dietTypes.isNotEmpty)
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 4,
-                                  crossAxisAlignment: WrapCrossAlignment.center,
-                                  children: [
-                                    const Icon(Icons.eco, color: Colors.green, size: 18),
-                                    ...recipe.dietTypes.map((type) => Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.green[50],
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        type,
-                                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
-                                      ),
-                                    )),
-                                  ],
-                                ),
-                              const SizedBox(height: 20),
-                              // Nutrition Section with Auto-Update
+                            // Nutrition Section with Auto-Update
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.start,
                                 children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.start,
-                                    children: [
-                                      const Text('Macronutrients Breakdown', style: TextStyle(fontWeight: FontWeight.bold)),
-                                      const SizedBox(width: 8),
-                                      if (isUpdatingNutrition)
-                                        const SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(strokeWidth: 2),
-                                        ),
-                                    ],
-                                  ),
+                                  const Text('Macronutrients Breakdown', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    const SizedBox(width: 8),
+                                    if (isUpdatingNutrition)
+                                      const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      ),
+                                  ],
+                                ),
                                   const SizedBox(height: 12),
                                 
-                                  // Test buttons for nutrition data management
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.start,
-                                    children: [
-                                      ElevatedButton.icon(
-                                        onPressed: isUpdatingNutrition ? null : _updateNutrition,
-                                        icon: const Icon(Icons.refresh, size: 16),
-                                        label: const Text('Update Nutrition'),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.blue,
-                                          foregroundColor: Colors.white,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
+                                // Test buttons for nutrition data management
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.start,
+                                  children: [
+                                    ElevatedButton.icon(
+                                      onPressed: isUpdatingNutrition ? null : _updateNutrition,
+                                      icon: const Icon(Icons.refresh, size: 16),
+                                      label: const Text('Update Nutrition'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.blue,
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
                                         ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                
-                                  // Show loading state while updating
-                                  if (isUpdatingNutrition)
-                                    const NutritionLoadingSkeleton()
-                                  // Show nutrition data (either original or updated)
-                                  else if ((recipe.macros.isNotEmpty && recipe.calories != null && recipe.calories! > 0) || updatedNutrition != null)
-                                    Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.start,
-                                            children: [
-                                              _MacroChip(
-                                                label: 'Carbs', 
-                                                value: (updatedNutrition?['carbs'] ?? recipe.macros['carbs'] ?? 0).toString(),
-                                                unit: 'g'
-                                              ),
-                                              const SizedBox(width: 8),
-                                              _MacroChip(
-                                                label: 'Fat', 
-                                                value: (updatedNutrition?['fat'] ?? recipe.macros['fat'] ?? 0).toString(),
-                                                unit: 'g'
-                                              ),
-                                              const SizedBox(width: 8),
-                                              _MacroChip(
-                                                label: 'Fiber', 
-                                                value: (updatedNutrition?['fiber'] ?? recipe.macros['fiber'] ?? 0).toString(),
-                                                unit: 'g'
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.start,
-                                            children: [
-                                              _MacroChip(
-                                                label: 'Protein', 
-                                                value: (updatedNutrition?['protein'] ?? recipe.macros['protein'] ?? 0).toString(),
-                                                unit: 'g'
-                                              ),
-                                              const SizedBox(width: 8),
-                                              _MacroChip(
-                                                label: 'Sugar', 
-                                                value: (updatedNutrition?['sugar'] ?? recipe.macros['sugar'] ?? 0).toString(),
-                                                unit: 'g'
-                                              ),
-                                            ],
-                                          ),
-                                          // Show additional nutrients if available
-                                          if (updatedNutrition != null && (updatedNutrition!['sodium'] != null || updatedNutrition!['cholesterol'] != null))
-                                            Padding(
-                                              padding: const EdgeInsets.only(top: 8),
-                                              child: Row(
-                                                mainAxisAlignment: MainAxisAlignment.start,
-                                                children: [
-                                                  if (updatedNutrition!['sodium'] != null)
-                                                    _MacroChip(
-                                                      label: 'Sodium', 
-                                                      value: updatedNutrition!['sodium'].toStringAsFixed(1),
-                                                      unit: 'mg'
-                                                    ),
-                                                  if (updatedNutrition!['sodium'] != null && updatedNutrition!['cholesterol'] != null)
-                                                    const SizedBox(width: 8),
-                                                  if (updatedNutrition!['cholesterol'] != null)
-                                                    _MacroChip(
-                                                      label: 'Cholesterol', 
-                                                      value: updatedNutrition!['cholesterol'].toStringAsFixed(1),
-                                                      unit: 'mg'
-                                                    ),
-                                                ],
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    )
-                                  // Show message when no nutrition data available
-                                  else
-                                    Container(
-                                      padding: const EdgeInsets.all(16),
-                                      decoration: BoxDecoration(
-                                        color: Colors.orange[50],
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: Colors.orange[200]!),
-                                      ),
-                                      child: const Column(
-                                        children: [
-                                          Icon(Icons.info_outline, color: Colors.orange, size: 24),
-                                          SizedBox(height: 8),
-                                          Text(
-                                            'Nutrition data not available',
-                                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
-                                          ),
-                                          SizedBox(height: 4),
-                                          Text(
-                                            'Nutrition data will be calculated automatically',
-                                            style: TextStyle(fontSize: 12, color: Colors.orange),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        ],
                                       ),
                                     ),
+                                    const SizedBox(width: 8),
+                                  ],
+                                ),
+                                  const SizedBox(height: 12),
+                                
+                                // Show loading state while updating
+                                if (isUpdatingNutrition)
+                                    const NutritionLoadingSkeleton()
+                                // Show nutrition data (either original or updated)
+                                else if ((recipe.macros.isNotEmpty && recipe.calories != null && recipe.calories! > 0) || updatedNutrition != null)
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.start,
+                                          children: [
+                                                _MacroChip(
+                                                  label: 'Carbs', 
+                                                  value: (updatedNutrition?['carbs'] ?? recipe.macros['carbs'] ?? 0).toString(),
+                                                  unit: 'g'
+                                                ),
+                                            const SizedBox(width: 8),
+                                                _MacroChip(
+                                                  label: 'Fat', 
+                                                  value: (updatedNutrition?['fat'] ?? recipe.macros['fat'] ?? 0).toString(),
+                                                  unit: 'g'
+                                                ),
+                                            const SizedBox(width: 8),
+                                                _MacroChip(
+                                                  label: 'Fiber', 
+                                                  value: (updatedNutrition?['fiber'] ?? recipe.macros['fiber'] ?? 0).toString(),
+                                                  unit: 'g'
+                                                ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.start,
+                                          children: [
+                                                _MacroChip(
+                                                  label: 'Protein', 
+                                                  value: (updatedNutrition?['protein'] ?? recipe.macros['protein'] ?? 0).toString(),
+                                                  unit: 'g'
+                                                ),
+                                            const SizedBox(width: 8),
+                                                _MacroChip(
+                                                  label: 'Sugar', 
+                                                  value: (updatedNutrition?['sugar'] ?? recipe.macros['sugar'] ?? 0).toString(),
+                                                  unit: 'g'
+                                                ),
+                                          ],
+                                        ),
+                                        // Show additional nutrients if available
+                                        if (updatedNutrition != null && (updatedNutrition!['sodium'] != null || updatedNutrition!['cholesterol'] != null))
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 8),
+                                            child: Row(
+                                              mainAxisAlignment: MainAxisAlignment.start,
+                                              children: [
+                                                if (updatedNutrition!['sodium'] != null)
+                                                  _MacroChip(
+                                                    label: 'Sodium', 
+                                                    value: updatedNutrition!['sodium'].toStringAsFixed(1),
+                                                    unit: 'mg'
+                                                  ),
+                                                if (updatedNutrition!['sodium'] != null && updatedNutrition!['cholesterol'] != null)
+                                                  const SizedBox(width: 8),
+                                                if (updatedNutrition!['cholesterol'] != null)
+                                                  _MacroChip(
+                                                    label: 'Cholesterol', 
+                                                    value: updatedNutrition!['cholesterol'].toStringAsFixed(1),
+                                                    unit: 'mg'
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  )
+                                // Show message when no nutrition data available
+                                else
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange[50],
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: Colors.orange[200]!),
+                                    ),
+                                    child: const Column(
+                                      children: [
+                                        Icon(Icons.info_outline, color: Colors.orange, size: 24),
+                                        SizedBox(height: 8),
+                                        Text(
+                                          'Nutrition data not available',
+                                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+                                        ),
+                                        SizedBox(height: 4),
+                                        Text(
+                                          'Nutrition data will be calculated automatically',
+                                          style: TextStyle(fontSize: 12, color: Colors.orange),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 20),
-                              if (recipe.allergyWarning.isNotEmpty)
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 4,
-                                  crossAxisAlignment: WrapCrossAlignment.center,
-                                  children: [
-                                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFFF6961), size: 18),
-                                    ...recipe.allergyWarning.split(', ').map((allergy) => Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFFF6961).withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        allergy.trim(),
-                                        style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFFF6961)),
-                                      ),
-                                    )),
-                                  ],
-                                ),
+                            if (recipe.allergyWarning.isNotEmpty)
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  const Icon(Icons.warning_amber_rounded, color: Color(0xFFFF6961), size: 18),
+                                  ...recipe.allergyWarning.split(', ').map((allergy) => Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFF6961).withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      allergy.trim(),
+                                      style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFFF6961)),
+                                    ),
+                                  )),
+                                ],
+                              ),
                               const SizedBox(height: 20),
                               const Text('Ingredients', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                               const SizedBox(height: 12),
@@ -1198,208 +1198,208 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                                 child: Text('${entry.key + 1}. ${entry.value}', style: const TextStyle(fontSize: 15)),
                               )),
                               const SizedBox(height: 20),
-                              
-                              // Reviews Section Header
-                              if (isLoadingFeedbacks)
-                                const Center(child: CircularProgressIndicator())
-                              else
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Reviews Header with Overall Rating
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        const Text(
-                                          'Reviews',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 20,
-                                          ),
-                                        ),
-                                        if (totalFeedbacks > 0)
-                                          Row(
-                                            children: [
-                                              Icon(Icons.star, color: Colors.amber, size: 20),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                '${averageRating.toStringAsFixed(1)}',
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 18,
-                                                ),
-                                              ),
-                                              Text(
-                                                ' ($totalFeedbacks reviews)',
-                                                style: const TextStyle(
-                                                  color: Color(0xFF757575),
-                                                  fontSize: 14,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 16),
                             
-                                    // Individual Review Cards
-                                    if (feedbacks.isNotEmpty)
-                                      ...feedbacks.take(5).map((feedback) => Padding(
-                                        padding: const EdgeInsets.only(bottom: 12.0),
-                                        child: Container(
-                                          padding: const EdgeInsets.all(16),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFF8F9FA),
-                                            borderRadius: BorderRadius.circular(12),
-                                            border: Border.all(
-                                              color: const Color(0xFFE9ECEF),
-                                              width: 1,
-                                            ),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              // Review Header Row
-                                              Row(
-                                                children: [
-                                                  // Reviewer Name
-                                                  Text(
-                                                    feedback['profiles']['username'] ?? 'Anonymous',
-                                                    style: const TextStyle(
-                                                      fontWeight: FontWeight.bold,
-                                                      fontSize: 16,
-                                                    ),
-                                                  ),
-                                                  const Spacer(),
-                                                  // Star Rating
-                                                  Wrap(
-                                                    spacing: 2,
-                                                    children: List.generate(5, (index) => Icon(
-                                                      index < (feedback['rating'] ?? 0) 
-                                                          ? Icons.star 
-                                                          : Icons.star_border,
-                                                      color: Colors.amber,
-                                                      size: 18,
-                                                    )),
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  // Time Since Review
-                                                  if (feedback['created_at'] != null)
-                                                    Text(
-                                                      _getTimeAgo(DateTime.tryParse(feedback['created_at']) ?? DateTime.now()),
-                                                      style: const TextStyle(
-                                                        fontSize: 12,
-                                                        color: Color(0xFF6C757D),
-                                                      ),
-                                                    ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 8),
-                                              // Review Comment
-                                              Text(
-                                                feedback['comment'] ?? 'No comment',
-                                                style: const TextStyle(
-                                                  color: Color(0xFF495057),
-                                                  fontSize: 14,
-                                                  height: 1.4,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 8),
-                                              // Action Row
-                                              Row(
-                                                children: [
-                                                  // Show "You" badge if it's the current user's feedback
-                                                  if (_isCurrentUserFeedback(feedback))
-                                                    Container(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                      decoration: BoxDecoration(
-                                                        color: const Color(0xFF4CAF50),
-                                                        borderRadius: BorderRadius.circular(12),
-                                                      ),
-                                                      child: const Text(
-                                                        'You',
-                                                        style: TextStyle(
-                                                          color: Colors.white,
-                                                          fontSize: 12,
-                                                          fontWeight: FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  const Spacer(),
-                                                  // Three dots menu for user's own feedback
-                                                  if (_isCurrentUserFeedback(feedback))
-                                                    PopupMenuButton<String>(
-                                                      icon: const Icon(Icons.more_vert, color: Color(0xFF6C757D)),
-                                                      onSelected: (value) {
-                                                        if (value == 'delete') {
-                                                          _showDeleteConfirmation(feedback);
-                                                        }
-                                                      },
-                                                      itemBuilder: (context) => [
-                                                        const PopupMenuItem<String>(
-                                                          value: 'delete',
-                                                          child: Row(
-                                                            children: [
-                                                              Icon(Icons.delete, color: const Color(0xFFFF6961)),
-                                                              SizedBox(width: 8),
-                                                              Text('Delete', style: TextStyle(color: const Color(0xFFFF6961))),
-                                                            ],
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
+                            // Reviews Section Header
+                            if (isLoadingFeedbacks)
+                              const Center(child: CircularProgressIndicator())
+                            else
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Reviews Header with Overall Rating
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text(
+                                        'Reviews',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 20,
                                         ),
-                                      ))
-                                    else
-                                      Container(
-                                        padding: const EdgeInsets.all(24),
-                                        decoration: BoxDecoration(
+                                      ),
+                                      if (totalFeedbacks > 0)
+                                        Row(
+                                  children: [
+                                            Icon(Icons.star, color: Colors.amber, size: 20),
+                                            const SizedBox(width: 4),
+                                    Text(
+                                              '${averageRating.toStringAsFixed(1)}',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 18,
+                                              ),
+                                            ),
+                                            Text(
+                                              ' ($totalFeedbacks reviews)',
+                                              style: const TextStyle(
+                                                color: Color(0xFF757575),
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                    ],
+                              ),
+                            const SizedBox(height: 16),
+                            
+                                  // Individual Review Cards
+                            if (feedbacks.isNotEmpty)
+                                  ...feedbacks.take(5).map((feedback) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 12.0),
+                                    child: Container(
+                                        padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
                                           color: const Color(0xFFF8F9FA),
-                                          borderRadius: BorderRadius.circular(12),
+                                        borderRadius: BorderRadius.circular(12),
                                           border: Border.all(
                                             color: const Color(0xFFE9ECEF),
                                             width: 1,
                                           ),
-                                        ),
-                                        child: const Center(
-                                          child: Column(
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                            // Review Header Row
+                                          Row(
                                             children: [
-                                              Icon(
-                                                Icons.rate_review_outlined,
-                                                size: 48,
-                                                color: Color(0xFF6C757D),
-                                              ),
-                                              SizedBox(height: 16),
-                                              Text(
-                                                'No reviews yet',
-                                                style: TextStyle(
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Color(0xFF495057),
+                                                // Reviewer Name
+                                                      Text(
+                                                  feedback['profiles']['username'] ?? 'Anonymous',
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16,
+                                                  ),
                                                 ),
-                                              ),
-                                              SizedBox(height: 8),
-                                              Text(
-                                                'Be the first to share your experience!',
-                                                style: TextStyle(
-                                                  color: Color(0xFF6C757D),
-                                                  fontSize: 14,
+                                                const Spacer(),
+                                                // Star Rating
+                                                    Wrap(
+                                                      spacing: 2,
+                                                      children: List.generate(5, (index) => Icon(
+                                                    index < (feedback['rating'] ?? 0) 
+                                                        ? Icons.star 
+                                                        : Icons.star_border,
+                                                        color: Colors.amber,
+                                                    size: 18,
+                                                  )),
                                                 ),
-                                                textAlign: TextAlign.center,
+                                                const SizedBox(width: 8),
+                                                // Time Since Review
+                                                if (feedback['created_at'] != null)
+                                                  Text(
+                                                    _getTimeAgo(DateTime.tryParse(feedback['created_at']) ?? DateTime.now()),
+                                                    style: const TextStyle(
+                                                      fontSize: 12,
+                                                      color: Color(0xFF6C757D),
+                                                    ),
+                                                    ),
+                                                  ],
+                                                ),
+                                            const SizedBox(height: 8),
+                                            // Review Comment
+                                            Text(
+                                              feedback['comment'] ?? 'No comment',
+                                              style: const TextStyle(
+                                                color: Color(0xFF495057),
+                                                fontSize: 14,
+                                                height: 1.4,
                                               ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            // Action Row
+                                            Row(
+                                              children: [
+                                              // Show "You" badge if it's the current user's feedback
+                                              if (_isCurrentUserFeedback(feedback))
+                                                Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFF4CAF50),
+                                                    borderRadius: BorderRadius.circular(12),
+                                                  ),
+                                                  child: const Text(
+                                                    'You',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const Spacer(),
+                                              // Three dots menu for user's own feedback
+                                              if (_isCurrentUserFeedback(feedback))
+                                                PopupMenuButton<String>(
+                                                    icon: const Icon(Icons.more_vert, color: Color(0xFF6C757D)),
+                                                  onSelected: (value) {
+                                                    if (value == 'delete') {
+                                                      _showDeleteConfirmation(feedback);
+                                                    }
+                                                  },
+                                                  itemBuilder: (context) => [
+                                                    const PopupMenuItem<String>(
+                                                      value: 'delete',
+                                                      child: Row(
+                                                        children: [
+                                                          Icon(Icons.delete, color: const Color(0xFFFF6961)),
+                                                          SizedBox(width: 8),
+                                                          Text('Delete', style: TextStyle(color: const Color(0xFFFF6961))),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
                                             ],
                                           ),
+                                        ],
+                                      ),
+                                    ),
+                                    ))
+                                  else
+                                    Container(
+                                      padding: const EdgeInsets.all(24),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF8F9FA),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: const Color(0xFFE9ECEF),
+                                          width: 1,
                                         ),
                                       ),
-                                    // end reviews column
-                                  ],
-                                ),
+                                      child: const Center(
+                                        child: Column(
+                                          children: [
+                                            Icon(
+                                              Icons.rate_review_outlined,
+                                              size: 48,
+                                              color: Color(0xFF6C757D),
+                                            ),
+                                            SizedBox(height: 16),
+                                            Text(
+                                              'No reviews yet',
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.w600,
+                                                color: Color(0xFF495057),
+                                              ),
+                                            ),
+                                            SizedBox(height: 8),
+                                            Text(
+                                              'Be the first to share your experience!',
+                                              style: TextStyle(
+                                                color: Color(0xFF6C757D),
+                                                fontSize: 14,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  // end reviews column
+                                ],
+                              ),
                               const SizedBox(height: 20),
-                            ],
+                          ],
                           ),
                         ),
                       ),
@@ -1516,7 +1516,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
               ),
             ),
           ],
-        ),
-      );
+      ),
+    );
   }
 } 

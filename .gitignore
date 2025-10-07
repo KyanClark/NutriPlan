@@ -45,3 +45,13 @@ app.*.map.json
 
 # Embedded git repository
 fnri-food-composition-scraper/
+
+# Environment variables and API keys
+.env
+.env.local
+.env.production
+.env.staging
+*.env
+GEMINI_API_KEY
+SUPABASE_API_KEY
+SUPABASE_URL

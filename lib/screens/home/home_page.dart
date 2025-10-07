@@ -11,8 +11,11 @@ import '../recipes/filtered_recipes_page.dart';
 import '../../models/smart_suggestion_models.dart';
 import '../../models/meal_history_entry.dart';
 import '../../services/smart_meal_suggestion_service.dart';
+import '../../services/api_cache_service.dart';
 import '../recipes/recipe_info_screen.dart';
 import '../../widgets/smart_suggestions_loading_animation.dart';
+import '../meal_plan/meal_summary_page.dart';
+import '../../models/recipes.dart';
 
 class HomePage extends StatefulWidget {
   final bool forceMealPlanRefresh;
@@ -36,6 +39,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   final PageController _bannerController = PageController(viewportFraction: 0.88);
   double _bannerPage = 0.0;
   Timer? _bannerAutoTimer;
+  List<Recipe> _recentMeals = [];
 
 
   @override
@@ -45,6 +49,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     _selectedIndex = widget.initialTab;
     _fetchCounts();
     _fetchSmartSuggestions();
+    _fetchRecentMeals();
     _bannerController.addListener(() {
       setState(() {
         _bannerPage = _bannerController.page ?? 0.0;
@@ -95,23 +100,19 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Future<void> _fetchSmartSuggestions() async {
-      if (!mounted) return;
+    if (!mounted) return;
     setState(() => _loadingSuggestions = true);
     
     try {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) {
-        if (!mounted) return;
-        setState(() {
+      if (!mounted) return;
+      setState(() {
           _smartSuggestions = [];
           _loadingSuggestions = false;
         });
         return;
       }
-
-      // Test AI integration first
-      final aiWorking = await SmartMealSuggestionService.testAIIntegration();
-      print('AI Integration Status: ${aiWorking ? "Working" : "Failed"}');
 
       // Get suggestions for the current meal time
       final now = DateTime.now();
@@ -126,12 +127,48 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         currentMealCategory = MealCategory.snack;
       }
 
+      // Generate cache key
+      final cacheKey = APICacheService.generateSmartSuggestionsKey(
+        user.id, 
+        currentMealCategory.toString(), 
+        now
+      );
+
+      // Check cache first
+      final cachedSuggestions = APICacheService().get<List<SmartMealSuggestion>>(cacheKey);
+      if (cachedSuggestions != null) {
+        print('Using cached smart suggestions');
+        if (!mounted) return;
+        setState(() {
+          _smartSuggestions = cachedSuggestions;
+          _loadingSuggestions = false;
+      });
+      _startBannerAutoplay();
+        return;
+      }
+
+      // Test AI integration first (with caching)
+      final aiTestKey = APICacheService.generateAITestKey();
+      bool aiWorking = APICacheService().get<bool>(aiTestKey) ?? false;
+      
+      if (!APICacheService().has(aiTestKey)) {
+        aiWorking = await SmartMealSuggestionService.testAIIntegration();
+        APICacheService().set(aiTestKey, aiWorking, duration: const Duration(minutes: 10));
+        print('AI Integration Status: ${aiWorking ? "Working" : "Failed"}');
+      } else {
+        print('Using cached AI test result: ${aiWorking ? "Working" : "Failed"}');
+      }
+
+      // Fetch fresh suggestions
       final suggestions = await SmartMealSuggestionService.getSmartSuggestions(
         userId: user.id,
         mealCategory: currentMealCategory,
         targetTime: now,
         useAI: aiWorking, // Only use AI if it's working
       );
+
+      // Cache the suggestions
+      APICacheService().set(cacheKey, suggestions, duration: const Duration(minutes: 5));
 
       if (!mounted) return;
       setState(() {
@@ -265,7 +302,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Widget _buildBanner() {
     final nutritionTips = _getNutritionTips();
     return SizedBox(
-      height: 175,
+      height: 180,
       child: Column(
               children: [
                 Expanded(
@@ -305,38 +342,45 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                               ],
                             ),
                       child: Padding(
-                        padding: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.all(16),
                         child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          mainAxisSize: MainAxisSize.max,
                                 children: [
                             // Icon
-                                  Container(
-                              padding: const EdgeInsets.all(12),
+                                  SizedBox(
+                              height: 44,
+                              width: 44,
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Icon(
-                                tip['icon'],
-                                color: Colors.white,
-                                size: 32,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            // Tip text
-                            Text(
-                              tip['tip'],
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16,
-                                height: 1.3,
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Icon(
+                                  tip['icon'],
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 8),
+                            // Tip text
+                            Flexible(
+                                    child: Text(
+                                tip['tip'],
+                                textAlign: TextAlign.center,
+                                maxLines: 3,
+                                      overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 16,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
                             // Category label
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -479,25 +523,25 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () async {
-          await Navigator.of(context).push(
-            PageRouteBuilder(
+      onTap: () async {
+        await Navigator.of(context).push(
+          PageRouteBuilder(
               pageBuilder: (context, animation, secondaryAnimation) => RecipeInfoScreen(
                 recipe: suggestion.recipe,
               ),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                const begin = Offset(0.0, 1.0);
-                const end = Offset.zero;
-                const curve = Curves.ease;
-                final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                return SlideTransition(
-                  position: animation.drive(tween),
-                  child: child,
-                );
-              },
-            ),
-          );
-        },
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              const begin = Offset(0.0, 1.0);
+              const end = Offset.zero;
+              const curve = Curves.ease;
+              final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+              return SlideTransition(
+                position: animation.drive(tween),
+                child: child,
+              );
+            },
+          ),
+        );
+      },
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
@@ -1075,10 +1119,34 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                         ],
                       ),
                     ),
+                    Row(
+                      children: [
+                        // Add Meal Plan button
+                        GestureDetector(
+                          onTap: _createMealPlanFromHomepage,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.green,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Text(
+                              '+ Add Plan',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                     Icon(
                       Icons.arrow_forward_ios,
                       color: Colors.grey[400],
                       size: 16,
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -1088,6 +1156,72 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   // CTA removed per request
+
+  // Fetch recent meals for meal plan creation
+  Future<void> _fetchRecentMeals() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
+
+      // Fetch recent recipes from meal history
+      final mealHistory = await Supabase.instance.client
+          .from('meal_plan_history')
+          .select('recipe_id, title, image_url, calories, protein, carbs, fat')
+          .eq('user_id', user.id)
+          .order('completed_at', ascending: false)
+          .limit(10);
+
+      if (!mounted) return;
+
+      setState(() {
+        _recentMeals = mealHistory.map((meal) => Recipe(
+          id: meal['recipe_id']?.toString() ?? '',
+          title: meal['title'] ?? 'Unknown Recipe',
+          imageUrl: meal['image_url'] ?? '',
+          shortDescription: 'Recent meal from history',
+          calories: meal['calories'] ?? 0,
+          ingredients: [],
+          instructions: [],
+          macros: {
+            'protein': (meal['protein'] ?? 0).toDouble(),
+            'carbs': (meal['carbs'] ?? 0).toDouble(),
+            'fat': (meal['fat'] ?? 0).toDouble(),
+          },
+          allergyWarning: '',
+          dietTypes: [],
+          cost: 0.0,
+        )).toList();
+      });
+    } catch (e) {
+      print('Error fetching recent meals: $e');
+    }
+  }
+
+  // Create meal plan from homepage
+  Future<void> _createMealPlanFromHomepage() async {
+    if (_recentMeals.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No recent meals found. Please add some meals first.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+              // Navigate directly to MealSummaryPage
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => MealSummaryPage(
+                    meals: _recentMeals,
+                    onBuildMealPlan: (mealsWithTime) async {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ),
+              );
+  }
 
   @override
   Widget build(BuildContext context) {

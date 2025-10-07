@@ -20,9 +20,10 @@ NutriPlan is a feature-rich nutrition and meal planning application that leverag
 - **Realistic Calculations**: Conservative quantity estimation and validation ranges
 - **Complete Dish Matching**: Priority-based nutrition calculation for common Filipino dishes
 
-### 📊 **Comprehensive Meal Tracking**
+### 📊 **Comprehensive Meal Tracking & Analytics**
 - **Meal Categorization**: Breakfast, lunch, dinner, and snacks with detailed tracking
-- **Nutritional Analytics**: Daily, weekly, and monthly analysis
+- **Nutritional Analytics**: Weekly and monthly calorie and macro comparisons
+- **AI Insights**: Gemini-powered insights on trends and action items
 - **Goal Management**: Customizable nutrition targets and progress monitoring
 - **Meal History**: Complete record of dietary intake with search and filtering
 
@@ -42,7 +43,7 @@ NutriPlan is a feature-rich nutrition and meal planning application that leverag
 ### **Backend Services**
 - **Supabase**: Real-time database with authentication and storage
 - **Local Data Processing**: FNRI CSV parsing for offline nutrition calculations
-- **API Integration**: RESTful services for recipe management and user data
+- **API Integration**: Gemini AI for insights with caching and rate-limit mitigation
 
 ### **Data Management**
 - **Nutrition Database**: FNRI food composition data with 1542+ ingredients
@@ -70,9 +71,9 @@ NutriPlan is a feature-rich nutrition and meal planning application that leverag
    flutter pub get
    ```
 
-3. **Configure Supabase**
+3. **Configure Supabase & Environment**
    - Create a Supabase project at [supabase.com](https://supabase.com)
-   - Update `lib/services/supabase_config.dart` with your project credentials
+   - Set environment variables (see below)
    - Set up the required database tables (see Database Schema section)
 
 4. **Run the Application**
@@ -86,8 +87,13 @@ Create a `.env` file in the project root:
 ```env
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_ANON_KEY=your_supabase_anon_key
-FNRI_DATA_PATH=assets/data/fnri_nutrition_data.csv
+GEMINI_API_KEY=your_gemini_api_key
+FNRI_DATA_PATH=assets/data/fnri_detailed_nutritional_data.csv
 ```
+
+Notes:
+- The `.gitignore` includes common env file patterns and API key names.
+- Gemini calls are cached to reduce cost and avoid rate limiting.
 
 ## 📊 Database Schema
 
@@ -206,13 +212,15 @@ flutter test integration_test/
 - [ ] AI meal suggestions
 - [ ] Data persistence and synchronization
 
-## 📈 Performance Considerations
+## 📈 Performance & Caching
 
 ### **Optimization Strategies**
 - **Local Data Caching**: FNRI nutrition data cached for offline access
 - **Lazy Loading**: Images and data loaded on-demand
 - **Efficient Queries**: Optimized database queries with proper indexing
 - **Memory Management**: Proper disposal of controllers and listeners
+ - **Gemini Caching**: AI insights and smart suggestions cached (5–10 mins)
+ - **Request Deduping**: Avoid duplicate concurrent AI requests
 
 ### **Monitoring**
 - Performance metrics tracking

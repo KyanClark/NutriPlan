@@ -4,7 +4,7 @@ import 'dart:ui';
 import '../../models/meal_history_entry.dart';
 import '../../models/user_nutrition_goals.dart';
 import '../../widgets/meal_log_card.dart';
-import '../../screens/analytics/analytics_page.dart';
+// Removed analytics page import (file deleted)
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../widgets/loading_skeletons.dart';
 
@@ -126,19 +126,48 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                             color: Colors.grey[600],
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        // Current date display horizontally under the subtitle
+                        GestureDetector(
+                          onTap: _showCalendar,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.5),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.calendar_today,
+                                  size: 16,
+                                  color: Colors.grey[700],
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  DateFormat('MMM dd, yyyy').format(selectedDate),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
                   // Analytics button
+                  // Analytics navigation removed (page deleted)
                   GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const AnalyticsPage(),
-                        ),
-                      );
-                    },
+                    onTap: () {},
                     child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
@@ -226,50 +255,6 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                 },
               ),
               const Spacer(),
-              // Current date button with glass effect
-              GestureDetector(
-                onTap: _showCalendar,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.5),
-                      width: 1,
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        DateFormat('MMM').format(selectedDate),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                      Text(
-                        selectedDate.day.toString(),
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[800],
-                        ),
-                      ),
-                      Text(
-                        DateFormat('EEE').format(selectedDate),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             ],
           ),
         ),
@@ -313,14 +298,12 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
 
       // Parse meal data with better error handling
       final mealList = <MealHistoryEntry>[];
-      if (mealRes is List) {
-        for (final mealData in mealRes) {
-          try {
-            final meal = MealHistoryEntry.fromMap(mealData);
-            mealList.add(meal);
-          } catch (e) {
-            print('Error parsing meal data: $e');
-          }
+      for (final mealData in mealRes) {
+        try {
+          final meal = MealHistoryEntry.fromMap(mealData);
+          mealList.add(meal);
+        } catch (e) {
+          print('Error parsing meal data: $e');
         }
       }
 
@@ -350,37 +333,47 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
     }
   }
 
-  Future<void> _fetchDatesWithMeals() async {
+  Future<void> _fetchDatesWithMeals([DateTime? targetMonth]) async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) return;
       
-      // Fetch all meal records for the current month
-      final startOfMonth = DateTime(selectedDate.year, selectedDate.month, 1);
-      final endOfMonth = DateTime(selectedDate.year, selectedDate.month + 1, 0);
+      // Use targetMonth if provided, otherwise use selectedDate
+      final monthToFetch = targetMonth ?? selectedDate;
+      
+      // Fetch data for a broader range to cover all visible months in calendar
+      // This includes previous month's trailing days and next month's leading days
+      final startOfRange = DateTime(monthToFetch.year, monthToFetch.month - 1, 1);
+      final endOfRange = DateTime(monthToFetch.year, monthToFetch.month + 2, 0);
+      
+      print('📅 Fetching meals for extended range: ${DateFormat('MMM yyyy').format(startOfRange)} to ${DateFormat('MMM yyyy').format(endOfRange)}');
+      print('📅 Date range: ${startOfRange.toIso8601String()} to ${endOfRange.toIso8601String()}');
       
       final mealRes = await Supabase.instance.client
           .from('meal_plan_history')
           .select('completed_at')
           .eq('user_id', user.id)
-          .gte('completed_at', startOfMonth.toUtc().toIso8601String())
-          .lt('completed_at', endOfMonth.add(const Duration(days: 1)).toUtc().toIso8601String());
+          .gte('completed_at', startOfRange.toUtc().toIso8601String())
+          .lt('completed_at', endOfRange.add(const Duration(days: 1)).toUtc().toIso8601String());
+      
+      print('Found ${mealRes.length} meals in extended range');
       
       final Map<DateTime, bool> newDatesWithMeals = {};
       final Map<DateTime, int> newMonthlyMealCounts = {};
       
-      if (mealRes is List) {
-        for (final meal in mealRes) {
-          try {
-            final completedAt = DateTime.parse(meal['completed_at']).toLocal();
-            final dateKey = DateTime(completedAt.year, completedAt.month, completedAt.day);
-            newDatesWithMeals[dateKey] = true;
-            newMonthlyMealCounts[dateKey] = (newMonthlyMealCounts[dateKey] ?? 0) + 1;
-          } catch (e) {
-            print('Error parsing meal date: $e');
-          }
+      for (final meal in mealRes) {
+        try {
+          final completedAt = DateTime.parse(meal['completed_at']).toLocal();
+          final dateKey = DateTime(completedAt.year, completedAt.month, completedAt.day);
+          newDatesWithMeals[dateKey] = true;
+          newMonthlyMealCounts[dateKey] = (newMonthlyMealCounts[dateKey] ?? 0) + 1;
+          print('Meal on ${dateKey.toIso8601String()}, count: ${newMonthlyMealCounts[dateKey]}');
+        } catch (e) {
+          print('Error parsing meal date: $e');
         }
       }
+      
+      print('Final meal counts: $newMonthlyMealCounts');
       
       if (!_mounted) return;
       setState(() {
@@ -416,6 +409,17 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
     );
   }
 
+  // Helper function to get color based on calorie percentage
+  Color _getCaloriePercentageColor(double percentage) {
+    if (percentage <= 40) {
+      return const Color.fromARGB(255, 241, 58, 44); // Low calories - red (1-40%)
+    } else if (percentage <= 70) {
+      return const Color.fromARGB(255, 255, 183, 76); // Average/middle range - yellow (41-70%)
+    } else {
+      return const Color.fromARGB(255, 67, 255, 73); // Close to target - green (71-100%)
+    }
+  }
+
 
   void _showCalendar() {
     showDialog(
@@ -428,13 +432,14 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
           if (!_mounted) return;
           setState(() {
             selectedDate = date;
-            _scrollOffset = 0.0; // Reset scroll offset for glass morphism
+            _scrollOffset = 0.0; //Reset scroll offset for glass morphism 
           });
           Navigator.of(context).pop();
           _fetchData();
         },
-        onRefreshMonth: () {
-          _fetchDatesWithMeals();
+        onRefreshMonth: (DateTime month) {
+          // Fetch data for extended range covering all visible months
+          _fetchDatesWithMeals(month);
         },
       ),
     );
@@ -469,14 +474,12 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
           .order('completed_at', ascending: true);
 
       final mealList = <MealHistoryEntry>[];
-      if (mealRes is List) {
-        for (final mealData in mealRes) {
-          try {
-            final meal = MealHistoryEntry.fromMap(mealData);
-            mealList.add(meal);
-          } catch (e) {
-            print('Error parsing weekly meal data: $e');
-          }
+      for (final mealData in mealRes) {
+        try {
+          final meal = MealHistoryEntry.fromMap(mealData);
+          mealList.add(meal);
+        } catch (e) {
+          print('Error parsing weekly meal data: $e');
         }
       }
       
@@ -521,14 +524,12 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
           .order('completed_at', ascending: true);
 
       final mealList = <MealHistoryEntry>[];
-      if (mealRes is List) {
-        for (final mealData in mealRes) {
-          try {
-            final meal = MealHistoryEntry.fromMap(mealData);
-            mealList.add(meal);
-          } catch (e) {
-            print('Error parsing monthly meal data: $e');
-          }
+      for (final mealData in mealRes) {
+        try {
+          final meal = MealHistoryEntry.fromMap(mealData);
+          mealList.add(meal);
+        } catch (e) {
+          print('Error parsing monthly meal data: $e');
         }
       }
       
@@ -640,7 +641,7 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                               value: (summary.calories / (goals?.calorieGoal ?? 2000)).clamp(0.0, 1.0),
                               strokeWidth: 12,
                               backgroundColor: Colors.white.withValues(alpha: 0.3),
-                              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(_getCaloriePercentageColor((summary.calories / (goals?.calorieGoal ?? 2000)) * 100)),
                             ),
                           ),
                           Text(
@@ -874,7 +875,7 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                                   value: (summary.calories / ((goals?.calorieGoal ?? 2000) * 7)).clamp(0.0, 1.0),
                                   strokeWidth: 12,
                                   backgroundColor: Colors.white.withValues(alpha: 0.3),
-                                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                                  valueColor: AlwaysStoppedAnimation<Color>(_getCaloriePercentageColor((summary.calories / ((goals?.calorieGoal ?? 2000) * 7)) * 100)),
                                 ),
                               ),
                               Text(
@@ -1047,7 +1048,7 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                                   value: (summary.calories / ((goals?.calorieGoal ?? 2000) * 30)).clamp(0.0, 1.0),
                                   strokeWidth: 12,
                                   backgroundColor: Colors.white.withValues(alpha: 0.3),
-                                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                                  valueColor: AlwaysStoppedAnimation<Color>(_getCaloriePercentageColor((summary.calories / ((goals?.calorieGoal ?? 2000) * 30)) * 100)),
                                 ),
                               ),
                               Text(
@@ -1164,107 +1165,6 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
     );
   }
 
-  // Get weekly progress data for the chart
-  Future<Map<String, dynamic>> _getWeeklyProgressData() async {
-    final now = DateTime.now();
-    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-    final dailyCalories = <double>[];
-    double totalCalories = 0.0;
-    int daysOnTrack = 0;
-    final dailyGoal = goals?.calorieGoal ?? 2000.0;
-
-    for (int i = 0; i < 7; i++) {
-      final date = startOfWeek.add(Duration(days: i));
-      final dayMeals = meals.where((meal) => 
-        meal.completedAt.year == date.year && 
-        meal.completedAt.month == date.month && 
-        meal.completedAt.day == date.day
-      ).toList();
-      
-      final dayCalories = dayMeals.fold<double>(0.0, (sum, meal) => sum + meal.calories);
-      dailyCalories.add(dayCalories);
-      totalCalories += dayCalories;
-      
-      if (dayCalories >= dailyGoal * 0.8 && dayCalories <= dailyGoal * 1.2) {
-        daysOnTrack++;
-      }
-    }
-
-    final weeklyGoal = dailyGoal * 7;
-    final progressPercentage = weeklyGoal > 0 ? (totalCalories / weeklyGoal).clamp(0.0, 1.0) : 0.0;
-
-    return {
-      'dailyCalories': dailyCalories,
-      'totalCalories': totalCalories,
-      'weeklyGoal': weeklyGoal,
-      'averageCalories': totalCalories / 7,
-      'daysOnTrack': daysOnTrack,
-      'progressPercentage': progressPercentage,
-    };
-  }
-
-  // Build weekly chart (simplified version)
-  Widget _buildWeeklyChart(List<double> dailyCalories) {
-    final dailyGoal = goals?.calorieGoal ?? 2000.0;
-    
-    // Ensure we have exactly 7 data points
-    final chartData = List<double>.from(dailyCalories);
-    while (chartData.length < 7) {
-      chartData.add(0.0);
-    }
-    if (chartData.length > 7) {
-      chartData.removeRange(7, chartData.length);
-    }
-
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    
-    return Container(
-      height: 200,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: chartData.asMap().entries.map((entry) {
-          final index = entry.key;
-          final calories = entry.value;
-          final height = (calories / dailyGoal * 150).clamp(10.0, 150.0);
-          
-          return Column(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Text(
-                calories.toStringAsFixed(0),
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Container(
-                width: 20,
-                height: height,
-                decoration: BoxDecoration(
-                  color: calories >= dailyGoal * 0.8 && calories <= dailyGoal * 1.2
-                      ? Colors.green
-                      : calories < dailyGoal * 0.8
-                          ? Colors.orange
-                          : Colors.red,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                days[index],
-                style: const TextStyle(
-                  fontSize: 10,
-                  color: Colors.grey,
-                ),
-              ),
-            ],
-          );
-        }).toList(),
-      ),
-    );
-  }
 }
 
 // Tab Button Widget
@@ -1389,13 +1289,6 @@ class _MacroCard extends StatelessWidget {
                         color: Colors.grey[500],
                       ),
                     ),
-                    Text(
-                      'goal',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[500],
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -1461,7 +1354,7 @@ class _CalendarDialog extends StatefulWidget {
   final Map<DateTime, bool> datesWithMeals;
   final Map<DateTime, int> mealCounts;
   final Function(DateTime) onDateSelected;
-  final VoidCallback? onRefreshMonth;
+  final Function(DateTime)? onRefreshMonth;
   
   const _CalendarDialog({
     required this.selectedDate,
@@ -1484,14 +1377,20 @@ class _CalendarDialogState extends State<_CalendarDialog> {
     super.initState();
     currentMonth = DateTime(widget.selectedDate.year, widget.selectedDate.month, 1);
     selectedDate = widget.selectedDate;
+    
+    // Fetch initial data for extended range covering all visible months
+    if (widget.onRefreshMonth != null) {
+      widget.onRefreshMonth!(currentMonth);
+    }
   }
 
   void _previousMonth() {
     setState(() {
       currentMonth = DateTime(currentMonth.year, currentMonth.month - 1, 1);
     });
+    // Refresh meal data for the new extended range
     if (widget.onRefreshMonth != null) {
-      widget.onRefreshMonth!();
+      widget.onRefreshMonth!(currentMonth);
     }
   }
 
@@ -1499,8 +1398,9 @@ class _CalendarDialogState extends State<_CalendarDialog> {
     setState(() {
       currentMonth = DateTime(currentMonth.year, currentMonth.month + 1, 1);
     });
+    // Refresh meal data for the new extended range
     if (widget.onRefreshMonth != null) {
-      widget.onRefreshMonth!();
+      widget.onRefreshMonth!(currentMonth);
     }
   }
 
@@ -1642,24 +1542,41 @@ class _CalendarDialogState extends State<_CalendarDialog> {
                               ),
                             ),
                           ),
-                        // Meal count badge
-                        if (mealCount > 0)
+                        // Meal count badge - fixed positioning and visibility
+                        if (mealCount > 0 && isCurrentMonth)
                           Positioned(
-                            top: 2,
-                            right: 2,
+                            top: 1,
+                            right: 1,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              constraints: const BoxConstraints(
+                                minWidth: 16,
+                                minHeight: 16,
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
                               decoration: BoxDecoration(
-                                color: Colors.green,
-                                borderRadius: BorderRadius.circular(10),
+                                color: Colors.green[600],
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 1,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: 2,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
                               ),
                               child: Text(
                                 mealCount.toString(),
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 10,
+                                  fontSize: 9,
                                   fontWeight: FontWeight.bold,
+                                  height: 1.0,
                                 ),
+                                textAlign: TextAlign.center,
                               ),
                             ),
                           ),

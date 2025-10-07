@@ -5,10 +5,7 @@ import 'dietary_preferences_screen.dart';
 import '../meal_plan/meal_plan_history_screen.dart'; // Added import for MealPlanHistoryScreen
 
 import '../recipes/favorites_page.dart'; // Added import for FavoritesPage
-import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -20,14 +17,9 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   String? _email;
   String? _fullName;
-  String? _dietType;
-  List<dynamic>? _allergies;
-  int? _servings;
   bool _loading = true;
   // Removed edit mode and saving state
   bool _shouldLogout = false;
-  File? _profileImage;
-  String? _profileImagePath;
   String? _avatarUrl;
   bool _uploadingImage = false;
 
@@ -36,7 +28,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _fetchUserProfile();
-    _loadProfileImage();
   }
 
 
@@ -55,9 +46,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (!mounted) return;
         if (data != null) {
           setState(() {
-            _dietType = data['diet_type'] as String?;
-            _allergies = data['allergies'] as List<dynamic>? ?? [];
-            _servings = data['servings'] as int?;
             _avatarUrl = data['avatar_url'] as String?;
           });
         }
@@ -69,33 +57,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _loading = false);
   }
 
-  Future<void> _saveUserPreferences() async {
-    // Removed _saving = true;
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user != null) {
-      try {
-        await Supabase.instance.client
-            .from('user_preferences')
-            .upsert({
-              'user_id': user.id,
-              'diet_type': _dietType,
-              'allergies': _allergies ?? [],
-              'servings': _servings,
-            });
-        
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully!')),
-        );
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update profile: $e')),
-        );
-      }
-    }
-    // Removed setState(() => _saving = false);
-  }
+  // Removed unused _saveUserPreferences
 
   Future<bool?> _showLogoutConfirmation(BuildContext context) {
     return showDialog<bool>(
@@ -152,79 +114,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // Removed _toggleEditMode function
 
-  Future<void> _loadProfileImage() async {
-    final prefs = await SharedPreferences.getInstance();
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
-    final key = 'profile_image_path_${user.id}';
-    final path = prefs.getString(key);
-    if (path != null && await File(path).exists()) {
-      if (mounted) {
-        setState(() {
-          _profileImagePath = path;
-          _profileImage = File(path);
-        });
-      }
-    } else {
-      if (mounted) {
-        setState(() {
-          _profileImagePath = null;
-          _profileImage = null;
-        });
-      }
-    }
-  }
-
-  Future<void> _saveProfileImagePath(String path) async {
-    final prefs = await SharedPreferences.getInstance();
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
-    final key = 'profile_image_path_${user.id}';
-    await prefs.setString(key, path);
-  }
-
-  Future<void> _deleteProfileImage() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
-    final key = 'profile_image_path_${user.id}';
-    if (_profileImagePath != null) {
-      final file = File(_profileImagePath!);
-      if (await file.exists()) {
-        await file.delete();
-      }
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(key);
-      if (mounted) {
-        setState(() {
-          _profileImage = null;
-          _profileImagePath = null;
-        });
-      }
-    }
-  }
-
-  Future<void> _pickProfileImage() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      final directory = await getApplicationDocumentsDirectory();
-      final profileDir = Directory('${directory.path}/profile_pictures');
-      if (!await profileDir.exists()) {
-        await profileDir.create(recursive: true);
-      }
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return;
-      final fileName = 'profile_${user.id}_${DateTime.now().millisecondsSinceEpoch}.png';
-      final savedImage = await File(pickedFile.path).copy('${profileDir.path}/$fileName');
-      await _saveProfileImagePath(savedImage.path);
-      if (mounted) {
-        setState(() {
-          _profileImage = savedImage;
-          _profileImagePath = savedImage.path;
-        });
-      }
-    }
-  }
+  // Removed unused local file image helpers (migrated to Supabase Storage)
 
   Future<void> _pickAndUploadProfileImage() async {
     final picker = ImagePicker();
@@ -560,12 +450,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Green header container (fixed position)
+                  // Gradient header container (fixed position)
                   Container(
                      height: 120, // Reduced from 160 to 120
                     width: double.infinity,
                     decoration: const BoxDecoration(
-                      color: Color.fromARGB(255, 103, 196, 106),
+                      gradient: LinearGradient(
+                        colors: [
+                          Color(0xFF66BB6A), // Green 400
+                          Color(0xFF42A5F5), // Blue 400
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                       borderRadius: BorderRadius.only(
                         bottomLeft: Radius.circular(25),
                         bottomRight: Radius.circular(25),
@@ -642,7 +539,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   // Profile content with proper spacing
                   Transform.translate(
-                     offset: const Offset(0, -20), // Increased from -10 to -20 to bring content closer
+                     offset: const Offset(0, -40), // Increased offset to bring content closer to avatar
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Column(
@@ -659,7 +556,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           if (_email != null)
                             Padding(
-                               padding: const EdgeInsets.only(top: 2.0, bottom: 4.0, left: 16, right: 16), // Reduced top padding from 4 to 2
+                               padding: const EdgeInsets.only(top: 1.0, bottom: 4.0, left: 16, right: 16), // Reduced top padding to bring email closer to name
                               child: Text(
                                 _email!,
                                 style: const TextStyle(fontSize: 15, color: Colors.black54, fontWeight: FontWeight.w400),
@@ -750,62 +647,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatCard(String label, String value) {
-    return Container(
-      width: 120,
-      height: 90,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            Colors.white,
-            Color(0xFF4CAF50),
-          ],
-          stops: [0.05, 0.4],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          width: 2,
-          style: BorderStyle.solid,
-          color: Color(0xFF4CAF50),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              shadows: [Shadow(blurRadius: 2, color: Colors.black26, offset: Offset(0, 1))],
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 15,
-              color: Colors.white,
-              fontWeight: FontWeight.w500,
-              shadows: [Shadow(blurRadius: 2, color: Colors.black26, offset: Offset(0, 1))],
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
+  // Removed unused _buildStatCard
 
 } 
 
@@ -839,16 +681,4 @@ class _MinimalOption extends StatelessWidget {
   }
 }
 
-class _MinimalDivider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Divider(
-        color: Colors.grey[300],
-        thickness: 1,
-        height: 0,
-      ),
-    );
-  }
-} 
+// Removed unused _MinimalDivider

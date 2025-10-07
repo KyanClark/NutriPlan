@@ -13,12 +13,12 @@ class AnalyticsService {
       final endOfWeekUtc = DateTime(endOfWeek.year, endOfWeek.month, endOfWeek.day, 23, 59, 59).toUtc();
       
       final mealRes = await Supabase.instance.client
-          .from('meal_plan_history')
-          .select()
+        .from('meal_plan_history')
+        .select()
           .eq('user_id', userId)
           .gte('completed_at', startOfWeekUtc.toIso8601String())
           .lte('completed_at', endOfWeekUtc.toIso8601String())
-          .order('completed_at', ascending: true);
+        .order('completed_at', ascending: true);
 
       final meals = <MealHistoryEntry>[];
       for (final mealData in mealRes) {
@@ -48,19 +48,19 @@ class AnalyticsService {
       final endOfMonthUtc = DateTime(endOfMonth.year, endOfMonth.month, endOfMonth.day, 23, 59, 59).toUtc();
       
       final mealRes = await Supabase.instance.client
-          .from('meal_plan_history')
-          .select()
+        .from('meal_plan_history')
+        .select()
           .eq('user_id', userId)
           .gte('completed_at', startOfMonthUtc.toIso8601String())
           .lte('completed_at', endOfMonthUtc.toIso8601String())
-          .order('completed_at', ascending: true);
+        .order('completed_at', ascending: true);
 
       final meals = <MealHistoryEntry>[];
       for (final mealData in mealRes) {
         try {
           final meal = MealHistoryEntry.fromMap(mealData);
           meals.add(meal);
-        } catch (e) {
+    } catch (e) {
           print('Error parsing meal data: $e');
         }
       }

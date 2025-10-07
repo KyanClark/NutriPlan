@@ -85,9 +85,9 @@ class _MealPlannerRecipeCardState extends State<MealPlannerRecipeCard>
                           ? BorderSide(color: const Color(0xFFFF6961), width: 2)
                           : BorderSide.none,
                     ),
-                    color: widget.isSelected 
+                      color: widget.isSelected 
                         ? const Color(0xFFFF6961).withValues(alpha: 0.1) 
-                        : Colors.white,
+                          : Colors.white,
                     child: SizedBox(
                       width: cardWidth,
                       child: Column(
@@ -96,8 +96,8 @@ class _MealPlannerRecipeCardState extends State<MealPlannerRecipeCard>
                         // Recipe image section
                         Expanded(
                           flex: 3,
-                          child: Stack(
-                          children: [
+                    child: Stack(
+                      children: [
                               Container(
                                 width: double.infinity,
                                 decoration: BoxDecoration(
@@ -108,9 +108,9 @@ class _MealPlannerRecipeCardState extends State<MealPlannerRecipeCard>
                                   image: DecorationImage(
                                     image: NetworkImage(widget.recipe.imageUrl),
                                     fit: BoxFit.cover,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
                               // Time display at top right
                               if (widget.mealTime != null && widget.mealTime!.isNotEmpty)
                                   Positioned(
@@ -129,21 +129,21 @@ class _MealPlannerRecipeCardState extends State<MealPlannerRecipeCard>
                                           Icons.access_time,
                                           size: 12,
                                                   color: Colors.white,
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Text(
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
                                           widget.mealTime!,
                                           style: const TextStyle(
                                                     color: Colors.white,
-                                            fontSize: 12,
+                                              fontSize: 12,
                                             fontWeight: FontWeight.w500,
                                             fontFamily: 'Geist',
-                                                  ),
-                                                ),
-                                              ],
                                             ),
                                           ),
-                                ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
                               // Calories at bottom right
                               Positioned(
                                 bottom: 8,
@@ -166,7 +166,7 @@ class _MealPlannerRecipeCardState extends State<MealPlannerRecipeCard>
                                                 Text(
                                         '${widget.recipe.calories} kcal',
                                         style: const TextStyle(
-                                          color: Colors.white,
+                                                    color: Colors.white,
                                           fontSize: 12,
                                                     fontWeight: FontWeight.w500,
                                           fontFamily: 'Geist',
@@ -206,9 +206,9 @@ class _MealPlannerRecipeCardState extends State<MealPlannerRecipeCard>
                                       size: 16,
                                     )
                                   : null,
-                                  ),
-                                ),
-                            ],
+                            ),
+                          ),
+                      ],
                           ),
                         ),
                         // Recipe title section
@@ -231,11 +231,11 @@ class _MealPlannerRecipeCardState extends State<MealPlannerRecipeCard>
                           ),
                       ],
                     ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          );
+            );
           },
         );
       },

@@ -447,7 +447,7 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
                   }
 
                   return ListView.builder(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
                     itemCount: filteredRecipes.length,
                     itemBuilder: (context, index) {
                       final recipe = filteredRecipes[index];

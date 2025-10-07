@@ -1,44 +1,91 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/user_nutrition_goals.dart';
+// Removed external cache service; using simple in-memory cache
+// Simple in-memory cache entry (top-level private)
+class _CacheEntry {
+  final String value;
+  final DateTime expiresAt;
+  _CacheEntry({required this.value, required this.expiresAt});
+}
 
 class AIInsightsService {
-  static const String _geminiApiKey = 'AIzaSyA58P35E85fvoML8AkqKIME9n4dC26M4GQ';
-  static const String _geminiApiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent';
+  // Groq-only configuration
+  static const String _groqApiKey = String.fromEnvironment('GROQ_API_KEY', defaultValue: '');
+  static const String _groqUrl = 'https://api.groq.com/openai/v1/chat/completions';
+  static final Map<int, _CacheEntry> _memoryCache = {};
 
   /// Generate AI insights for nutrition data
-  static Future<String> generateNutritionInsights(Map<String, dynamic> weeklyData, Map<String, dynamic> monthlyData, UserNutritionGoals? goals) async {
+  static Future<String> generateNutritionInsights(
+    Map<String, dynamic> weeklyData,
+    Map<String, dynamic> monthlyData,
+    UserNutritionGoals? goals,
+  ) async {
     try {
+      // If API key is missing, return default insights gracefully
+      if (_groqApiKey.isEmpty) {
+        return getDefaultInsights();
+      }
       final prompt = _buildNutritionPrompt(weeklyData, monthlyData, goals);
-      
-      final response = await http.post(
-        Uri.parse('$_geminiApiUrl?key=$_geminiApiKey'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'contents': [
-            {
-              'parts': [
-                {'text': prompt}
-              ]
-            }
-          ],
-          'generationConfig': {
-            'temperature': 0.7,
-            'topK': 40,
-            'topP': 0.95,
-            'maxOutputTokens': 1024,
-          }
-        }),
-      );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final content = data['candidates'][0]['content']['parts'][0]['text'];
-        return content;
-      } else {
-        print('Gemini API error: ${response.statusCode} - ${response.body}');
+      // Simple in-memory cache keyed by prompt hash
+      final cacheKey = prompt.hashCode;
+      final now = DateTime.now();
+      final existing = _memoryCache[cacheKey];
+      if (existing != null && now.isBefore(existing.expiresAt)) {
+        return existing.value;
+      }
+
+      // Exponential backoff for 429s
+      const int maxAttempts = 3;
+      int attempt = 0;
+      Duration delay = const Duration(milliseconds: 400);
+      while (true) {
+        attempt++;
+        final response = await http.post(
+          Uri.parse(_groqUrl),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $_groqApiKey',
+          },
+          body: jsonEncode({
+            'model': 'llama-3.1-70b-versatile',
+            'temperature': 0.7,
+            'max_tokens': 800,
+            'messages': [
+              {
+                'role': 'system',
+                'content': 'You are a professional nutritionist generating concise, actionable insights.'
+              },
+              {
+                'role': 'user',
+                'content': prompt,
+              }
+            ],
+          }),
+        );
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          final content = (data['choices'] != null && data['choices'].isNotEmpty)
+              ? data['choices'][0]['message']['content'] as String
+              : getDefaultInsights();
+          // Cache for 10 minutes
+          _memoryCache[cacheKey] = _CacheEntry(
+            value: content,
+            expiresAt: now.add(const Duration(minutes: 10)),
+          );
+          return content;
+        }
+
+        // If rate limited, backoff and retry
+        if (response.statusCode == 429 && attempt < maxAttempts) {
+          await Future.delayed(delay);
+          delay *= 2;
+          continue;
+        }
+
+        print('Groq API error: ${response.statusCode} - ${response.body}');
         return getDefaultInsights();
       }
     } catch (e) {

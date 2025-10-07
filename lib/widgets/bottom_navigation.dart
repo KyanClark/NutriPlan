@@ -119,13 +119,13 @@ class _BottomNavigationState extends State<BottomNavigation>
                 ),
                 items: [
                   _buildBottomNavItem(Icons.home, 'Home', 0),
-                  _buildBottomNavItem(Icons.restaurant_menu, 'Meal Plan', 1, badgeCount: widget.mealPlanCount, customImagePath: 'assets/navigation_icons/dish.png'),
+                  _buildBottomNavItem(Icons.restaurant_menu, 'Meal Plan', 1, badgeCount: widget.mealPlanCount, customImagePath: 'assets/navigation_icons/meal plan icon.png'),
                   // Empty item for the plus button space
                   const BottomNavigationBarItem(
                     icon: SizedBox.shrink(),
                     label: '',
                   ),
-                  _buildBottomNavItem(Icons.track_changes, 'Meal Tracker', 3, customImagePath: 'assets/navigation_icons/app.png'),
+                  _buildBottomNavItem(Icons.track_changes, 'Meal Tracker', 3, customImagePath: 'assets/navigation_icons/chart-pie-alt.png'),
                   _buildBottomNavItem(Icons.person, 'Profile', 4),
                 ],
               ),
@@ -218,8 +218,8 @@ class _BottomNavigationState extends State<BottomNavigation>
                   },
                   child: Image.asset(
                     customImagePath,
-                    width: widget.isSmallScreen ? 22 : 24,
-                    height: widget.isSmallScreen ? 22 : 24,
+                    width: 24,
+                    height: 24,
                     color: Colors.white,
                   ),
                 )

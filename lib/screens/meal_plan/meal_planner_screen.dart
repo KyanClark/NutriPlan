@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../recipes/recipe_info_screen.dart';
 import '../../models/recipes.dart';
 import 'backend/meal_planner_service.dart';
 import 'interface/meal_planner_widgets.dart';
+import 'cubit/meal_plan_cubit.dart';
 
 class MealPlannerScreen extends StatefulWidget {
   final bool forceRefresh;
@@ -22,9 +24,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
   // Add filter state
   String _selectedFilter = 'all'; // 'all', 'breakfast', 'lunch', 'dinner'
   
-  // Add delete mode state
-  bool _isDeleteMode = false;
-  Set<String> _selectedMealsForDeletion = {};
+  // Delete mode and selection now managed by MealPlanCubit
   
   // Add loading state
   bool _isLoading = true;
@@ -48,19 +48,18 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
   // Get filtered meals based on selected filter
   List<Map<String, dynamic>> get _filteredMeals {
     return MealPlannerService.getFilteredMeals(_flattenedMeals, _selectedFilter);
-  }
-
-
+   }
 
   /// Delete selected meals
   Future<void> _deleteSelectedMeals() async {
-    if (_selectedMealsForDeletion.isEmpty) return;
+    final selectedIdSet = context.read<MealPlanCubit>().state.selectedMealIds;
+    if (selectedIdSet.isEmpty) return;
 
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Selected Meals'),
-        content: Text('Are you sure you want to delete ${_selectedMealsForDeletion.length} meal(s) from your plan?'),
+        content: Text('Are you sure you want to delete ${selectedIdSet.length} meal(s) from your plan?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -77,26 +76,41 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
 
     if (confirm != true) return;
 
-    final success = await MealPlannerService.deleteSelectedMeals(_selectedMealsForDeletion.toList());
+    // Capture selection details BEFORE clearing
+    final selectedIds = context.read<MealPlanCubit>().state.selectedMealIds.toList();
+    final selectedCount = selectedIds.length;
+    String? singleDeletedName;
+    if (selectedCount == 1) {
+      final selectedId = selectedIds.first;
+      final matching = _flattenedMeals.firstWhere(
+        (m) => m['id'] == selectedId,
+        orElse: () => {},
+      );
+      singleDeletedName = (matching['title'] ?? matching['recipe_name'])?.toString();
+    }
 
-      if (mounted) {
-        setState(() {
-          _isDeleteMode = false;
-          _selectedMealsForDeletion.clear();
-        });
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-          content: Text(success 
-              ? '${_selectedMealsForDeletion.length} meal(s) deleted successfully'
-              : 'Error deleting meals'),
+    final success = await MealPlannerService.deleteSelectedMeals(selectedIds);
+
+    if (mounted) {
+      // Build message using captured info
+      final message = success
+          ? (selectedCount == 1 && (singleDeletedName != null && singleDeletedName.trim().isNotEmpty)
+              ? '"$singleDeletedName" deleted successfully'
+              : '$selectedCount meal(s) deleted successfully')
+          : 'Error deleting meals';
+
+      context.read<MealPlanCubit>().setDeleteMode(false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
           backgroundColor: success ? Colors.green : const Color(0xFFFF6961),
-          ),
-        );
-        
-        // Refresh meal plans after deletion
-        await _fetchSupabaseMealPlans();
-        if (widget.onChanged != null) widget.onChanged!();
+        ),
+      );
+
+      // Refresh meal plans after deletion
+      await _fetchSupabaseMealPlans();
+      if (widget.onChanged != null) widget.onChanged!();
     }
   }
 
@@ -131,8 +145,8 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
     
     final meals = await MealPlannerService.fetchMealPlans();
       
-    if (mounted) {
-      setState(() {
+      if (mounted) {
+        setState(() {
         supabaseMealPlans = meals;
         _isLoading = false;
       });
@@ -151,7 +165,9 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
     // iPhone 8 dimensions: 375x667 points
     final isSmallScreen = screenWidth <= 375;
     
-    return Scaffold(
+    return BlocProvider(
+      create: (_) => MealPlanCubit(),
+      child: Scaffold(
       backgroundColor: const Color(0xFFF8FFFE),
       body: SafeArea(
         child: Column(
@@ -226,21 +242,16 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                             ),
                             child: IconButton(
                               icon: Icon(
-                                _isDeleteMode ? Icons.close : Icons.delete_outline,
+                                context.read<MealPlanCubit>().state.isDeleteMode ? Icons.close : Icons.delete_outline,
                                   color: Colors.white,
                                   size: 22,
                               ),
                               onPressed: () {
-                                setState(() {
-                                  if (_isDeleteMode) {
-                                    _isDeleteMode = false;
-                                    _selectedMealsForDeletion.clear();
-                                  } else {
-                                    _isDeleteMode = true;
-                                  }
-                                });
+                                final cubit = context.read<MealPlanCubit>();
+                                final current = cubit.state.isDeleteMode;
+                                cubit.setDeleteMode(!current);
                               },
-                              tooltip: _isDeleteMode ? 'Cancel Delete' : 'Delete Meals',
+                              tooltip: context.read<MealPlanCubit>().state.isDeleteMode ? 'Cancel Delete' : 'Delete Meals',
                             ),
                           ),
                       ],
@@ -273,10 +284,10 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                       physics: const BouncingScrollPhysics(),
                       child: Padding(
                         padding: const EdgeInsets.all(20.0),
-                        child: Column(
-                          children: [
+                    child: Column(
+                      children: [
                         // Delete mode controls
-                            if (_isDeleteMode) ...[
+                        if (context.watch<MealPlanCubit>().state.isDeleteMode) ...[
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(16),
@@ -298,7 +309,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
-                                    '${_selectedMealsForDeletion.length} meal${_selectedMealsForDeletion.length != 1 ? 's' : ''} selected for deletion',
+                                    '${context.watch<MealPlanCubit>().state.selectedMealIds.length} meal${context.watch<MealPlanCubit>().state.selectedMealIds.length != 1 ? 's' : ''} selected for deletion',
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
@@ -306,98 +317,92 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                                     ),
                                   ),
                                 ),
-                          ],
-                        ),
-                      ),
+                      ],
+                    ),
+                  ),
                             const SizedBox(height: 20),
                           ],
                           // Display Supabase meal plans
-                      if (supabaseMealPlans.isNotEmpty)
-                        _filteredMeals.isNotEmpty
+                if (supabaseMealPlans.isNotEmpty)
+                  _filteredMeals.isNotEmpty
                               ? GridView.builder(
-                                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                                     crossAxisCount: isSmallScreen ? 1 : 2,
                                     crossAxisSpacing: 16,
-                                  mainAxisSpacing: 20,
+                            mainAxisSpacing: 20,
                                     childAspectRatio: isSmallScreen ? 1.3 : 0.8,
-                                ),
-                                shrinkWrap: true,
+                          ),
+                          shrinkWrap: true,
                                   physics: const NeverScrollableScrollPhysics(),
-                                itemCount: _filteredMeals.length,
-                                itemBuilder: (context, idx) {
-                                  final meal = _filteredMeals[idx];
-                                  final planId = meal['plan_id'];
-                                  return Stack(
-                                    key: ValueKey('${meal['recipe_id']}_$planId'),
-                                        children: [
+                          itemCount: _filteredMeals.length,
+                          itemBuilder: (context, idx) {
+                            final meal = _filteredMeals[idx];
+                            final planId = meal['plan_id'];
+                            return Stack(
+                              key: ValueKey('${meal['recipe_id']}_$planId'),
+                              children: [
                                         MealPlannerRecipeCard(
-                                          recipe: Recipe(
-                                            id: meal['recipe_id'] ?? '',
-                                            title: meal['title'] ?? 'Unknown Recipe',
-                                            imageUrl: meal['recipes']?['image_url'] ?? '',
-                                            calories: meal['recipes']?['calories'] ?? 0,
-                                            cost: (meal['recipes']?['cost'] ?? 0.0).toDouble(),
-                                            shortDescription: meal['recipes']?['short_description'] ?? '',
-                                            dietTypes: List<String>.from(meal['recipes']?['diet_types'] ?? []),
-                                            macros: Map<String, dynamic>.from(meal['recipes']?['macros'] ?? {
-                                              'protein': 0.0,
-                                              'carbs': 0.0,
-                                              'fat': 0.0,
-                                              'fiber': 0.0,
-                                              'sugar': 0.0,
-                                              'sodium': 0.0,
-                                              'cholesterol': 0.0,
-                                            }),
-                                            allergyWarning: meal['recipes']?['allergy_warning'] ?? '',
-                                            ingredients: List<String>.from(meal['recipes']?['ingredients'] ?? []),
-                                            instructions: List<String>.from(meal['recipes']?['instructions'] ?? []),
-                                          ),
+                                      recipe: Recipe(
+                                        id: meal['recipe_id'] ?? '',
+                                        title: meal['title'] ?? 'Unknown Recipe',
+                                        imageUrl: meal['recipes']?['image_url'] ?? '',
+                                        calories: meal['recipes']?['calories'] ?? 0,
+                                        cost: (meal['recipes']?['cost'] ?? 0.0).toDouble(),
+                                        shortDescription: meal['recipes']?['short_description'] ?? '',
+                                        dietTypes: List<String>.from(meal['recipes']?['diet_types'] ?? []),
+                                        macros: Map<String, dynamic>.from(meal['recipes']?['macros'] ?? {
+                                          'protein': 0.0,
+                                          'carbs': 0.0,
+                                          'fat': 0.0,
+                                          'fiber': 0.0,
+                                          'sugar': 0.0,
+                                          'sodium': 0.0,
+                                          'cholesterol': 0.0,
+                                        }),
+                                        allergyWarning: meal['recipes']?['allergy_warning'] ?? '',
+                                        ingredients: List<String>.from(meal['recipes']?['ingredients'] ?? []),
+                                        instructions: List<String>.from(meal['recipes']?['instructions'] ?? []),
+                                      ),
                                           mealType: meal['meal_type'] ?? 'dinner',
                                           mealTime: meal['meal_time'] != null ? MealPlannerService.formatMealTime(meal['meal_time']) : null,
-                                          isFavorite: false,
-                                          isSmallScreen: isSmallScreen,
-                                          isDeleteMode: _isDeleteMode,
-                                          isSelected: _selectedMealsForDeletion.contains(meal['id']),
-                                                                                   onTap: () async {
-                                               if (_isDeleteMode) {
-                                                 setState(() {
-                                                   final mealId = meal['id'];
-                                                   if (_selectedMealsForDeletion.contains(mealId)) {
-                                                     _selectedMealsForDeletion.remove(mealId);
-                                                   } else {
-                                                     _selectedMealsForDeletion.add(mealId);
-                                                   }
-                                                 });
-                                                 return;
-                                               }
-                                               
-                                               final recipeId = meal['recipe_id'];
-                                               if (recipeId == null || recipeId.isEmpty) return;
-                                               
-                                               final navigatorContext = context;
-                                               final response = await Supabase.instance.client
-                                                 .from('recipes')
-                                                 .select()
-                                                 .eq('id', recipeId)
-                                                 .maybeSingle();
-                                               if (response == null) return;
-                                               final recipe = Recipe.fromMap(response);
-                                               if (!mounted) return;
-                                               await Navigator.of(navigatorContext).push(
-                                                 MaterialPageRoute(
-                                                   builder: (builderContext) => RecipeInfoScreen(
-                                                     recipe: recipe,
-                                                     showStartCooking: true,
-                                                   ),
-                                                 ),
-                                               );
-                                               await _fetchSupabaseMealPlans();
-                                               if (widget.onChanged != null) widget.onChanged!();
-                                             },
-                                          ),
-                                    ],
-                                  );
-                                },
+                                      isFavorite: false,
+                                      isSmallScreen: isSmallScreen,
+                                          isDeleteMode: context.watch<MealPlanCubit>().state.isDeleteMode,
+                                          isSelected: context.watch<MealPlanCubit>().state.selectedMealIds.contains(meal['id']),
+                                                                             onTap: () async {
+                                         if (context.read<MealPlanCubit>().state.isDeleteMode) {
+                                           final mealId = meal['id'];
+                                           context.read<MealPlanCubit>().toggleSelect(mealId);
+                                           return;
+                                         }
+                                         
+                                         final recipeId = meal['recipe_id'];
+                                         if (recipeId == null || recipeId.isEmpty) return;
+                                         
+                                         final navigatorContext = context;
+                                         final response = await Supabase.instance.client
+                                           .from('recipes')
+                                           .select()
+                                           .eq('id', recipeId)
+                                           .maybeSingle();
+                                         if (response == null) return;
+                                         final recipe = Recipe.fromMap(response);
+                                         if (!mounted) return;
+                                         await Navigator.of(navigatorContext).push(
+                                           MaterialPageRoute(
+                                             builder: (builderContext) => RecipeInfoScreen(
+                                               recipe: recipe,
+                                               showStartCooking: true,
+                                             ),
+                                           ),
+                                         );
+                                         await _fetchSupabaseMealPlans();
+                                         if (widget.onChanged != null) widget.onChanged!();
+                                       },
+                                    ),
+                              ],
+                            );
+                          },
                                 )
                               : const MealPlannerEmptyFilterState()
                           else
@@ -406,15 +411,15 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                         ),
                       ),
                     ),
+                  ),
+              ],
             ),
-          ],
-        ),
-      ),
-             floatingActionButton: _isDeleteMode
+          ),
+             floatingActionButton: context.watch<MealPlanCubit>().state.isDeleteMode
            ? Padding(
          padding: const EdgeInsets.only(bottom: 16.0),
                child: FloatingActionButton.extended(
-               onPressed: _selectedMealsForDeletion.isEmpty ? null : _deleteSelectedMeals,
+               onPressed: context.read<MealPlanCubit>().state.selectedMealIds.isEmpty ? null : _deleteSelectedMeals,
                icon: const Icon(Icons.delete, color: Colors.white),
                label: const Text(
                  'Delete',
@@ -424,6 +429,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                ),
              )
            : null, // Removed "Add Meal Plan" button - now using elevated plus button in bottom navigation
+    ),
     );
   }
-}
+} 

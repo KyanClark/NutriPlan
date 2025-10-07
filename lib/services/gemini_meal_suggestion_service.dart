@@ -7,8 +7,14 @@ import '../models/recipes.dart';
 import 'recipe_service.dart';
 
 class GeminiMealSuggestionService {
-  static const String _apiKey = 'AIzaSyA58P35E85fvoML8AkqKIME9n4dC26M4GQ';
+  // Read from build-time env, fallback to previously used key for compatibility
+  static const String _apiKey = String.fromEnvironment(
+    'GEMINI_API_KEY',
+    defaultValue: 'AIzaSyA58P35E85fvoML8AkqKIME9n4dC26M4GQ',
+  );
+  static const String _groqApiKey = String.fromEnvironment('GROQ_API_KEY', defaultValue: '');
   static const String _baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+  static const String _groqUrl = 'https://api.groq.com/openai/v1/chat/completions';
 
   /// Get AI-powered meal suggestions using Gemini API
   static Future<List<SmartMealSuggestion>> getAISuggestions({
@@ -20,6 +26,10 @@ class GeminiMealSuggestionService {
     DateTime? targetTime,
   }) async {
     try {
+      // If API key is missing, return empty suggestions gracefully
+      if (_apiKey.isEmpty) {
+        return [];
+      }
       // Get available recipes
       final allRecipes = await RecipeService.fetchRecipes();
       if (allRecipes.isEmpty) {
@@ -36,8 +46,8 @@ class GeminiMealSuggestionService {
         targetTime: targetTime ?? DateTime.now(),
       );
 
-      // Call Gemini API with retry logic
-      final response = await _callGeminiAPIWithRetry(prompt);
+      // Call Groq with retry logic (Gemini deprecated)
+      final response = await _callAIWithRetry(prompt);
       
       // Parse AI response
       final suggestions = _parseAIResponse(response, allRecipes);
@@ -49,11 +59,11 @@ class GeminiMealSuggestionService {
     }
   }
 
-  /// Call Gemini API with retry logic for overloaded service
-  static Future<String> _callGeminiAPIWithRetry(String prompt, {int maxRetries = 3}) async {
+  /// Call AI provider with retry logic for overloaded service
+  static Future<String> _callAIWithRetry(String prompt, {int maxRetries = 3}) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        return await _callGeminiAPI(prompt);
+        return await _callAI(prompt);
       } catch (e) {
         final errorMessage = e.toString();
         
@@ -61,7 +71,7 @@ class GeminiMealSuggestionService {
         if (errorMessage.contains('503') || errorMessage.contains('429')) {
           if (attempt < maxRetries) {
             final delay = Duration(seconds: attempt * 2); // Exponential backoff: 2s, 4s, 6s
-            print('Gemini API overloaded, retrying in ${delay.inSeconds}s (attempt $attempt/$maxRetries)');
+            print('AI API overloaded, retrying in ${delay.inSeconds}s (attempt $attempt/$maxRetries)');
             await Future.delayed(delay);
             continue;
           }
@@ -72,7 +82,7 @@ class GeminiMealSuggestionService {
       }
     }
     
-    throw Exception('Max retries exceeded for Gemini API');
+    throw Exception('Max retries exceeded for AI API');
   }
 
   /// Build the AI prompt for meal suggestions
@@ -209,48 +219,53 @@ CRITICAL REQUIREMENTS:
 ''';
   }
 
-  /// Call Gemini API with the prompt
-  static Future<String> _callGeminiAPI(String prompt) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl?key=$_apiKey'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'contents': [
-          {
-            'parts': [
-              {
-                'text': prompt,
-              }
-            ]
-          }
-        ],
-        'generationConfig': {
-          'temperature': 0.7,
-          'topK': 40,
-          'topP': 0.95,
-          'maxOutputTokens': 2048,
-        }
-      }),
-    );
+  /// Call AI provider with the prompt
+  static Future<String> _callAI(String prompt) async {
+    final response = _groqApiKey.isNotEmpty
+        ? await http.post(
+            Uri.parse(_groqUrl),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $_groqApiKey',
+            },
+            body: jsonEncode({
+              'model': 'llama-3.1-70b-versatile',
+              'temperature': 0.7,
+              'max_tokens': 1024,
+              'messages': [
+                {
+                  'role': 'system',
+                  'content': 'You are a Filipino nutritionist AI generating meal suggestions.'
+                },
+                {
+                  'role': 'user',
+                  'content': prompt,
+                }
+              ],
+            }),
+          )
+        : http.Response('{"choices": []}', 200);
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      if (data['candidates'] != null && data['candidates'].isNotEmpty) {
-        return data['candidates'][0]['content']['parts'][0]['text'];
-      } else {
-        throw Exception('No candidates in Gemini response');
+      if (_groqApiKey.isNotEmpty) {
+        if (data['choices'] != null && data['choices'].isNotEmpty) {
+          return data['choices'][0]['message']['content'];
+        }
+        throw Exception('No choices in Groq response');
       }
     } else if (response.statusCode == 503) {
-      throw Exception('Gemini API overloaded - service temporarily unavailable');
+      throw Exception('AI API overloaded - service temporarily unavailable');
     } else if (response.statusCode == 429) {
-      throw Exception('Gemini API rate limit exceeded - too many requests');
+      throw Exception('AI API rate limit exceeded - too many requests');
     } else if (response.statusCode == 400) {
-      throw Exception('Gemini API bad request - check prompt format');
+      throw Exception('AI API bad request - check prompt format');
     } else {
-      throw Exception('Gemini API error: ${response.statusCode} - ${response.body}');
+      throw Exception('AI API error: ${response.statusCode} - ${response.body}');
     }
+
+    // Fallback if no content
+    return '[]';
   }
 
   /// Parse AI response and convert to SmartMealSuggestion objects
@@ -382,6 +397,10 @@ CRITICAL REQUIREMENTS:
 
   /// Test the Gemini API connection
   static Future<bool> testConnection() async {
+    if (_apiKey.isEmpty) {
+      // No API key available; treat as unavailable
+      return false;
+    }
     try {
       final response = await http.post(
         Uri.parse('$_baseUrl?key=$_apiKey'),

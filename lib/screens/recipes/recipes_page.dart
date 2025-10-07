@@ -7,7 +7,6 @@ import 'see_all_recipe.dart';
 import 'package:nutriplan/screens/meal_plan/meal_summary_page.dart';
 import 'package:nutriplan/screens/meal_plan/meal_plan_confirmation_page.dart';
 import '../../widgets/loading_skeletons.dart';
-// import 'package:nutriplan/screens/home/home_page.dart';
 
 class RecipesPage extends StatefulWidget {
   final VoidCallback? onChanged;
@@ -178,39 +177,134 @@ class _RecipesPageState extends State<RecipesPage> {
   }
 
   // Helper methods for recipe categorization
-  List<Recipe> _getFilipinoRecipes(List<Recipe> recipes) {
+  
+  // Silog Meals (Breakfast Classics)
+  List<Recipe> _getSilogRecipes(List<Recipe> recipes) {
     return recipes.where((recipe) => 
-      recipe.dietTypes.contains('Filipino Cuisine') ||
-      recipe.title.toLowerCase().contains('sinigang') ||
-      recipe.title.toLowerCase().contains('adobo') ||
-      recipe.title.toLowerCase().contains('sisig') ||
-      recipe.title.toLowerCase().contains('kaldereta') ||
-      recipe.title.toLowerCase().contains('tinola') ||
-      recipe.title.toLowerCase().contains('monggo') ||
-      recipe.title.toLowerCase().contains('afritada')
+      recipe.title.toLowerCase().contains('silog') ||
+      recipe.title.toLowerCase().contains('tapsilog') ||
+      recipe.title.toLowerCase().contains('longsilog') ||
+      recipe.title.toLowerCase().contains('bangsilog') ||
+      recipe.title.toLowerCase().contains('tocilog') ||
+      recipe.title.toLowerCase().contains('hotsilog') ||
+      recipe.title.toLowerCase().contains('champorado') ||
+      recipe.title.toLowerCase().contains('pandesal') ||
+      recipe.title.toLowerCase().contains('tocino') ||
+      recipe.title.toLowerCase().contains('longganisa')
     ).toList();
   }
 
+  // Kainang Pamilya (Family Favorites)
+  List<Recipe> _getFamilyFavorites(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      recipe.title.toLowerCase().contains('adobo') ||
+      recipe.title.toLowerCase().contains('sinigang') ||
+      recipe.title.toLowerCase().contains('kaldereta') ||
+      recipe.title.toLowerCase().contains('afritada') ||
+      recipe.title.toLowerCase().contains('menudo') ||
+      recipe.title.toLowerCase().contains('mechado') ||
+      recipe.title.toLowerCase().contains('kare-kare') ||
+      recipe.title.toLowerCase().contains('pinakbet') ||
+      recipe.title.toLowerCase().contains('laing') ||
+      recipe.title.toLowerCase().contains('ginataang')
+    ).toList();
+  }
+
+  // Lutong Bahay (Home-cooked Comfort)
+  List<Recipe> _getHomeCookedRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      recipe.title.toLowerCase().contains('tinola') ||
+      recipe.title.toLowerCase().contains('nilaga') ||
+      recipe.title.toLowerCase().contains('bulalo') ||
+      recipe.title.toLowerCase().contains('monggo') ||
+      recipe.title.toLowerCase().contains('ginisang') ||
+      recipe.title.toLowerCase().contains('pritong') ||
+      recipe.title.toLowerCase().contains('ginataang') ||
+      recipe.title.toLowerCase().contains('pakbet') ||
+      recipe.title.toLowerCase().contains('dinuguan') ||
+      recipe.title.toLowerCase().contains('pancit')
+    ).toList();
+  }
+
+  // Street Food Favorites
+  List<Recipe> _getStreetFoodRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      recipe.title.toLowerCase().contains('sisig') ||
+      recipe.title.toLowerCase().contains('lechon') ||
+      recipe.title.toLowerCase().contains('kawali') ||
+      recipe.title.toLowerCase().contains('crispy') ||
+      recipe.title.toLowerCase().contains('barbecue') ||
+      recipe.title.toLowerCase().contains('bbq') ||
+      recipe.title.toLowerCase().contains('inihaw') ||
+      recipe.title.toLowerCase().contains('grilled') ||
+      recipe.title.toLowerCase().contains('pulutan') ||
+      recipe.title.toLowerCase().contains('chicharon')
+    ).toList();
+  }
+
+  // Quick & Easy Meals
+  List<Recipe> _getQuickEasyRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      recipe.title.toLowerCase().contains('quick') ||
+      recipe.title.toLowerCase().contains('easy') ||
+      recipe.title.toLowerCase().contains('simple') ||
+      recipe.title.toLowerCase().contains('fast') ||
+      recipe.title.toLowerCase().contains('ginisang') ||
+      recipe.title.toLowerCase().contains('pritong') ||
+      recipe.title.toLowerCase().contains('scrambled') ||
+      recipe.title.toLowerCase().contains('fried') ||
+      recipe.title.toLowerCase().contains('instant') ||
+      recipe.title.toLowerCase().contains('one-pot') ||
+      recipe.title.toLowerCase().contains('30-minute') ||
+      recipe.title.toLowerCase().contains('15-minute')
+    ).toList();
+  }
+
+  // Healthy Pinoy
+  List<Recipe> _getHealthyPinoyRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      recipe.dietTypes.contains('Healthy') ||
+      recipe.dietTypes.contains('Low Calorie') ||
+      recipe.dietTypes.contains('Vegetarian') ||
+      recipe.title.toLowerCase().contains('steamed') ||
+      recipe.title.toLowerCase().contains('boiled') ||
+      recipe.title.toLowerCase().contains('fresh') ||
+      recipe.title.toLowerCase().contains('salad') ||
+      recipe.title.toLowerCase().contains('vegetable') ||
+      recipe.title.toLowerCase().contains('fish') ||
+      recipe.title.toLowerCase().contains('chicken breast')
+    ).toList();
+  }
+
+  // Sabaw & Nilaga (Soups & Stews) - Updated
   List<Recipe> _getSoupRecipes(List<Recipe> recipes) {
     return recipes.where((recipe) => 
       recipe.dietTypes.contains('Soup') ||
       recipe.title.toLowerCase().contains('sinigang') ||
       recipe.title.toLowerCase().contains('tinola') ||
       recipe.title.toLowerCase().contains('monggo') ||
-      recipe.title.toLowerCase().contains('soup')
+      recipe.title.toLowerCase().contains('nilaga') ||
+      recipe.title.toLowerCase().contains('bulalo') ||
+      recipe.title.toLowerCase().contains('soup') ||
+      recipe.title.toLowerCase().contains('sabaw') ||
+      recipe.title.toLowerCase().contains('batchoy') ||
+      recipe.title.toLowerCase().contains('mami')
     ).toList();
   }
 
-  List<Recipe> _getMeatSeafoodRecipes(List<Recipe> recipes) {
+  // Grilled & BBQ
+  List<Recipe> _getGrilledRecipes(List<Recipe> recipes) {
     return recipes.where((recipe) => 
-      recipe.dietTypes.contains('High Protein') ||
-      recipe.title.toLowerCase().contains('chicken') ||
-      recipe.title.toLowerCase().contains('beef') ||
-      recipe.title.toLowerCase().contains('pork') ||
-      recipe.title.toLowerCase().contains('shrimp') ||
-      recipe.title.toLowerCase().contains('fish') ||
-      recipe.title.toLowerCase().contains('bangus') ||
-      recipe.title.toLowerCase().contains('hipon')
+      recipe.title.toLowerCase().contains('inihaw') ||
+      recipe.title.toLowerCase().contains('grilled') ||
+      recipe.title.toLowerCase().contains('barbecue') ||
+      recipe.title.toLowerCase().contains('bbq') ||
+      recipe.title.toLowerCase().contains('ihaw') ||
+      recipe.title.toLowerCase().contains('charcoal') ||
+      recipe.title.toLowerCase().contains('roasted') ||
+      recipe.title.toLowerCase().contains('lechon') ||
+      recipe.title.toLowerCase().contains('liempo') ||
+      recipe.title.toLowerCase().contains('bangus')
     ).toList();
   }
 
@@ -602,7 +696,7 @@ class _RecipesPageState extends State<RecipesPage> {
                 final filteredRecipes = _applySearchAndSort(allRecipes);
 
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -676,7 +770,7 @@ class _RecipesPageState extends State<RecipesPage> {
 
                       const SizedBox(height: 50),
 
-                      // Recently Added Recipes - Horizontal Scroll
+                      // Recently Added Recipes
                       _buildRecipeSection(
                         'Recently Added',
                         filteredRecipes.take(10).toList(),
@@ -685,29 +779,74 @@ class _RecipesPageState extends State<RecipesPage> {
 
                       const SizedBox(height: 24),
 
-                      // Filipino Favorites
+                      // Silog Meals (Breakfast Classics)
                       _buildRecipeSection(
-                        'Filipino Favorites',
-                        _getFilipinoRecipes(filteredRecipes),
-                        _getFilipinoRecipes(filteredRecipes).length,
+                        'Silog Meals',
+                        _getSilogRecipes(filteredRecipes),
+                        _getSilogRecipes(filteredRecipes).length,
                       ),
 
                       const SizedBox(height: 24),
 
-                      // Soups & Stews
+                      // Kainang Pamilya (Family Favorites)
                       _buildRecipeSection(
-                        'Soups & Stews',
+                        'Kainang Pamilya',
+                        _getFamilyFavorites(filteredRecipes),
+                        _getFamilyFavorites(filteredRecipes).length,
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Lutong Bahay (Home-cooked Comfort)
+                      _buildRecipeSection(
+                        'Lutong Bahay',
+                        _getHomeCookedRecipes(filteredRecipes),
+                        _getHomeCookedRecipes(filteredRecipes).length,
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Street Food Favorites
+                      _buildRecipeSection(
+                        'Street Food Favorites',
+                        _getStreetFoodRecipes(filteredRecipes),
+                        _getStreetFoodRecipes(filteredRecipes).length,
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Quick & Easy Meals
+                      _buildRecipeSection(
+                        'Quick & Easy Meals',
+                        _getQuickEasyRecipes(filteredRecipes),
+                        _getQuickEasyRecipes(filteredRecipes).length,
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Healthy Pinoy
+                      _buildRecipeSection(
+                        'Healthy Pinoy',
+                        _getHealthyPinoyRecipes(filteredRecipes),
+                        _getHealthyPinoyRecipes(filteredRecipes).length,
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Sabaw & Nilaga (Soups & Stews)
+                      _buildRecipeSection(
+                        'Sabaw & Nilaga',
                         _getSoupRecipes(filteredRecipes),
                         _getSoupRecipes(filteredRecipes).length,
                       ),
 
                       const SizedBox(height: 24),
 
-                      // Meat & Seafood
+                      // Grilled & BBQ
                       _buildRecipeSection(
-                        'Meat & Seafood',
-                        _getMeatSeafoodRecipes(filteredRecipes),
-                        _getMeatSeafoodRecipes(filteredRecipes).length,
+                        'Grilled & BBQ',
+                        _getGrilledRecipes(filteredRecipes),
+                        _getGrilledRecipes(filteredRecipes).length,
                       ),
                     ],
                   ),
@@ -737,6 +876,7 @@ class _RecipesPageState extends State<RecipesPage> {
                   Expanded(
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                     child: Row(
                       children: _mealsForPlan.map(
                         (meal) => Container(
@@ -765,21 +905,21 @@ class _RecipesPageState extends State<RecipesPage> {
                               ),
                               // Remove button overlay - positioned to overlap with image edge like a badge
                               Positioned(
-                                top: -8,
-                                right: -8,
+                                top: -6,
+                                right: -6,
                                 child: GestureDetector(
                                   onTap: () => _removeFromMealPlan(meal),
                                   child: Container(
-                                    width: 20,
-                                    height: 20,
+                                    width: 18,
+                                    height: 18,
                                     decoration: const BoxDecoration(
-                                      color: const Color(0xFFFF6961),
+                                      color: Color(0xFFFF6961),
                                       shape: BoxShape.circle,
                                     ),
                                     child: const Icon(
                                       Icons.close,
                                       color: Colors.white,
-                                      size: 14,
+                                      size: 12,
                                     ),
                                   ),
                                 ),
@@ -792,7 +932,9 @@ class _RecipesPageState extends State<RecipesPage> {
                     ),
                   ),
                   // Right side: Build Meal Plan button
-                  ElevatedButton(
+                  Container(
+                    margin: const EdgeInsets.only(left: 16),
+                    child: ElevatedButton(
                     onPressed: () async {
                       await Navigator.push(
                         context,
@@ -858,6 +1000,7 @@ class _RecipesPageState extends State<RecipesPage> {
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         fontFamily: 'Geist',
+                      ),
                       ),
                     ),
                   ),

@@ -4,7 +4,7 @@ import '../models/meal_history_entry.dart';
 import '../models/user_nutrition_goals.dart';
 import '../models/recipes.dart';
 import 'recipe_service.dart';
-import 'gemini_meal_suggestion_service.dart';
+// Gemini integration removed
 
 class SmartMealSuggestionService {
   static final SupabaseClient _client = Supabase.instance.client;
@@ -32,25 +32,7 @@ class SmartMealSuggestionService {
       final userPatterns = await _getUserEatingPatterns(userId);
       
       // 4. Try AI-powered suggestions first (if enabled)
-      if (useAI) {
-        try {
-          final aiSuggestions = await GeminiMealSuggestionService.getAISuggestions(
-            userId: userId,
-            mealCategory: mealCategory,
-            userGoals: userGoals,
-            currentNutrition: currentNutrition,
-            userPatterns: userPatterns,
-            targetTime: time,
-          );
-          
-          if (aiSuggestions.isNotEmpty) {
-            print('AI suggestions generated successfully: ${aiSuggestions.length}');
-            return aiSuggestions;
-          }
-        } catch (e) {
-          print('AI suggestions failed, falling back to rule-based: $e');
-        }
-      }
+      // AI provider removed; always fall back to rule-based for now
       
       // 5. Fallback to rule-based suggestions
       final nutritionalGaps = _calculateNutritionalGaps(currentNutrition, userGoals);
@@ -539,12 +521,8 @@ class SmartMealSuggestionService {
 
   /// Test AI integration
   static Future<bool> testAIIntegration() async {
-    try {
-      return await GeminiMealSuggestionService.testConnection();
-    } catch (e) {
-      print('AI integration test failed: $e');
-      return false;
-    }
+    // AI provider removed; treat as unavailable
+    return false;
   }
 
   /// Get AI-powered suggestions only (for testing)

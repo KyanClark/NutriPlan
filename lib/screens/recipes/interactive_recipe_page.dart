@@ -231,14 +231,14 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
     final hour = now.hour;
     String mealCategory;
     
-    if (hour >= 5 && hour < 11) {
-      mealCategory = 'breakfast';
-    } else if (hour >= 11 && hour < 16) {
-      mealCategory = 'lunch';
-    } else if (hour >= 16 && hour < 22) {
-      mealCategory = 'dinner';
+    if (hour >= 4 && hour < 12) {
+      mealCategory = 'breakfast';    // 4 AM - 12 PM (more flexible)
+    } else if (hour >= 12 && hour < 17) {
+      mealCategory = 'lunch';        // 12 PM - 5 PM
+    } else if (hour >= 17 && hour < 23) {
+      mealCategory = 'dinner';       // 5 PM - 11 PM
     } else {
-      mealCategory = 'snack';
+      mealCategory = 'snack';        // 11 PM - 4 AM
     }
     
     // Insert into meal history with available nutrition data

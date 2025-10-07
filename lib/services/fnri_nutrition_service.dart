@@ -482,7 +482,6 @@ class FNRINutritionService {
       'ginataang gulay mix': ['ginataang gulay mix', 'knorr ginataang gulay mix', 'seasoning mix'],
       'mushroom': ['mushroom', 'kabute', 'fungus', 'fungi'],
       'tofu': ['tofu', 'tokwa', 'soy', 'protein'],
-      'egg': ['egg', 'itlog', 'gallus', 'protein'],
       'milk': ['milk', 'gatas', 'dairy', 'liquid'],
       'cheese': ['cheese', 'keso', 'dairy', 'solid'],
       'butter': ['butter', 'mantikilya', 'dairy', 'fat'],

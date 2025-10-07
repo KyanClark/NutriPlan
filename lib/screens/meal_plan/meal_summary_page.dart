@@ -29,9 +29,9 @@ class _MealSummaryPageState extends State<MealSummaryPage> {
 
   // Time restrictions for each meal type (using 12-hour format for display)
   static const Map<String, Map<String, int>> _mealTimeRestrictions = {
-    'breakfast': {'startHour': 5, 'endHour': 10}, // 5:00 AM - 10:00 AM
-    'lunch': {'startHour': 11, 'endHour': 16}, // 11:00 AM - 4:00 PM
-    'dinner': {'startHour': 17, 'endHour': 20}, // 5:00 PM - 8:00 PM
+    'breakfast': {'startHour': 5, 'endHour': 8}, // 5:00 AM - 8:00 AM
+    'lunch': {'startHour': 11, 'endHour': 13}, // 11:00 AM - 1:00 PM
+    'dinner': {'startHour': 18, 'endHour': 21}, // 6:00 PM - 9:00 PM
   };
 
   void _showMealTypeDialog(int index) {
@@ -150,6 +150,10 @@ class _MealSummaryPageState extends State<MealSummaryPage> {
     final startHour = restrictions['startHour']!;
     final endHour = restrictions['endHour']!;
 
+    // Set initial time to the middle of the allowed range
+    final middleHour = startHour + ((endHour - startHour) ~/ 2);
+    _selectedTime = TimeOfDay(hour: middleHour, minute: 0);
+
     // Create a custom time picker dialog
     final result = await showDialog<TimeOfDay>(
       context: context,
@@ -246,9 +250,9 @@ class _MealSummaryPageState extends State<MealSummaryPage> {
   Widget _buildTimeWheel(int startHour, int endHour) {
     return Row(
       children: [
-        // Hour wheel
+        // Hour wheel (12-hour format)
         Expanded(
-          child: _buildWheel(
+          child: _buildHourWheel(
             startHour,
             endHour,
             (value) {
@@ -257,7 +261,6 @@ class _MealSummaryPageState extends State<MealSummaryPage> {
               });
             },
             _selectedTime.hour,
-            'Hour',
           ),
         ),
         const Text(':', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
@@ -344,6 +347,77 @@ class _MealSummaryPageState extends State<MealSummaryPage> {
                 );
               },
               childCount: end - start + 1,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHourWheel(int startHour, int endHour, Function(int) onChanged, int initialValue) {
+    return StatefulBuilder(
+      builder: (context, setState) {
+        // Convert 24-hour to 12-hour format for display
+        final displayHours = <int>[];
+        for (int hour = startHour; hour <= endHour; hour++) {
+          displayHours.add(hour);
+        }
+        
+        final initialDisplayIndex = displayHours.indexOf(initialValue);
+        final controller = FixedExtentScrollController(initialItem: initialDisplayIndex >= 0 ? initialDisplayIndex : 0);
+        int currentIndex = initialDisplayIndex >= 0 ? initialDisplayIndex : 0;
+        
+        return NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            if (notification is ScrollUpdateNotification) {
+              final offset = notification.metrics.pixels;
+              final itemExtent = 40.0;
+              final centerIndex = (offset / itemExtent).round();
+              final clampedIndex = centerIndex.clamp(0, displayHours.length - 1);
+              
+              if (clampedIndex != currentIndex) {
+                currentIndex = clampedIndex;
+                final newValue = displayHours[clampedIndex];
+                onChanged(newValue);
+                setState(() {
+                  _selectedTime = TimeOfDay(hour: newValue, minute: _selectedTime.minute);
+                });
+              }
+            }
+            return false;
+          },
+          child: ListWheelScrollView.useDelegate(
+            itemExtent: 40,
+            diameterRatio: 1.5,
+            physics: const FixedExtentScrollPhysics(),
+            controller: controller,
+            onSelectedItemChanged: (index) {
+              currentIndex = index;
+              final newValue = displayHours[index];
+              onChanged(newValue);
+              setState(() {
+                _selectedTime = TimeOfDay(hour: newValue, minute: _selectedTime.minute);
+              });
+            },
+            childDelegate: ListWheelChildBuilderDelegate(
+              builder: (context, index) {
+                final hour24 = displayHours[index];
+                final hour12 = hour24 == 0 ? 12 : (hour24 > 12 ? hour24 - 12 : hour24);
+                final isSelected = index == currentIndex;
+                
+                return Container(
+                  alignment: Alignment.center,
+                  child: Text(
+                    hour12.toString(),
+                    style: TextStyle(
+                      fontSize: isSelected ? 20 : 16,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isSelected ? const Color(0xFF4CAF50) : Colors.grey,
+                    ),
+                  ),
+                );
+              },
+              childCount: displayHours.length,
             ),
           ),
         );
