@@ -373,10 +373,6 @@ class SmartMealSuggestionService {
         suitableRecipes = recipes.where((r) => r.calories >= 500 && r.calories <= 900).toList();
         timingReason = 'Hearty dinner to end your day';
         break;
-      case MealCategory.snack:
-        suitableRecipes = recipes.where((r) => r.calories <= 300).toList();
-        timingReason = 'Light snack to keep you energized';
-        break;
     }
 
     for (final recipe in suitableRecipes.take(2)) {
@@ -486,8 +482,6 @@ class SmartMealSuggestionService {
         return MealCategory.lunch;
       case 'dinner':
         return MealCategory.dinner;
-      case 'snack':
-        return MealCategory.snack;
       default:
         return MealCategory.dinner;
     }

@@ -97,7 +97,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
 
   Future<void> _checkDatabaseTable() async {
     try {
-      final result = await Supabase.instance.client
+      await Supabase.instance.client
           .from('recipe_feedbacks')
           .select('count')
           .limit(1);
@@ -674,7 +674,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
       } else if (time.hour >= 17 && time.hour < 23) {
         mealType = 'dinner';       // 5 PM - 11 PM
       } else {
-        mealType = 'snack';        // 11 PM - 4 AM
+        mealType = 'dinner';        // 11 PM - 4 AM (use dinner for late hours)
       }
 
       // Save to meal_plans table as one row per meal (with required date and time)

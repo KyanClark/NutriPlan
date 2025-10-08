@@ -124,7 +124,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       } else if (now.hour < 20) {
         currentMealCategory = MealCategory.dinner;
       } else {
-        currentMealCategory = MealCategory.snack;
+        currentMealCategory = MealCategory.dinner; // Use dinner for evening hours
       }
 
       // Generate cache key

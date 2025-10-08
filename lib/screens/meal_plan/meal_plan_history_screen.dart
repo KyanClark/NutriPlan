@@ -53,8 +53,8 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
     
     for (final meal in _history) {
       final dt = meal['completed_at'] != null
-          ? DateTime.parse(meal['completed_at']).toLocal()
-          : null;
+        ? DateTime.parse(meal['completed_at']).toLocal()
+        : null;
       
       if (dt == null) continue;
       
@@ -115,11 +115,11 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
       default:
         final dt = DateTime.tryParse(periodKey);
         if (dt == null) return periodKey;
-        final months = [
-          'January', 'February', 'March', 'April', 'May', 'June',
-          'July', 'August', 'September', 'October', 'November', 'December'
-        ];
-        return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
+      final months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
     }
   }
 

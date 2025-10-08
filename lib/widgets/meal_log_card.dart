@@ -25,8 +25,6 @@ class _MealLogCardState extends State<MealLogCard> {
         return Colors.green;
       case MealCategory.dinner:
         return Colors.purple;
-      case MealCategory.snack:
-        return Colors.blue;
     }
   }
 
@@ -38,8 +36,6 @@ class _MealLogCardState extends State<MealLogCard> {
         return 'Lunch';
       case MealCategory.dinner:
         return 'Dinner';
-      case MealCategory.snack:
-        return 'Snack';
     }
   }
   

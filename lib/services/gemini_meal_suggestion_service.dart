@@ -389,7 +389,7 @@ CRITICAL REQUIREMENTS:
     } else if (hour < 15) {
       return 'Dinner later today';
     } else if (hour < 20) {
-      return 'Snack or late dinner later';
+      return 'Late dinner later';
     } else {
       return 'No more meals planned today';
     }

@@ -238,7 +238,7 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
     } else if (hour >= 17 && hour < 23) {
       mealCategory = 'dinner';       // 5 PM - 11 PM
     } else {
-      mealCategory = 'snack';        // 11 PM - 4 AM
+      mealCategory = 'dinner';        // 11 PM - 4 AM (use dinner for late hours)
     }
     
     // Insert into meal history with available nutrition data

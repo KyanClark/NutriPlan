@@ -382,8 +382,6 @@ class BehavioralAnalysisService {
         return MealCategory.lunch;
       case 'dinner':
         return MealCategory.dinner;
-      case 'snack':
-        return MealCategory.snack;
       default:
         return MealCategory.dinner;
     }

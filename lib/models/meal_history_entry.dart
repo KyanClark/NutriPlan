@@ -4,7 +4,6 @@ enum MealCategory {
   breakfast,
   lunch,
   dinner,
-  snack,
 }
 
 class MealHistoryEntry {
@@ -75,8 +74,6 @@ class MealHistoryEntry {
         return MealCategory.lunch;
       case 'dinner':
         return MealCategory.dinner;
-      case 'snack':
-        return MealCategory.snack;
       default:
         return MealCategory.dinner; // Default fallback
     }
@@ -90,8 +87,6 @@ class MealHistoryEntry {
         return 'Lunch';
       case MealCategory.dinner:
         return 'Dinner';
-      case MealCategory.snack:
-        return 'Snack';
     }
   }
 
@@ -103,8 +98,6 @@ class MealHistoryEntry {
         return Colors.green;
       case MealCategory.dinner:
         return Colors.purple;
-      case MealCategory.snack:
-        return Colors.blue;
     }
   }
 } 

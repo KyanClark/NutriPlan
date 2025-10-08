@@ -14,11 +14,7 @@ class RecipeNutritionUpdaterService {
           .eq('id', recipeId)
           .single();
 
-      if (recipeData == null) {
-        print('Recipe not found: $recipeId');
-        return false;
-      }
-
+      // Recipe data is guaranteed to exist from the query above
       final ingredients = recipeData['ingredients'] as List;
       final title = recipeData['title'] as String;
 
@@ -34,7 +30,7 @@ class RecipeNutritionUpdaterService {
       );
       
       // Update recipe in Supabase
-      final updateResult = await _client
+      await _client
           .from('recipes')
           .update({
             'macros': nutrition['summary'],
@@ -364,7 +360,7 @@ class RecipeNutritionUpdaterService {
       // Update the specific nutrient
       currentMacros[nutrient] = value;
       
-      final result = await _client
+      await _client
           .from('recipes')
           .update({
             'macros': currentMacros,
