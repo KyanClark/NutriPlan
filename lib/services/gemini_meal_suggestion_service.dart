@@ -7,11 +7,8 @@ import '../models/recipes.dart';
 import 'recipe_service.dart';
 
 class GeminiMealSuggestionService {
-  // Read from build-time env, fallback to previously used key for compatibility
-  static const String _apiKey = String.fromEnvironment(
-    'GEMINI_API_KEY',
-    defaultValue: 'AIzaSyA58P35E85fvoML8AkqKIME9n4dC26M4GQ',
-  );
+  // Read from environment variable
+  static const String _apiKey = String.fromEnvironment('GEMINI_API_KEY');
   static const String _groqApiKey = String.fromEnvironment('GROQ_API_KEY', defaultValue: '');
   static const String _baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
   static const String _groqUrl = 'https://api.groq.com/openai/v1/chat/completions';

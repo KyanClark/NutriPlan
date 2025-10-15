@@ -528,8 +528,11 @@ class SmartMealSuggestionService {
   /// Test AI integration
   static Future<bool> testAIIntegration() async {
     try {
-      // Use hardcoded API key directly
-      const groqApiKey = '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';
+      // Use environment variable for API key
+      const groqApiKey = String.fromEnvironment('GROQ_API_KEY');
+      if (groqApiKey.isEmpty) {
+        throw Exception('GROQ_API_KEY environment variable not set');
+      }
       print('AI Integration Test: Using GROQ_API_KEY (${groqApiKey.substring(0, 10)}...)');
 
       // Test with a simple API call
