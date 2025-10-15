@@ -155,13 +155,13 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
     // This prevents null check operator errors when nutrition data is missing
     return {
       'calories': widget.recipe.calories ?? 0,
-      'protein': _safeDouble(macros?['protein'], 0.0),
-      'carbs': _safeDouble(macros?['carbs'], 0.0),
-      'fat': _safeDouble(macros?['fat'], 0.0),
-      'fiber': _safeDouble(macros?['fiber'], 0.0),
-      'sugar': _safeDouble(macros?['sugar'], 0.0),
-      'sodium': _safeDouble(macros?['sodium'], 0.0),
-      'cholesterol': _safeDouble(macros?['cholesterol'], 0.0),
+      'protein': _safeDouble(macros['protein'], 0.0),
+      'carbs': _safeDouble(macros['carbs'], 0.0),
+      'fat': _safeDouble(macros['fat'], 0.0),
+      'fiber': _safeDouble(macros['fiber'], 0.0),
+      'sugar': _safeDouble(macros['sugar'], 0.0),
+      'sodium': _safeDouble(macros['sodium'], 0.0),
+      'cholesterol': _safeDouble(macros['cholesterol'], 0.0),
     };
   }
 
@@ -346,10 +346,8 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
   /// Check if recipe needs nutrition update and update automatically
   Future<void> _checkAndUpdateNutrition() async {
     // Check if recipe is missing nutrition data
-    if (widget.recipe.macros != null && 
-        widget.recipe.macros.isNotEmpty && 
-        widget.recipe.calories != null && 
-        widget.recipe.calories! > 0) {
+    if (widget.recipe.macros.isNotEmpty && 
+        widget.recipe.calories > 0) {
       // Recipe already has nutrition data
       return;
     }
@@ -965,7 +963,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                           ],
                         ),
                         child: Padding(
-                          padding: const EdgeInsets.all(20.0),
+                          padding: const EdgeInsets.symmetric(horizontal: 35.0, vertical: 35.0),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -990,10 +988,13 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                                 padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
                                 child: Text('Cost: ₱${recipe.cost.toStringAsFixed(2)}', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.blueGrey, fontWeight: FontWeight.w600)),
                               ),
-                              const SizedBox(height: 8),
-                            Text(
+                              const SizedBox(height: 12),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4.0),
+                              child: Text(
                               recipe.shortDescription,
                               style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
+                            ),
                             ),
                               const SizedBox(height: 20),
                             if (recipe.dietTypes.isNotEmpty)
@@ -1061,7 +1062,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                                 if (isUpdatingNutrition)
                                     const NutritionLoadingSkeleton()
                                 // Show nutrition data (either original or updated)
-                                else if ((recipe.macros.isNotEmpty && recipe.calories != null && recipe.calories! > 0) || updatedNutrition != null)
+                                else if ((recipe.macros.isNotEmpty && recipe.calories > 0) || updatedNutrition != null)
                                   Align(
                                     alignment: Alignment.centerLeft,
                                     child: Column(
@@ -1183,18 +1184,24 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                                   )),
                                 ],
                               ),
-                              const SizedBox(height: 20),
-                              const Text('Ingredients', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 24),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                                child: const Text('Ingredients', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                              ),
+                            const SizedBox(height: 16),
                               ...recipe.ingredients.map((ing) => Padding(
-                                padding: const EdgeInsets.only(bottom: 6),
+                                padding: const EdgeInsets.only(bottom: 8),
                                 child: Text('• $ing', style: const TextStyle(fontSize: 15)),
                               )),
-                              const SizedBox(height: 20),
-                              const Text('Instructions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 24),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                                child: const Text('Instructions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                              ),
+                            const SizedBox(height: 16),
                               ...recipe.instructions.asMap().entries.map((entry) => Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.only(bottom: 12),
                                 child: Text('${entry.key + 1}. ${entry.value}', style: const TextStyle(fontSize: 15)),
                               )),
                               const SizedBox(height: 20),
@@ -1210,11 +1217,15 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      const Text(
+                              const SizedBox(height: 24),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                                child: const Text(
                                         'Reviews',
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 20,
+                                  ),
                                         ),
                                       ),
                                       if (totalFeedbacks > 0)
@@ -1223,7 +1234,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                                             Icon(Icons.star, color: Colors.amber, size: 20),
                                             const SizedBox(width: 4),
                                     Text(
-                                              '${averageRating.toStringAsFixed(1)}',
+                                              averageRating.toStringAsFixed(1),
                                               style: const TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 18,
@@ -1340,9 +1351,9 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                                                       value: 'delete',
                                                       child: Row(
                                                         children: [
-                                                          Icon(Icons.delete, color: const Color(0xFFFF6961)),
+                                                          Icon(Icons.delete, color: Color(0xFFFF6961)),
                                                           SizedBox(width: 8),
-                                                          Text('Delete', style: TextStyle(color: const Color(0xFFFF6961))),
+                                                          Text('Delete', style: TextStyle(color: Color(0xFFFF6961))),
                                                         ],
                                                       ),
                                                     ),

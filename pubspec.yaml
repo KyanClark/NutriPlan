@@ -40,6 +40,7 @@ dependencies:
   http: ^1.1.0
   path: ^1.8.3
   flutter_bloc: ^8.1.4
+  flutter_dotenv: ^5.1.0
 
 
 dev_dependencies:

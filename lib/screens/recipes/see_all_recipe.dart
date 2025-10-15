@@ -173,7 +173,7 @@ class _SeeAllRecipePageState extends State<SeeAllRecipePage> {
                             ),
                           );
                         },
-                        child: Container(
+                        child: SizedBox(
                           width: 200,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,

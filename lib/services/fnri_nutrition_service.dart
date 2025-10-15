@@ -202,7 +202,7 @@ class FNRIIngredientNutrition {
 
   @override
   String toString() {
-    return 'FNRIIngredientNutrition($foodName: ${protein}g protein, ${totalFat}g fat, ${totalCarbohydrate}g carbs, ${energyKcal} kcal, EP: $ediblePortion)';
+    return 'FNRIIngredientNutrition($foodName: ${protein}g protein, ${totalFat}g fat, ${totalCarbohydrate}g carbs, $energyKcal kcal, EP: $ediblePortion)';
   }
 }
 

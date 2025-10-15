@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../recipes/recipe_info_screen.dart';
 import '../../models/recipes.dart';
+import '../../widgets/loading_skeletons.dart';
 import 'interface/meal_planner_widgets.dart';
 
 class MealPlannerScreen extends StatefulWidget {
@@ -23,7 +24,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
   bool _isLoading = true;
   String _selectedFilter = 'All';
   bool _isDeleteMode = false;
-  Set<String> _selectedMealsForDeletion = {};
+  final Set<String> _selectedMealsForDeletion = {};
 
   @override
   void initState() {
@@ -68,9 +69,6 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
       
       // Process each meal plan record
       for (final meal in plansResponse) {
-        print('DEBUG MEAL PLANNER: Processing meal: ${meal['id']}');
-        print('DEBUG MEAL PLANNER: Recipe data: ${meal['recipes']}');
-        
         allMeals.add({
           ...meal,
           'plan_id': meal['id'],
@@ -219,7 +217,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                               ],
                             ),
               child: Padding(
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
                     // Header with title and delete button
@@ -232,16 +230,16 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                               Text(
                                 'Meal Planner',
                                 style: TextStyle(
-                                  fontSize: isSmallScreen ? 24 : 28,
+                                  fontSize: isSmallScreen ? 20 : 22,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
                                 ),
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 2),
                               Text(
-                                'Plan your meals for the week',
+                                'Plan smarter, eat better',
                                 style: TextStyle(
-                                  fontSize: isSmallScreen ? 14 : 16,
+                                  fontSize: isSmallScreen ? 12 : 13,
                                   color: Colors.white.withOpacity(0.9),
                                 ),
                               ),
@@ -261,13 +259,13 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                           icon: Icon(
                             _isDeleteMode ? Icons.close : Icons.delete_outline,
                             color: Colors.white,
-                            size: 28,
+                            size: 22,
                           ),
                               tooltip: _isDeleteMode ? 'Cancel Delete' : 'Delete Meals',
                             ),
                       ],
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 12),
                     // Filter buttons with enhanced design
                     if (supabaseMealPlans.isNotEmpty)
                       MealPlannerFilterButtons(
@@ -286,10 +284,9 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
             // Content area with loading state
             Expanded(
               child: _isLoading 
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4CAF50)),
-                      ),
+                  ? RecipeListSkeleton(
+                      itemCount: 6,
+                      loadingMessage: 'Loading your meal plans...',
                     )
                   : SingleChildScrollView(
                       physics: const BouncingScrollPhysics(),
@@ -355,12 +352,6 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                                     final recipeData = meal['recipes'];
                                     final recipeId = recipeData?['id']?.toString() ?? mealId;
                                     
-                                    print('DEBUG MEAL CARD: Meal ID: $mealId');
-                                    print('DEBUG MEAL CARD: Recipe ID: $recipeId');
-                                    print('DEBUG MEAL CARD: Recipe data: $recipeData');
-                                    print('DEBUG MEAL CARD: Image URL: ${recipeData?['image_url']}');
-                                    print('DEBUG MEAL CARD: Calories: ${recipeData?['calories']}');
-                                    
                                     return MealPlannerRecipeCard(
                                       recipe: Recipe(
                                         id: recipeId,
@@ -372,7 +363,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                                         allergyWarning: recipeData?['allergy_warning'] ?? '',
                                         calories: recipeData?['calories'] ?? 0,
                                         dietTypes: List<String>.from(recipeData?['diet_types'] ?? []),
-                                        cost: recipeData?['cost'] ?? 0,
+                                        cost: (recipeData?['cost'] ?? 0).toDouble(),
                                         imageUrl: recipeData?['image_url'] ?? '',
                                       ),
                                       mealType: meal['meal_type'],

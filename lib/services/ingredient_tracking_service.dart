@@ -231,12 +231,12 @@ class IngredientTrackingService {
       analysis[ingredient] = result;
       
       if (!result['is_valid']) {
-        issues.add('❌ "${ingredient}" not found in FNRI database');
+        issues.add('❌ "$ingredient" not found in FNRI database');
         if (result['suggestions'].isNotEmpty) {
           suggestions[ingredient] = result['suggestions'].first;
         }
       } else if (result['confidence'] < 0.7) {
-        issues.add('⚠️ Low confidence match for "${ingredient}" (${(result['confidence'] * 100).toStringAsFixed(1)}%)');
+        issues.add('⚠️ Low confidence match for "$ingredient" (${(result['confidence'] * 100).toStringAsFixed(1)}%)');
       }
     }
     

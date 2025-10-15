@@ -99,26 +99,26 @@ class _BottomNavigationState extends State<BottomNavigation>
             clipBehavior: Clip.none,
             children: [
               // Main navigation bar
-              BottomNavigationBar(
-                backgroundColor: Colors.white,
-                elevation: 0,
+          BottomNavigationBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
                 currentIndex: widget.selectedIndex,
                 onTap: widget.onTap,
-                unselectedItemColor: const Color.fromARGB(255, 136, 136, 136),
-                selectedItemColor: Colors.green,
+            unselectedItemColor: const Color.fromARGB(255, 136, 136, 136),
+            selectedItemColor: Colors.green,
                 iconSize: widget.isSmallScreen ? 27 : 24,
-                type: BottomNavigationBarType.fixed,
-                showSelectedLabels: true,
-                showUnselectedLabels: true,
-                selectedLabelStyle: TextStyle(
-                  fontSize: ResponsiveDesign.responsiveFontSize(context, 12),
-                  fontWeight: FontWeight.bold,
-                ),
-                unselectedLabelStyle: TextStyle(
-                  fontSize: ResponsiveDesign.responsiveFontSize(context, 12),
-                ),
-                items: [
-                  _buildBottomNavItem(Icons.home, 'Home', 0),
+            type: BottomNavigationBarType.fixed,
+            showSelectedLabels: true,
+            showUnselectedLabels: true,
+            selectedLabelStyle: TextStyle(
+              fontSize: ResponsiveDesign.responsiveFontSize(context, 12),
+              fontWeight: FontWeight.bold,
+            ),
+            unselectedLabelStyle: TextStyle(
+              fontSize: ResponsiveDesign.responsiveFontSize(context, 12),
+            ),
+            items: [
+              _buildBottomNavItem(Icons.home, 'Home', 0),
                   _buildBottomNavItem(Icons.restaurant_menu, 'Meal Plan', 1, badgeCount: widget.mealPlanCount, customImagePath: 'assets/navigation_icons/meal plan icon.png'),
                   // Empty item for the plus button space
                   const BottomNavigationBarItem(
@@ -224,20 +224,20 @@ class _BottomNavigationState extends State<BottomNavigation>
                   ),
                 )
               : ShaderMask(
-                  shaderCallback: (Rect bounds) {
-                    return LinearGradient(
+            shaderCallback: (Rect bounds) {
+              return LinearGradient(
                       colors: index == widget.selectedIndex
-                          ? [
-                              Color.fromRGBO(142, 190, 155, 1.0),
-                              Color.fromRGBO(125, 189, 228, 1.0),
-                            ]
-                          : [Colors.grey, Colors.grey],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ).createShader(bounds);
-                  },
-                  child: Icon(icon, color: Colors.white),
-                ),
+                    ? [
+                        Color.fromRGBO(142, 190, 155, 1.0),
+                        Color.fromRGBO(125, 189, 228, 1.0),
+                      ]
+                    : [Colors.grey, Colors.grey],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ).createShader(bounds);
+            },
+            child: Icon(icon, color: Colors.white),
+          ),
           if (badgeCount > 0)
             Positioned(
               top: -6,

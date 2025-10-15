@@ -20,27 +20,6 @@ class DecorativeAuthBackground extends StatelessWidget {
                 end: Alignment.bottomRight,
               ),
             ),
-            child: Stack(
-              children: [
-                // Decorative icons (placeholders)
-                Positioned(
-                  top: 40, left: 30,
-                  child: Icon(Icons.fastfood, color: Colors.white.withOpacity(0.15), size: 48),
-                ),
-                Positioned(
-                  top: 80, right: 40,
-                  child: Icon(Icons.local_dining, color: Colors.white.withOpacity(0.13), size: 40),
-                ),
-                Positioned(
-                  top: 20, right: 100,
-                  child: Icon(Icons.restaurant, color: Colors.white.withOpacity(0.10), size: 36),
-                ),
-                Positioned(
-                  top: 100, left: 100,
-                  child: Icon(Icons.emoji_food_beverage, color: Colors.white.withOpacity(0.12), size: 32),
-                ),
-              ],
-            ),
           ),
         ),
         // Main content (form, etc.)

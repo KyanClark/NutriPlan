@@ -226,22 +226,6 @@ class _RecipesPageState extends State<RecipesPage> {
     ).toList();
   }
 
-  // Street Food Favorites
-  List<Recipe> _getStreetFoodRecipes(List<Recipe> recipes) {
-    return recipes.where((recipe) => 
-      recipe.title.toLowerCase().contains('sisig') ||
-      recipe.title.toLowerCase().contains('lechon') ||
-      recipe.title.toLowerCase().contains('kawali') ||
-      recipe.title.toLowerCase().contains('crispy') ||
-      recipe.title.toLowerCase().contains('barbecue') ||
-      recipe.title.toLowerCase().contains('bbq') ||
-      recipe.title.toLowerCase().contains('inihaw') ||
-      recipe.title.toLowerCase().contains('grilled') ||
-      recipe.title.toLowerCase().contains('pulutan') ||
-      recipe.title.toLowerCase().contains('chicharon')
-    ).toList();
-  }
-
   // Quick & Easy Meals
   List<Recipe> _getQuickEasyRecipes(List<Recipe> recipes) {
     return recipes.where((recipe) => 
@@ -292,19 +276,101 @@ class _RecipesPageState extends State<RecipesPage> {
     ).toList();
   }
 
-  // Grilled & BBQ
-  List<Recipe> _getGrilledRecipes(List<Recipe> recipes) {
+
+  // New creative category methods
+  List<Recipe> _getPersonalizedRecipes(List<Recipe> recipes) {
+    // Personalized recommendations based on user preferences and favorites
+    final favoriteRecipes = recipes.where((recipe) => 
+      favoriteRecipeIds.contains(recipe.id)
+    ).toList();
+    
+    // If user has favorites, show them; otherwise show popular recipes
+    if (favoriteRecipes.isNotEmpty) {
+      return favoriteRecipes.take(6).toList();
+    } else {
+      // Show popular Filipino dishes
     return recipes.where((recipe) => 
-      recipe.title.toLowerCase().contains('inihaw') ||
-      recipe.title.toLowerCase().contains('grilled') ||
+        recipe.title.toLowerCase().contains('adobo') ||
+        recipe.title.toLowerCase().contains('sinigang') ||
+        recipe.title.toLowerCase().contains('kare-kare') ||
+        recipe.title.toLowerCase().contains('lechon') ||
+        recipe.title.toLowerCase().contains('sisig') ||
+        recipe.title.toLowerCase().contains('nilaga') ||
+        recipe.title.toLowerCase().contains('tinola')
+      ).take(6).toList();
+    }
+  }
+
+  List<Recipe> _getComfortClassicsRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      recipe.title.toLowerCase().contains('adobo') ||
+      recipe.title.toLowerCase().contains('sinigang') ||
+      recipe.title.toLowerCase().contains('kare-kare') ||
+      recipe.title.toLowerCase().contains('nilaga') ||
+      recipe.title.toLowerCase().contains('tinola') ||
+      recipe.title.toLowerCase().contains('bulalo') ||
+      recipe.title.toLowerCase().contains('pancit') ||
+      recipe.title.toLowerCase().contains('lumpia') ||
+      recipe.title.toLowerCase().contains('lechon') ||
+      recipe.title.toLowerCase().contains('sisig') ||
+      recipe.title.toLowerCase().contains('crispy pata') ||
+      recipe.title.toLowerCase().contains('bicol express')
+    ).toList();
+  }
+
+  List<Recipe> _getFusionFlavorsRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      recipe.title.toLowerCase().contains('fusion') ||
+      recipe.title.toLowerCase().contains('asian') ||
+      recipe.title.toLowerCase().contains('western') ||
+      recipe.title.toLowerCase().contains('italian') ||
+      recipe.title.toLowerCase().contains('chinese') ||
+      recipe.title.toLowerCase().contains('japanese') ||
+      recipe.title.toLowerCase().contains('korean') ||
+      recipe.title.toLowerCase().contains('thai') ||
+      recipe.title.toLowerCase().contains('indian') ||
+      recipe.title.toLowerCase().contains('mexican') ||
+      recipe.title.toLowerCase().contains('spanish') ||
+      recipe.title.toLowerCase().contains('american')
+    ).toList();
+  }
+
+  List<Recipe> _getOnePotWondersRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      recipe.title.toLowerCase().contains('sinigang') ||
+      recipe.title.toLowerCase().contains('nilaga') ||
+      recipe.title.toLowerCase().contains('tinola') ||
+      recipe.title.toLowerCase().contains('bulalo') ||
+      recipe.title.toLowerCase().contains('kare-kare') ||
+      recipe.title.toLowerCase().contains('caldereta') ||
+      recipe.title.toLowerCase().contains('menudo') ||
+      recipe.title.toLowerCase().contains('afritada') ||
+      recipe.title.toLowerCase().contains('pochero') ||
+      recipe.title.toLowerCase().contains('paella') ||
+      recipe.title.toLowerCase().contains('risotto') ||
+      recipe.title.toLowerCase().contains('casserole') ||
+      recipe.title.toLowerCase().contains('stew') ||
+      recipe.title.toLowerCase().contains('pot')
+    ).toList();
+  }
+
+  List<Recipe> _getWeekendSpecialsRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      recipe.title.toLowerCase().contains('lechon') ||
+      recipe.title.toLowerCase().contains('crispy pata') ||
+      recipe.title.toLowerCase().contains('kare-kare') ||
+      recipe.title.toLowerCase().contains('caldereta') ||
+      recipe.title.toLowerCase().contains('paella') ||
+      recipe.title.toLowerCase().contains('roast') ||
       recipe.title.toLowerCase().contains('barbecue') ||
       recipe.title.toLowerCase().contains('bbq') ||
-      recipe.title.toLowerCase().contains('ihaw') ||
-      recipe.title.toLowerCase().contains('charcoal') ||
-      recipe.title.toLowerCase().contains('roasted') ||
-      recipe.title.toLowerCase().contains('lechon') ||
-      recipe.title.toLowerCase().contains('liempo') ||
-      recipe.title.toLowerCase().contains('bangus')
+      recipe.title.toLowerCase().contains('grilled') ||
+      recipe.title.toLowerCase().contains('inihaw') ||
+      recipe.title.toLowerCase().contains('special') ||
+      recipe.title.toLowerCase().contains('feast') ||
+      recipe.title.toLowerCase().contains('celebration') ||
+      recipe.title.toLowerCase().contains('party') ||
+      recipe.title.toLowerCase().contains('occasion')
     ).toList();
   }
 
@@ -806,11 +872,11 @@ class _RecipesPageState extends State<RecipesPage> {
 
                       const SizedBox(height: 24),
 
-                      // Street Food Favorites
+                      // Just for You (Personalized Recommendations)
                       _buildRecipeSection(
-                        'Street Food Favorites',
-                        _getStreetFoodRecipes(filteredRecipes),
-                        _getStreetFoodRecipes(filteredRecipes).length,
+                        'Just for You',
+                        _getPersonalizedRecipes(filteredRecipes),
+                        _getPersonalizedRecipes(filteredRecipes).length,
                       ),
 
                       const SizedBox(height: 24),
@@ -842,11 +908,38 @@ class _RecipesPageState extends State<RecipesPage> {
 
                       const SizedBox(height: 24),
 
-                      // Grilled & BBQ
+                      // Comfort Classics
                       _buildRecipeSection(
-                        'Grilled & BBQ',
-                        _getGrilledRecipes(filteredRecipes),
-                        _getGrilledRecipes(filteredRecipes).length,
+                        'Comfort Classics',
+                        _getComfortClassicsRecipes(filteredRecipes),
+                        _getComfortClassicsRecipes(filteredRecipes).length,
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Fusion Flavors
+                      _buildRecipeSection(
+                        'Fusion Flavors',
+                        _getFusionFlavorsRecipes(filteredRecipes),
+                        _getFusionFlavorsRecipes(filteredRecipes).length,
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // One-Pot Wonders
+                      _buildRecipeSection(
+                        'One-Pot Wonders',
+                        _getOnePotWondersRecipes(filteredRecipes),
+                        _getOnePotWondersRecipes(filteredRecipes).length,
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Weekend Specials
+                      _buildRecipeSection(
+                        'Weekend Specials',
+                        _getWeekendSpecialsRecipes(filteredRecipes),
+                        _getWeekendSpecialsRecipes(filteredRecipes).length,
                       ),
                     ],
                   ),

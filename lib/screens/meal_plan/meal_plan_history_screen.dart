@@ -278,7 +278,40 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
               ),
             )
           : _history.isEmpty
-              ? const Center(child: Text('No completed meals yet.'))
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.asset(
+                          'assets/widgets/no_mea.gif',
+                          width: 200,
+                          height: 200,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          'No completed meals yet',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Complete your meal plans to see them here',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
               : ListView.builder(
         padding: const EdgeInsets.all(20),
                   itemCount: periodKeys.length,

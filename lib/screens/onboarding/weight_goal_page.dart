@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../meal_plan/nutrition_goals_summary_page.dart';
+import 'health_conditions_page.dart';
 import '../../services/nutrition_calculator_service.dart';
 
 class WeightGoalPage extends StatefulWidget {
   final int age;
   final String gender;
-  final double heightCm;
-  final double weightKg;
+  final double? heightCm;
+  final double? weightKg;
   final String activityLevel;
   
   const WeightGoalPage({
     super.key,
     required this.age,
     required this.gender,
-    required this.heightCm,
-    required this.weightKg,
+    this.heightCm,
+    this.weightKg,
     required this.activityLevel,
   });
 
@@ -63,7 +63,7 @@ class _WeightGoalPageState extends State<WeightGoalPage> {
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -194,8 +194,8 @@ class _WeightGoalPageState extends State<WeightGoalPage> {
                   final nutritionGoals = NutritionCalculatorService.calculateGoals(
                     age: widget.age,
                     gender: widget.gender,
-                    heightCm: widget.heightCm,
-                    weightKg: widget.weightKg,
+                    heightCm: widget.heightCm ?? 170.0, // Default height if null
+                    weightKg: widget.weightKg ?? 70.0,  // Default weight if null
                     activityLevel: widget.activityLevel,
                     weightGoal: selectedGoal!,
                   );
@@ -221,8 +221,8 @@ class _WeightGoalPageState extends State<WeightGoalPage> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => NutritionGoalsSummaryPage(
-                        nutritionGoals: nutritionGoals,
+                      builder: (context) => HealthConditionsPage(
+                        baseNutritionGoals: nutritionGoals,
                       ),
                     ),
                   );
@@ -237,7 +237,30 @@ class _WeightGoalPageState extends State<WeightGoalPage> {
   }
   
   Widget _buildBMICard() {
-    final bmi = widget.weightKg / ((widget.heightCm / 100) * (widget.heightCm / 100));
+    if (widget.heightCm == null || widget.weightKg == null) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[300]!),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.info_outline, color: Colors.grey),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'BMI calculation requires height and weight',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    final bmi = widget.weightKg! / ((widget.heightCm! / 100) * (widget.heightCm! / 100));
     String bmiCategory;
     Color bmiColor;
     

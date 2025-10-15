@@ -123,10 +123,10 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _loadEmailSuggestions(String input) async {
     final suggestions = await LoginHistoryService.getFilteredHistory(input);
     if (mounted) {
-      setState(() {
-        _emailSuggestions = suggestions;
-        _showSuggestions = suggestions.isNotEmpty && input.isNotEmpty;
-      });
+    setState(() {
+      _emailSuggestions = suggestions;
+      _showSuggestions = suggestions.isNotEmpty && input.isNotEmpty;
+    });
     }
   }
 
@@ -195,16 +195,18 @@ class _LoginScreenState extends State<LoginScreen> {
                         clipBehavior: Clip.none,
                         children: [
                           Form(
-                            key: _formKey,
-                            child: Column(
-                              children: [
+                        key: _formKey,
+                        child: Column(
+                          children: [
                                 SizedBox(
                                   width:
                                       MediaQuery.of(context).size.width * 0.8,
                                   child: TextFormField(
-                                    controller: _emailController,
-                                    decoration: InputDecoration(
-                                      labelText: 'Email address',
+                                  controller: _emailController,
+                                  decoration: InputDecoration(
+                                    labelText: 'Email address',
+                                      filled: true,
+                                      fillColor: Colors.grey[100],
                                       prefixIcon: Padding(
                                         padding: const EdgeInsets.all(12.0),
                                         child: Icon(
@@ -217,37 +219,39 @@ class _LoginScreenState extends State<LoginScreen> {
                                         borderRadius:
                                             BorderRadius.circular(30),
                                       ),
-                                    ),
-                                    keyboardType: TextInputType.emailAddress,
-                                    onChanged: (value) {
-                                      _loadEmailSuggestions(value);
-                                    },
-                                    onTap: () {
-                                      if (_emailController.text.isNotEmpty) {
-                                        _loadEmailSuggestions(
+                                  ),
+                                  keyboardType: TextInputType.emailAddress,
+                                  onChanged: (value) {
+                                    _loadEmailSuggestions(value);
+                                  },
+                                  onTap: () {
+                                    if (_emailController.text.isNotEmpty) {
+                                      _loadEmailSuggestions(
                                             _emailController.text);
-                                      }
-                                    },
-                                    validator: (value) {
-                                      if (value == null || value.isEmpty) {
-                                        return 'Please enter your email';
-                                      }
-                                      if (!RegExp(
+                                    }
+                                  },
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Please enter your email';
+                                    }
+                                    if (!RegExp(
                                               r'^[^@\s]+@[^@\s]+\.[^@\s]+')
                                           .hasMatch(value)) {
-                                        return 'Please enter a valid email';
-                                      }
-                                      return null;
-                                    },
-                                  ),
+                                      return 'Please enter a valid email';
+                                    }
+                                    return null;
+                                  },
                                 ),
-                                const SizedBox(height: 16),
+                            ),
+                            const SizedBox(height: 16),
                                 SizedBox(
                                   width: MediaQuery.of(context).size.width * 0.8,
                                   child: TextFormField(
-                                    controller: _passwordController,
-                                    decoration: InputDecoration(
-                                      labelText: 'Password',
+                              controller: _passwordController,
+                              decoration: InputDecoration(
+                                labelText: 'Password',
+                                      filled: true,
+                                      fillColor: Colors.grey[100],
                                       prefixIcon: Padding(
                                         padding: const EdgeInsets.all(12.0),
                                         child: Icon(
@@ -259,60 +263,60 @@ class _LoginScreenState extends State<LoginScreen> {
                                       suffixIcon: Padding(
                                         padding: const EdgeInsets.all(8.0),
                                         child: IconButton(
-                                          icon: Icon(
-                                            _obscurePassword
-                                                ? Icons.visibility_off
-                                                : Icons.visibility,
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_off
+                                        : Icons.visibility,
                                             size: 20,
                                             color: Colors.grey[600],
-                                          ),
-                                          onPressed: () {
-                                            setState(() {
-                                              _obscurePassword = !_obscurePassword;
-                                            });
-                                          },
-                                        ),
-                                      ),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(30),
-                                      ),
-                                    ),
-                                    obscureText: _obscurePassword,
-                                    validator: (value) {
-                                      if (value == null || value.isEmpty) {
-                                        return 'Please enter your password';
-                                      }
-                                      return null;
-                                    },
                                   ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _obscurePassword = !_obscurePassword;
+                                    });
+                                  },
+                                        ),
                                 ),
-                                const SizedBox(height: 24),
-                                _isLoading
-                                    ? const CircularProgressIndicator()
-                                    : SizedBox(
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                              ),
+                              obscureText: _obscurePassword,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please enter your password';
+                                }
+                                return null;
+                              },
+                                  ),
+                            ),
+                            const SizedBox(height: 24),
+                            _isLoading
+                                ? const CircularProgressIndicator()
+                                : SizedBox(
                                         width: MediaQuery.of(context).size.width * 0.8,
-                                        child: ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
+                                    child: ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
                                             backgroundColor:
                                                 const Color(0xFF4CAF50),
-                                            foregroundColor: Colors.white,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(30),
-                                            ),
-                                            padding: const EdgeInsets.symmetric(
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(30),
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
                                               vertical: 18,
-                                            ),
-                                          ),
-                                          onPressed: _login,
-                                          child: const Text(
-                                            'Login',
-                                            style: TextStyle(fontSize: 18),
-                                          ),
                                         ),
                                       ),
-                              ],
-                            ),
+                                      onPressed: _login,
+                                      child: const Text(
+                                        'Login',
+                                        style: TextStyle(fontSize: 18),
+                                      ),
+                                    ),
+                                  ),
+                          ],
+                        ),
                           ),
                           if (_showSuggestions &&
                               _emailSuggestions.isNotEmpty)
@@ -383,12 +387,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
-                          "Don't have an account?",
-                          style: TextStyle(
-                            color: Color.fromARGB(255, 112, 110, 110),
-                            fontWeight: FontWeight.bold,
-                          ),
+                         const Text(
+                            "Don't have an account?",
+                            style: TextStyle(
+                              color: Color.fromARGB(255, 112, 110, 110),
+                              fontWeight: FontWeight.bold,
+                            ),
                         ),
                         const SizedBox(width: 4),
                         TextButton(

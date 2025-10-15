@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'allergy_selection_page.dart';
+import 'diet_type.dart';
 
 class HealthConditionsPage extends StatefulWidget {
   final Map<String, double> baseNutritionGoals;
@@ -40,19 +40,6 @@ class _HealthConditionsPageState extends State<HealthConditionsPage> {
       },
     },
     {
-      'key': 'stroke_recovery',
-      'title': '🧠 Stroke Recovery',
-      'desc': 'Low sodium, heart-healthy fats, controlled calories',
-      'icon': '🧠',
-      'color': Colors.purple,
-      'adjustments': {
-        'sodium_limit': 1500, // 1500mg sodium limit (very low)
-        'calorie_reduction': 0.9, // Reduce calories by 10% for weight management
-        'omega3_focus': true, // Focus on omega-3 rich foods
-        'saturated_fat_limit': 0.7, // Reduce saturated fat by 30%
-      },
-    },
-    {
       'key': 'hypertension',
       'title': '🫀 High Blood Pressure',
       'desc': 'Very low sodium, DASH diet principles',
@@ -66,45 +53,6 @@ class _HealthConditionsPageState extends State<HealthConditionsPage> {
       },
     },
     {
-      'key': 'fitness_enthusiast',
-      'title': '💪 Fitness Enthusiast',
-      'desc': 'High protein, increased calories, performance nutrition',
-      'icon': '💪',
-      'color': Colors.blue,
-      'adjustments': {
-        'protein_increase': 1.5, // Increase protein by 50%
-        'calorie_increase': 1.2, // Increase calories by 20%
-        'carb_timing': true, // Focus on pre/post workout carbs
-        'creatine_focus': true,
-      },
-    },
-    {
-      'key': 'kidney_disease',
-      'title': '🫘 Kidney Disease',
-      'desc': 'Controlled protein, low sodium, phosphorus limits',
-      'icon': '🫘',
-      'color': Colors.brown,
-      'adjustments': {
-        'protein_reduction': 0.7, // Reduce protein by 30%
-        'sodium_limit': 2000, // 2000mg sodium limit
-        'phosphorus_limit': 800, // 800mg phosphorus limit
-        'potassium_limit': 2000, // 2000mg potassium limit
-      },
-    },
-    {
-      'key': 'heart_disease',
-      'title': '❤️ Heart Disease',
-      'desc': 'Low saturated fat, omega-3 rich, controlled sodium',
-      'icon': '❤️',
-      'color': Colors.pink,
-      'adjustments': {
-        'saturated_fat_limit': 0.6, // Reduce saturated fat by 40%
-        'sodium_limit': 2000, // 2000mg sodium limit
-        'omega3_focus': true,
-        'fiber_increase': 1.3, // Increase fiber by 30%
-      },
-    },
-    {
       'key': 'elderly',
       'title': '👴 Senior (65+)',
       'desc': 'Higher protein, calcium, vitamin D focus',
@@ -115,35 +63,6 @@ class _HealthConditionsPageState extends State<HealthConditionsPage> {
         'calcium_increase': 1.2, // Increase calcium by 20%
         'vitamin_d_focus': true,
         'calorie_reduction': 0.95, // Slight calorie reduction for slower metabolism
-      },
-    },
-    {
-      'key': 'anemia',
-      'title': '🩸 Anemia / Low Iron',
-      'desc': 'Iron-rich foods, vitamin C for absorption, avoid tea with meals',
-      'icon': '🩸',
-      'color': Colors.red.shade700,
-      'adjustments': {
-        'iron_increase': 2.0, // Double iron needs
-        'vitamin_c_increase': 1.5, // +50% vitamin C for iron absorption
-        'protein_focus': true, // Heme iron sources (meat, fish)
-        'tea_coffee_limit': true, // Limit with meals (blocks iron)
-        'folate_increase': 1.3, // +30% folate (B9)
-      },
-    },
-    {
-      'key': 'fatty_liver',
-      'title': '🍺 Fatty Liver Disease',
-      'desc': 'Very low sugar, reduced fats, weight management focus',
-      'icon': '🍺',
-      'color': Colors.orange.shade700,
-      'adjustments': {
-        'sugar_limit': 0.3, // Cut sugar by 70% (very strict)
-        'saturated_fat_limit': 0.6, // Reduce saturated fat by 40%
-        'total_fat_reduction': 0.8, // Reduce total fat by 20%
-        'calorie_reduction': 0.9, // -10% for weight loss
-        'fiber_increase': 1.4, // +40% fiber for liver health
-        'alcohol_avoid': true,
       },
     },
     {
@@ -176,7 +95,7 @@ class _HealthConditionsPageState extends State<HealthConditionsPage> {
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -354,7 +273,7 @@ class _HealthConditionsPageState extends State<HealthConditionsPage> {
                   
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const AllergySelectionPage()),
+                    MaterialPageRoute(builder: (context) => const DietTypePage()),
                   );
                 } : null,
                 child: const Text('Apply Health Adjustments', style: TextStyle(fontSize: 18)),

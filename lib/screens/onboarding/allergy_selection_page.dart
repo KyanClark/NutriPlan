@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../home/home_page.dart';
+import '../meal_plan/nutrition_goals_summary_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AllergySelectionPage extends StatefulWidget {
@@ -86,7 +86,7 @@ class _AllergySelectionPageState extends State<AllergySelectionPage> {
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -241,9 +241,35 @@ class _AllergySelectionPageState extends State<AllergySelectionPage> {
                           'allergies': selectedAllergies,
                         });
                     }
+                    // Get nutrition goals from database
+                    Map<String, double> nutritionGoals = {};
+                    
+                    if (user != null) {
+                      final response = await Supabase.instance.client
+                        .from('user_preferences')
+                        .select('calorie_goal, protein_goal, carb_goal, fat_goal, fiber_goal, sugar_goal, cholesterol_goal, sodium_limit')
+                        .eq('user_id', user.id)
+                        .single();
+                      
+                      nutritionGoals = {
+                        'calories': (response['calorie_goal'] ?? 2000).toDouble(),
+                        'protein': (response['protein_goal'] ?? 150).toDouble(),
+                        'carbs': (response['carb_goal'] ?? 250).toDouble(),
+                        'fat': (response['fat_goal'] ?? 65).toDouble(),
+                        'fiber': (response['fiber_goal'] ?? 25).toDouble(),
+                        'sugar': (response['sugar_goal'] ?? 50).toDouble(),
+                        'cholesterol': (response['cholesterol_goal'] ?? 300).toDouble(),
+                        'sodium': (response['sodium_limit'] ?? 2300).toDouble(),
+                      };
+                    }
+                    
                     Navigator.pushAndRemoveUntil(
                       context,
-                      MaterialPageRoute(builder: (context) => const HomePage()),
+                      MaterialPageRoute(
+                        builder: (context) => NutritionGoalsSummaryPage(
+                          nutritionGoals: nutritionGoals,
+                        ),
+                      ),
                       (route) => false,
                     );
                   } : null,

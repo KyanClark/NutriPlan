@@ -236,9 +236,9 @@ class BehavioralAnalysisService {
         final totalMeals = patterns.categoryPreferences.values.fold(0.0, (sum, count) => sum + count);
         final expectedPerCategory = totalMeals / patterns.categoryPreferences.length;
         double variance = 0.0;
-        patterns.categoryPreferences.values.forEach((count) {
+        for (var count in patterns.categoryPreferences.values) {
           variance += (count - expectedPerCategory) * (count - expectedPerCategory);
-        });
+        }
         categoryBalance = 1.0 - (variance / totalMeals);
       }
 

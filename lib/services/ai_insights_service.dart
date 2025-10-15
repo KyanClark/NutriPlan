@@ -10,19 +10,20 @@ class _CacheEntry {
 }
 
 class AIInsightsService {
-  // Groq-only configuration
-  static const String _groqApiKey = String.fromEnvironment('GROQ_API_KEY', defaultValue: '');
+
+
+  static const String _groqApiKey = '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';
   static const String _groqUrl = 'https://api.groq.com/openai/v1/chat/completions';
   static final Map<int, _CacheEntry> _memoryCache = {};
 
-  /// Generate AI insights for nutrition data
+
   static Future<String> generateNutritionInsights(
     Map<String, dynamic> weeklyData,
     Map<String, dynamic> monthlyData,
     UserNutritionGoals? goals,
   ) async {
     try {
-      // If API key is missing, return default insights gracefully
+
       if (_groqApiKey.isEmpty) {
         return getDefaultInsights();
       }

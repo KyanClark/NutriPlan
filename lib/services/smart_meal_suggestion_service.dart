@@ -1,4 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../models/smart_suggestion_models.dart';
 import '../models/meal_history_entry.dart';
 import '../models/user_nutrition_goals.dart';
@@ -31,10 +33,7 @@ class SmartMealSuggestionService {
       // 3. Get user eating patterns
       final userPatterns = await _getUserEatingPatterns(userId);
       
-      // 4. Try AI-powered suggestions first (if enabled)
-      // AI provider removed; always fall back to rule-based for now
-      
-      // 5. Fallback to rule-based suggestions
+      // 4. Calculate nutritional gaps first
       final nutritionalGaps = _calculateNutritionalGaps(currentNutrition, userGoals);
       
       final context = SuggestionContext(
@@ -47,6 +46,19 @@ class SmartMealSuggestionService {
         nutritionalGaps: nutritionalGaps,
       );
       
+      // 5. Try AI-powered suggestions first (if enabled)
+      if (useAI) {
+        try {
+          final aiSuggestions = await _getAIPoweredSuggestions(context);
+          if (aiSuggestions.isNotEmpty) {
+            return aiSuggestions;
+          }
+        } catch (e) {
+          print('AI suggestions failed, falling back to rule-based: $e');
+        }
+      }
+      
+      // 6. Fallback to rule-based suggestions
       return await _generateSmartSuggestions(context);
       
     } catch (e) {
@@ -406,7 +418,7 @@ class SmartMealSuggestionService {
         suggestions.add(SmartMealSuggestion(
           recipe: recipe,
           type: SuggestionType.userFavorites,
-          reasoning: 'Similar to your favorite ${category} dishes',
+          reasoning: 'Similar to your favorite $category dishes',
           relevanceScore: 0.7,
           nutritionalBenefits: {},
           tags: ['favorite', category],
@@ -515,22 +527,174 @@ class SmartMealSuggestionService {
 
   /// Test AI integration
   static Future<bool> testAIIntegration() async {
-    // AI provider removed; treat as unavailable
-    return false;
+    try {
+      // Use hardcoded API key directly
+      const groqApiKey = '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';
+      print('AI Integration Test: Using GROQ_API_KEY (${groqApiKey.substring(0, 10)}...)');
+
+      // Test with a simple API call
+      final response = await http.post(
+        Uri.parse('https://api.groq.com/openai/v1/chat/completions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $groqApiKey',
+        },
+        body: jsonEncode({
+          'model': 'llama-3.1-8b-instant',
+          'messages': [
+            {'role': 'user', 'content': 'Test connection'}
+          ],
+          'max_tokens': 10,
+        }),
+      );
+
+      final success = response.statusCode == 200;
+      print('AI Integration Test: ${success ? "SUCCESS" : "FAILED"} (${response.statusCode})');
+      
+      if (!success) {
+        print('AI Integration Test: Response body: ${response.body}');
+      }
+      
+      return success;
+    } catch (e) {
+      print('AI Integration Test: ERROR - $e');
+      return false;
+    }
   }
 
-  /// Get AI-powered suggestions only (for testing)
-  static Future<List<SmartMealSuggestion>> getAISuggestionsOnly({
-    required String userId,
-    required MealCategory mealCategory,
-    DateTime? targetTime,
-  }) async {
-    return await getSmartSuggestions(
-      userId: userId,
-      mealCategory: mealCategory,
-      targetTime: targetTime,
-      useAI: true,
-    );
+  /// Get AI-powered suggestions using GROQ
+  static Future<List<SmartMealSuggestion>> _getAIPoweredSuggestions(SuggestionContext context) async {
+    try {
+      const groqApiKey = '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';
+      
+      // Build context for AI
+      final prompt = _buildAIPrompt(context);
+      
+      final response = await http.post(
+        Uri.parse('https://api.groq.com/openai/v1/chat/completions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $groqApiKey',
+        },
+        body: jsonEncode({
+          'model': 'llama-3.1-8b-instant',
+          'messages': [
+            {'role': 'user', 'content': prompt}
+          ],
+          'max_tokens': 500,
+          'temperature': 0.7,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final aiResponse = data['choices'][0]['message']['content'];
+        
+        // Parse AI response and convert to SmartMealSuggestion objects
+        return _parseAIResponse(aiResponse, context);
+      } else {
+        print('AI API error: ${response.statusCode} - ${response.body}');
+        return [];
+      }
+    } catch (e) {
+      print('AI suggestions error: $e');
+      return [];
+    }
+  }
+
+  /// Build prompt for AI suggestions
+  static String _buildAIPrompt(SuggestionContext context) {
+    final mealType = context.mealCategory.name.toLowerCase();
+    final timeOfDay = context.targetTime.hour < 12 ? 'morning' : 
+                     context.targetTime.hour < 17 ? 'afternoon' : 'evening';
+    
+    return '''
+You are a Filipino nutrition expert. Suggest 3 healthy Filipino recipes for $mealType in the $timeOfDay.
+
+Current nutrition status:
+- Protein: ${context.currentNutrition.totalProtein}g (goal: ${context.userGoals.proteinGoal}g)
+- Carbs: ${context.currentNutrition.totalCarbs}g (goal: ${context.userGoals.carbGoal}g)
+- Fat: ${context.currentNutrition.totalFat}g (goal: ${context.userGoals.fatGoal}g)
+- Calories: ${context.currentNutrition.totalCalories} (goal: ${context.userGoals.calorieGoal})
+
+Nutritional gaps to address: ${context.nutritionalGaps.join(', ')}
+
+User eating patterns: ${context.userPatterns.toString()}
+
+Please suggest 3 Filipino recipes that:
+1. Are appropriate for $mealType
+2. Help fill nutritional gaps
+3. Fit Filipino dietary preferences
+4. Include cost estimates (₱50-200 range)
+
+Format your response as JSON:
+{
+  "suggestions": [
+    {
+      "title": "Recipe Name",
+      "reasoning": "Why this recipe helps with nutrition gaps",
+      "cost": 120,
+      "calories": 350,
+      "protein": 25,
+      "carbs": 30,
+      "fat": 15
+    }
+  ]
+}
+''';
+  }
+
+  /// Parse AI response and convert to SmartMealSuggestion objects
+  static List<SmartMealSuggestion> _parseAIResponse(String aiResponse, SuggestionContext context) {
+    try {
+      // Extract JSON from AI response
+      final jsonMatch = RegExp(r'\{.*\}', multiLine: true, dotAll: true).firstMatch(aiResponse);
+      if (jsonMatch == null) {
+        print('No JSON found in AI response');
+        return [];
+      }
+      
+      final jsonStr = jsonMatch.group(0)!;
+      final data = jsonDecode(jsonStr);
+      final suggestions = data['suggestions'] as List;
+      
+      return suggestions.map((suggestion) {
+        // Create a mock Recipe object for the suggestion
+        final recipe = Recipe(
+          id: 'ai_${DateTime.now().millisecondsSinceEpoch}',
+          title: suggestion['title'],
+          imageUrl: '',
+          shortDescription: suggestion['reasoning'],
+          ingredients: [],
+          instructions: [],
+          macros: {
+            'protein': suggestion['protein']?.toDouble() ?? 0.0,
+            'carbs': suggestion['carbs']?.toDouble() ?? 0.0,
+            'fat': suggestion['fat']?.toDouble() ?? 0.0,
+          },
+          allergyWarning: '',
+          calories: suggestion['calories'] ?? 0,
+          dietTypes: [],
+          cost: suggestion['cost']?.toDouble() ?? 0.0,
+        );
+        
+        return SmartMealSuggestion(
+          recipe: recipe,
+          type: SuggestionType.fillGap,
+          reasoning: suggestion['reasoning'],
+          relevanceScore: 0.9, // High relevance for AI suggestions
+          nutritionalBenefits: {
+            'protein': suggestion['protein']?.toDouble() ?? 0.0,
+            'carbs': suggestion['carbs']?.toDouble() ?? 0.0,
+            'fat': suggestion['fat']?.toDouble() ?? 0.0,
+          },
+          tags: context.nutritionalGaps.map((gap) => gap.nutrient).toList(),
+        );
+      }).toList();
+    } catch (e) {
+      print('Error parsing AI response: $e');
+      return [];
+    }
   }
 
   /// Get rule-based suggestions only (for testing)

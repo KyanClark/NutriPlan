@@ -3,8 +3,6 @@ import '../../models/recipes.dart';
 import '../../services/recipe_service.dart';
 import 'package:nutriplan/screens/recipes/recipe_info_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:nutriplan/screens/meal_plan/meal_summary_page.dart';
-import 'package:nutriplan/screens/meal_plan/meal_plan_confirmation_page.dart';
 
 class FilteredRecipesPage extends StatefulWidget {
   final String category;
@@ -29,8 +27,6 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
   String searchQuery = '';
   bool showSearch = false;
 
-  // State for recipes added to meal plan (multiple supported)
-  final List<Recipe> _mealsForPlan = [];
 
   // GlobalKey for ScaffoldMessenger
   final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
@@ -92,16 +88,14 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
         return _getFishRecipes(recipes);
       case 'pork':
         return _getPorkRecipes(recipes);
-      case 'silog':
-      case 'egg_silog':
-        return _getSilogRecipes(recipes);
       
-      // New protein-based categories
       case 'poultry':
       case 'chicken':
         return _getChickenRecipes(recipes);
       case 'beef':
         return _getBeefRecipes(recipes);
+      case 'desserts':
+        return _getDessertsRecipes(recipes);
       case 'vegetarian':
         return _getVegetarianRecipes(recipes);
       
@@ -164,25 +158,25 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
     ).toList();
   }
 
-  List<Recipe> _getSilogRecipes(List<Recipe> recipes) {
-    return recipes.where((recipe) => 
-      recipe.title.toLowerCase().contains('silog') ||
-      recipe.title.toLowerCase().contains('tapsilog') ||
-      recipe.title.toLowerCase().contains('tocilog') ||
-      recipe.title.toLowerCase().contains('longsilog') ||
-      recipe.title.toLowerCase().contains('bangsilog') ||
-      recipe.title.toLowerCase().contains('hotsilog') ||
-      recipe.title.toLowerCase().contains('cornsilog') ||
-      recipe.title.toLowerCase().contains('spamsilog')
-    ).toList();
-  }
 
   // New protein-based filtering methods
   List<Recipe> _getChickenRecipes(List<Recipe> recipes) {
     return recipes.where((recipe) => 
-      recipe.title.toLowerCase().contains('chicken') ||
+      // Only include recipes that are specifically chicken-based
+      (recipe.title.toLowerCase().contains('chicken') && 
+       !recipe.title.toLowerCase().contains('pusit') &&
+       !recipe.title.toLowerCase().contains('kangkong') &&
+       !recipe.title.toLowerCase().contains('bam i') &&
+       !recipe.title.toLowerCase().contains('sotanghon') &&
+       !recipe.title.toLowerCase().contains('egg noodle') &&
+       !recipe.title.toLowerCase().contains('pancit lomi') &&
+       !recipe.title.toLowerCase().contains('afritada') &&
+       !recipe.title.toLowerCase().contains('pancit bihon') &&
+       !recipe.title.toLowerCase().contains('chop suey') &&
+       !recipe.title.toLowerCase().contains('talong') &&
+       !recipe.title.toLowerCase().contains('tofu') &&
+       !recipe.title.toLowerCase().contains('pancit canton')) ||
       recipe.title.toLowerCase().contains('manok') ||
-      recipe.title.toLowerCase().contains('adobo') ||
       recipe.title.toLowerCase().contains('tinola') ||
       recipe.title.toLowerCase().contains('inasal') ||
       recipe.title.toLowerCase().contains('fried chicken') ||
@@ -224,6 +218,30 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
       )
     ).toList();
   }
+
+  // New category filtering methods
+  List<Recipe> _getDessertsRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      recipe.title.toLowerCase().contains('dessert') ||
+      recipe.title.toLowerCase().contains('cake') ||
+      recipe.title.toLowerCase().contains('pie') ||
+      recipe.title.toLowerCase().contains('cookie') ||
+      recipe.title.toLowerCase().contains('ice cream') ||
+      recipe.title.toLowerCase().contains('pudding') ||
+      recipe.title.toLowerCase().contains('flan') ||
+      recipe.title.toLowerCase().contains('leche flan') ||
+      recipe.title.toLowerCase().contains('halo-halo') ||
+      recipe.title.toLowerCase().contains('turon') ||
+      recipe.title.toLowerCase().contains('buko pandan') ||
+      recipe.title.toLowerCase().contains('maja blanca') ||
+      recipe.title.toLowerCase().contains('bibingka') ||
+      recipe.title.toLowerCase().contains('puto') ||
+      recipe.title.toLowerCase().contains('kakanin') ||
+      recipe.title.toLowerCase().contains('sweet') ||
+      recipe.dietTypes.contains('Dessert')
+    ).toList();
+  }
+
 
   // Health-oriented filtering methods
   List<Recipe> _getHealthyRecipes(List<Recipe> recipes) {
@@ -309,19 +327,6 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
     }
   }
 
-  void _addToMealPlan(Recipe recipe) {
-    setState(() {
-      if (!_mealsForPlan.any((meal) => meal.id == recipe.id)) {
-        _mealsForPlan.add(recipe);
-      }
-    });
-  }
-
-  void _removeFromMealPlan(String recipeId) {
-    setState(() {
-      _mealsForPlan.removeWhere((meal) => meal.id == recipeId);
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -452,7 +457,6 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
                     itemBuilder: (context, index) {
                       final recipe = filteredRecipes[index];
                       final isFavorite = favoriteRecipeIds.contains(recipe.id);
-                      final isInMealPlan = _mealsForPlan.any((meal) => meal.id == recipe.id);
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 16),
@@ -474,7 +478,7 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
                               MaterialPageRoute(
                                 builder: (context) => RecipeInfoScreen(
                                   recipe: recipe,
-                                  addedRecipeIds: _mealsForPlan.map((m) => m.id).toList(),
+                                  addedRecipeIds: [],
                                 ),
                               ),
                             );
@@ -537,7 +541,7 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
                                             '₱${recipe.cost.toStringAsFixed(2)}',
                                             style: const TextStyle(
                                               fontWeight: FontWeight.w600,
-                                              color: Colors.green,
+                                              color: Color.fromARGB(255, 116, 255, 121),
                                             ),
                                           ),
                                           const SizedBox(width: 16),
@@ -562,19 +566,6 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
                                       ),
                                       onPressed: () => _toggleFavorite(recipe.id),
                                     ),
-                                    IconButton(
-                                      icon: Icon(
-                                        isInMealPlan ? Icons.remove_circle : Icons.add_circle,
-                                        color: isInMealPlan ? Colors.orange : Colors.blue,
-                                      ),
-                                      onPressed: () {
-                                        if (isInMealPlan) {
-                                          _removeFromMealPlan(recipe.id);
-                                        } else {
-                                          _addToMealPlan(recipe);
-                                        }
-                                      },
-                                    ),
                                   ],
                                 ),
                               ],
@@ -589,35 +580,6 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
             ),
           ],
         ),
-        floatingActionButton: _mealsForPlan.isNotEmpty
-            ? FloatingActionButton.extended(
-                onPressed: () async {
-                  await Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => MealSummaryPage(
-                        meals: _mealsForPlan,
-                        onBuildMealPlan: (confirmedMeals) async {
-                          await Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => const MealPlanConfirmationPage(),
-                            ),
-                          );
-                          widget.onChanged?.call();
-                          setState(() {
-                            _mealsForPlan.clear();
-                          });
-                        },
-                        onChanged: widget.onChanged,
-                      ),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.restaurant_menu),
-                label: Text('Meal Plan (${_mealsForPlan.length})'),
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-              )
-            : null,
       ),
     );
   }

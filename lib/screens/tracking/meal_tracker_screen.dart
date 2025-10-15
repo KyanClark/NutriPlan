@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'dart:ui';
 import '../../models/meal_history_entry.dart';
 import '../../models/user_nutrition_goals.dart';
 import '../../widgets/meal_log_card.dart';
-// Removed analytics page import (file deleted)
+import '../analytics/analytics_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../widgets/loading_skeletons.dart';
 
@@ -31,10 +30,6 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
   // Flag to track if widget is mounted
   bool _mounted = true;
   
-  // Scroll controller for glass morphism effects
-  late ScrollController _scrollController;
-  double _scrollOffset = 0.0;
-  
   // Weekly and monthly data storage
   DailySummary? _weeklySummary;
   DailySummary? _monthlySummary;
@@ -44,10 +39,6 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
   @override
   void initState() {
     super.initState();
-    _scrollController = ScrollController();
-    _scrollController.addListener(_onScroll);
-    // Reset scroll offset when screen is initialized (e.g., when switching from another tab)
-    _scrollOffset = 0.0;
     _fetchData();
     _fetchDatesWithMeals();
   }
@@ -55,165 +46,16 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
   @override
   void dispose() {
     _mounted = false;
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
     super.dispose();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Reset scroll offset when dependencies change (e.g., when switching back to this tab)
-    if (_mounted) {
-      _scrollOffset = 0.0;
-      // Notify parent that this tab is activated
-      widget.onTabActivated?.call();
-    }
-  }
-  
-  void _onScroll() {
-    if (!_mounted) return;
-    // Update scroll offset without triggering setState for smooth scrolling
-    _scrollOffset = _scrollController.offset;
-  }
-  
-  
-  // Glass morphism header widget
-  Widget _buildGlassMorphismHeader() {
-    // Calculate opacity based on scroll position
-    final opacity = (_scrollOffset / 100).clamp(0.0, 0.8);
-    final blurIntensity = (_scrollOffset / 50).clamp(0.0, 15.0);
-    
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blurIntensity, sigmaY: blurIntensity),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(opacity),
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(20),
-              bottomRight: Radius.circular(20),
-            ),
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
+  // Build tab content based on selected tab
+  Widget _buildTabContent() {
+    return Column(
                 children: [
-                  if (widget.showBackButton)
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-                      onPressed: () => Navigator.of(context).pop(),
-                    )
-                  else
-                    const SizedBox(),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Meal Tracker',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
-                        Text(
-                          'Track your nutrition goals',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        // Current date display horizontally under the subtitle
-                        GestureDetector(
-                          onTap: _showCalendar,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.3),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.5),
-                                width: 1,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.calendar_today,
-                                  size: 16,
-                                  color: Colors.grey[700],
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  DateFormat('MMM dd, yyyy').format(selectedDate),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.grey[700],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Analytics button
-                  // Analytics navigation removed (page deleted)
-                  GestureDetector(
-                    onTap: () {},
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFF6961).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: const Color(0xFFFF6961).withOpacity(0.3),
-                          width: 1,
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.analytics,
-                        color: Color(0xFFFF6961),
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-  
-  // Glass morphism tab section widget
-  Widget _buildGlassMorphismTabs() {
-    // Calculate opacity based on scroll position
-    final opacity = (_scrollOffset / 100).clamp(0.0, 0.6);
-    final blurIntensity = (_scrollOffset / 50).clamp(0.0, 10.0);
-    
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blurIntensity, sigmaY: blurIntensity),
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 20),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(opacity),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.2),
-              width: 1,
-            ),
-          ),
+        // Tab buttons
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           child: Row(
             children: [
               _TabButton(
@@ -223,7 +65,6 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                   if (!_mounted) return;
                   setState(() {
                     _selectedTab = 'today';
-                    _scrollOffset = 0.0; // Reset scroll offset for glass morphism
                   });
                   _fetchData();
                 },
@@ -236,7 +77,6 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                   if (!_mounted) return;
                   setState(() {
                     _selectedTab = 'weekly';
-                    _scrollOffset = 0.0; // Reset scroll offset for glass morphism
                   });
                   _fetchData();
                 },
@@ -249,23 +89,27 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                   if (!_mounted) return;
                   setState(() {
                     _selectedTab = 'monthly';
-                    _scrollOffset = 0.0; // Reset scroll offset for glass morphism
                   });
                   _fetchData();
                 },
               ),
-              const Spacer(),
             ],
           ),
         ),
-      ),
+        // Tab content
+        Expanded(
+          child: _selectedTab == 'today'
+              ? _buildTodayContent()
+              : _selectedTab == 'weekly'
+                  ? _buildWeeklyContent()
+                  : _buildMonthlyContent(),
+        ),
+      ],
     );
   }
 
   Future<void> _fetchData() async {
     if (!_mounted) return;
-    // Reset scroll offset for glass morphism when data is refreshed
-    _scrollOffset = 0.0;
     setState(() => isLoading = true);
     
     // Also fetch weekly and monthly data
@@ -298,12 +142,12 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
 
       // Parse meal data with better error handling
       final mealList = <MealHistoryEntry>[];
-      for (final mealData in mealRes) {
-        try {
-          final meal = MealHistoryEntry.fromMap(mealData);
-          mealList.add(meal);
-        } catch (e) {
-          print('Error parsing meal data: $e');
+        for (final mealData in mealRes) {
+          try {
+            final meal = MealHistoryEntry.fromMap(mealData);
+            mealList.add(meal);
+          } catch (e) {
+            print('Error parsing meal data: $e');
         }
       }
 
@@ -361,15 +205,15 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
       final Map<DateTime, bool> newDatesWithMeals = {};
       final Map<DateTime, int> newMonthlyMealCounts = {};
       
-      for (final meal in mealRes) {
-        try {
-          final completedAt = DateTime.parse(meal['completed_at']).toLocal();
-          final dateKey = DateTime(completedAt.year, completedAt.month, completedAt.day);
-          newDatesWithMeals[dateKey] = true;
-          newMonthlyMealCounts[dateKey] = (newMonthlyMealCounts[dateKey] ?? 0) + 1;
+        for (final meal in mealRes) {
+          try {
+            final completedAt = DateTime.parse(meal['completed_at']).toLocal();
+            final dateKey = DateTime(completedAt.year, completedAt.month, completedAt.day);
+            newDatesWithMeals[dateKey] = true;
+            newMonthlyMealCounts[dateKey] = (newMonthlyMealCounts[dateKey] ?? 0) + 1;
           print('Meal on ${dateKey.toIso8601String()}, count: ${newMonthlyMealCounts[dateKey]}');
-        } catch (e) {
-          print('Error parsing meal date: $e');
+          } catch (e) {
+            print('Error parsing meal date: $e');
         }
       }
       
@@ -432,7 +276,6 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
           if (!_mounted) return;
           setState(() {
             selectedDate = date;
-            _scrollOffset = 0.0; //Reset scroll offset for glass morphism 
           });
           Navigator.of(context).pop();
           _fetchData();
@@ -474,12 +317,12 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
           .order('completed_at', ascending: true);
 
       final mealList = <MealHistoryEntry>[];
-      for (final mealData in mealRes) {
-        try {
-          final meal = MealHistoryEntry.fromMap(mealData);
-          mealList.add(meal);
-        } catch (e) {
-          print('Error parsing weekly meal data: $e');
+        for (final mealData in mealRes) {
+          try {
+            final meal = MealHistoryEntry.fromMap(mealData);
+            mealList.add(meal);
+          } catch (e) {
+            print('Error parsing weekly meal data: $e');
         }
       }
       
@@ -524,12 +367,12 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
           .order('completed_at', ascending: true);
 
       final mealList = <MealHistoryEntry>[];
-      for (final mealData in mealRes) {
-        try {
-          final meal = MealHistoryEntry.fromMap(mealData);
-          mealList.add(meal);
-        } catch (e) {
-          print('Error parsing monthly meal data: $e');
+        for (final mealData in mealRes) {
+          try {
+            final meal = MealHistoryEntry.fromMap(mealData);
+            mealList.add(meal);
+          } catch (e) {
+            print('Error parsing monthly meal data: $e');
         }
       }
       
@@ -544,27 +387,12 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
       setState(() => _isLoadingMonthly = false);
     }
   }
-
-  // Build tab content based on selected tab
-  Widget _buildTabContent() {
-    switch (_selectedTab) {
-      case 'today':
-        return _buildTodayContent();
-      case 'weekly':
-        return _buildWeeklyContent();
-      case 'monthly':
-        return _buildMonthlyContent();
-      default:
-        return _buildTodayContent();
-    }
-  }
   
   // Build today's content with scroll controller
   Widget _buildTodayContent() {
     final summary = _getDailySummary(meals);
     
     return SingleChildScrollView(
-      controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         children: [
@@ -805,7 +633,6 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
     );
     
     return SingleChildScrollView(
-      controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
             children: [
@@ -978,7 +805,6 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
     );
     
     return SingleChildScrollView(
-      controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
             children: [
@@ -1140,28 +966,43 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Glass morphism header
-            _buildGlassMorphismHeader(),
-            
-            // Glass morphism tabs
-            _buildGlassMorphismTabs(),
-            
-            const SizedBox(height: 20),
-            
-            Expanded(
-              child: isLoading
-                  ? MealHistorySkeleton(
-                      itemCount: 5,
-                      loadingMessage: 'Loading your meal history...',
-                    )
-                  : _buildTabContent(),
-            ),
-          ],
+      appBar: AppBar(
+        title: const Text(
+          'Meal Tracker',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
         ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: widget.showBackButton 
+          ? IconButton(
+              icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+              onPressed: () => Navigator.of(context).pop(),
+            )
+          : null,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.analytics, color: Colors.black),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AnalyticsPage(),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.calendar_today, color: Colors.black),
+            onPressed: _showCalendar,
+          ),
+        ],
       ),
+      body: isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : _buildTabContent(),
     );
   }
 
@@ -1283,7 +1124,7 @@ class _MacroCard extends StatelessWidget {
                       ],
                     ),
                     Text(
-                      'of ${goal.toStringAsFixed(0)}${unit}',
+                      'of ${goal.toStringAsFixed(0)}$unit',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey[500],

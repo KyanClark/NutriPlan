@@ -62,12 +62,12 @@ class MealPlannerRecipeCard extends StatelessWidget {
   final bool isDeleteMode;
   final bool isSelected;
   final VoidCallback onTap;
-
+  
   const MealPlannerRecipeCard({
     super.key,
-    required this.recipe,
-    this.mealType,
-    this.mealTime,
+    required this.recipe, 
+    this.mealType, 
+    this.mealTime, 
     required this.isSmallScreen,
     required this.isDeleteMode,
     required this.isSelected,
@@ -78,27 +78,27 @@ class MealPlannerRecipeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
+                  child: Container(
+                    decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
+                      boxShadow: [
+                        BoxShadow(
               color: Colors.black.withOpacity(0.1),
               blurRadius: 8,
               offset: const Offset(0, 2),
-            ),
-          ],
-        ),
+                          ),
+                      ],
+                    ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
-          child: Stack(
-            children: [
+                    child: Stack(
+                      children: [
               // Recipe image
               Positioned.fill(
                 child: recipe.imageUrl.isNotEmpty
                     ? Image.network(
                         recipe.imageUrl,
-                        fit: BoxFit.cover,
+                                    fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
                           print('DEBUG CARD: Image load error for ${recipe.title}: $error');
                           return Container(
@@ -116,34 +116,34 @@ class MealPlannerRecipeCard extends StatelessWidget {
                     : Container(
                         color: Colors.grey[300],
                         child: const Center(
-                          child: Icon(
+                                      child: Icon(
                             Icons.restaurant,
                             size: 50,
                             color: Colors.grey,
                           ),
-                        ),
-                      ),
-              ),
+                                      ),
+                                    ),
+                                  ),
               // Gradient overlay
               Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                          colors: [
+                                            Colors.transparent,
                         Colors.black.withOpacity(0.7),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
               // Selection overlay
               if (isDeleteMode)
                 Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
+                                    child: Container(
+                                      decoration: BoxDecoration(
                       color: isSelected 
                           ? const Color(0xFFFF6961).withOpacity(0.3)
                           : Colors.black.withOpacity(0.2),
@@ -154,9 +154,9 @@ class MealPlannerRecipeCard extends StatelessWidget {
                         isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
                         color: isSelected ? Colors.white : Colors.white.withOpacity(0.7),
                         size: 40,
-                      ),
-                    ),
-                  ),
+                                      ),
+                                    ),
+                                  ),
                 ),
               // Content
               Positioned(
@@ -165,55 +165,48 @@ class MealPlannerRecipeCard extends StatelessWidget {
                 right: 0,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
+                                children: [
+                                  Text(
                         recipe.title,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                       const SizedBox(height: 4),
-                      if (mealType != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: _getMealTypeColor(mealType!).withOpacity(0.8),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            mealType!.capitalize(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
+                      if (mealTime != null && mealTime!.isNotEmpty)
+                                                Text(
+                          mealTime!,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       const SizedBox(height: 4),
                       if (recipe.calories > 0)
-                        Text(
+                                                Text(
                           '${recipe.calories} cal',
                           style: const TextStyle(
-                            color: Colors.white,
+                                                    color: Colors.white,
                             fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                            ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -243,10 +236,11 @@ class MealPlannerEmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.restaurant_menu,
-              size: 80,
-              color: Colors.grey[400],
+            Image.asset(
+              'assets/widgets/no_mea.gif',
+              width: 200,
+              height: 200,
+              fit: BoxFit.contain,
             ),
             const SizedBox(height: 24),
             Text(
@@ -258,16 +252,16 @@ class MealPlannerEmptyState extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            Text(
+                        Text(
               'Start planning your meals by adding recipes from the Recipes page',
               textAlign: TextAlign.center,
-              style: TextStyle(
+                          style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey[500],
-              ),
-            ),
-          ],
-        ),
+                          ),
+                        ),
+                      ],
+                    ),
       ),
     );
   }
@@ -282,34 +276,35 @@ class MealPlannerEmptyFilterState extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.filter_list_off,
-              size: 80,
-              color: Colors.grey[400],
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+            Image.asset(
+              'assets/widgets/no_mea.gif',
+              width: 200,
+              height: 200,
+              fit: BoxFit.contain,
             ),
             const SizedBox(height: 24),
-            Text(
-              'No meals found',
-              style: TextStyle(
+          Text(
+            'No meals found',
+            style: TextStyle(
                 fontSize: 24,
-                fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.bold,
                 color: Colors.grey[600],
-              ),
             ),
-            const SizedBox(height: 12),
-            Text(
-              'Try changing your filter to see more meals',
+          ),
+          const SizedBox(height: 12),
+          Text(
+              'There’s more to explore, your next favorite meal could surprise you.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
+            style: TextStyle(
+              fontSize: 16,
                 color: Colors.grey[500],
-              ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
       ),
     );
   }
