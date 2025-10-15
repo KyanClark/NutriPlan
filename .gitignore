@@ -53,5 +53,6 @@ fnri-food-composition-scraper/
 .env.staging
 *.env
 GEMINI_API_KEY
+GROQ_API_KEY
 SUPABASE_API_KEY
 SUPABASE_URL
