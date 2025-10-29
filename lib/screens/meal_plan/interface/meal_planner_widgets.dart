@@ -62,6 +62,7 @@ class MealPlannerRecipeCard extends StatelessWidget {
   final bool isDeleteMode;
   final bool isSelected;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
   
   const MealPlannerRecipeCard({
     super.key,
@@ -72,12 +73,14 @@ class MealPlannerRecipeCard extends StatelessWidget {
     required this.isDeleteMode,
     required this.isSelected,
     required this.onTap,
+    this.onLongPress,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      onLongPress: onLongPress,
                   child: Container(
                     decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
@@ -158,6 +161,27 @@ class MealPlannerRecipeCard extends StatelessWidget {
                                     ),
                                   ),
                 ),
+              // Time display (top right)
+              if (mealTime != null && mealTime!.isNotEmpty)
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _formatTime(mealTime!),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
               // Content
               Positioned(
                 bottom: 0,
@@ -179,26 +203,6 @@ class MealPlannerRecipeCard extends StatelessWidget {
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                      const SizedBox(height: 4),
-                      if (mealTime != null && mealTime!.isNotEmpty)
-                                                Text(
-                          mealTime!,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      const SizedBox(height: 4),
-                      if (recipe.calories > 0)
-                                                Text(
-                          '${recipe.calories} cal',
-                          style: const TextStyle(
-                                                    color: Colors.white,
-                            fontSize: 14,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
                                               ],
                                             ),
                             ),
@@ -210,16 +214,44 @@ class MealPlannerRecipeCard extends StatelessWidget {
     );
   }
 
-  Color _getMealTypeColor(String mealType) {
-    switch (mealType.toLowerCase()) {
-      case 'breakfast':
-        return Colors.orange;
-      case 'lunch':
-        return Colors.green;
-      case 'dinner':
-        return Colors.indigo;
-      default:
-        return Colors.grey;
+  String _formatTime(String timeString) {
+    try {
+      // Handle different time formats
+      String cleanTime = timeString.replaceAll(RegExp(r'[^\d:]'), '');
+      
+      // If it's already in HH:MM format
+      if (cleanTime.contains(':')) {
+        final parts = cleanTime.split(':');
+        if (parts.length >= 2) {
+          final hour = int.parse(parts[0]);
+          final minute = parts[1];
+          
+          if (hour == 0) {
+            return '12:${minute.padLeft(2, '0')} AM';
+          } else if (hour < 12) {
+            return '${hour}:${minute.padLeft(2, '0')} AM';
+          } else if (hour == 12) {
+            return '12:${minute.padLeft(2, '0')} PM';
+          } else {
+            return '${hour - 12}:${minute.padLeft(2, '0')} PM';
+          }
+        }
+      }
+      
+      // If it's just an hour (e.g., "14" for 2 PM)
+      final hour = int.parse(cleanTime);
+      if (hour == 0) {
+        return '12:00 AM';
+      } else if (hour < 12) {
+        return '$hour:00 AM';
+      } else if (hour == 12) {
+        return '12:00 PM';
+      } else {
+        return '${hour - 12}:00 PM';
+      }
+    } catch (e) {
+      // Fallback to original string if parsing fails
+      return timeString;
     }
   }
 }
@@ -230,38 +262,40 @@ class MealPlannerEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(
-              'assets/widgets/no_mea.gif',
-              width: 200,
-              height: 200,
-              fit: BoxFit.contain,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'No meals planned yet',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[600],
+    return SingleChildScrollView(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                'assets/widgets/no_mea.gif',
+                width: 120,
+                height: 120,
+                fit: BoxFit.contain,
               ),
-            ),
-            const SizedBox(height: 12),
-                        Text(
-              'Start planning your meals by adding recipes from the Recipes page',
-              textAlign: TextAlign.center,
-                          style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[500],
-                          ),
-                        ),
-                      ],
-                    ),
+              const SizedBox(height: 24),
+              Text(
+                'No Meals Planned Yet',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Ready to start your meal? Tap the + button below to discover delicious recipes and start building your meal plan!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[500],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -281,25 +315,25 @@ class MealPlannerEmptyFilterState extends StatelessWidget {
         children: [
             Image.asset(
               'assets/widgets/no_mea.gif',
-              width: 200,
-              height: 200,
+              width: 120,
+              height: 120,
               fit: BoxFit.contain,
             ),
             const SizedBox(height: 24),
           Text(
             'No meals found',
             style: TextStyle(
-                fontSize: 24,
+                fontSize: 20,
               fontWeight: FontWeight.bold,
                 color: Colors.grey[600],
             ),
           ),
           const SizedBox(height: 12),
           Text(
-              'There’s more to explore, your next favorite meal could surprise you.',
+              'Try adjusting your filters or explore more recipes!',
               textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 14,
                 color: Colors.grey[500],
                   ),
                 ),

@@ -59,7 +59,7 @@ class AllMealCategoriesPage extends StatelessWidget {
     ];
 
     return Scaffold(
-      backgroundColor: Colors.green,
+      backgroundColor: const Color(0xFFC1E7AF),
       appBar: AppBar(
         title: const Text(
           'All Meal Categories',
