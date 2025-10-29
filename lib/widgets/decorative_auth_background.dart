@@ -8,16 +8,21 @@ class DecorativeAuthBackground extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Pink/red curved background
-        ClipPath(
-          clipper: _TopCurveClipper(),
-          child: Container(
-            height: MediaQuery.of(context).size.height * 0.4,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF4CAF50), Color(0xFF81C784)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+        // Green curved background
+        Positioned(
+          top: -20, // Move the background up by 20 pixels
+          left: 0,
+          right: 0,
+          child: ClipPath(
+            clipper: _TopCurveClipper(),
+            child: Container(
+              height: MediaQuery.of(context).size.height * 0.4,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF4CAF50), Color(0xFF81C784)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
               ),
             ),
           ),

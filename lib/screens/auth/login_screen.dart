@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:nutriplan/screens/home/home_page.dart';
 import 'signup_screen.dart';
 import '../../widgets/animated_logo.dart';
-import '../../widgets/decorative_auth_background.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../onboarding/diet_type.dart';
 import '../../services/login_history_service.dart';
@@ -159,19 +158,20 @@ class _LoginScreenState extends State<LoginScreen> {
         MediaQuery.of(context).size.height < 900 ? 16.0 : 24.0;
 
     return Scaffold(
-      body: DecorativeAuthBackground(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 430),
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: horizontalPadding,
-                vertical: verticalPadding,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
+      backgroundColor: Colors.white,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 430),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: verticalPadding,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 40), // Move layout up slightly
                     const AnimatedLogo(),
                     const SizedBox(height: 32),
                     const Align(
@@ -182,7 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Text(
                           'Login',
                           style: TextStyle(
-                            fontSize: 28,
+                            fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: Colors.black87,
                           ),
@@ -200,11 +200,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           children: [
                                 SizedBox(
                                   width:
-                                      MediaQuery.of(context).size.width * 0.8,
+                                      MediaQuery.of(context).size.width * 0.75,
                                   child: TextFormField(
                                   controller: _emailController,
+                                  style: const TextStyle(fontSize: 14),
                                   decoration: InputDecoration(
                                     labelText: 'Email address',
+                                      labelStyle: const TextStyle(fontSize: 13),
                                       filled: true,
                                       fillColor: Colors.grey[100],
                                       prefixIcon: Padding(
@@ -245,11 +247,13 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             const SizedBox(height: 16),
                                 SizedBox(
-                                  width: MediaQuery.of(context).size.width * 0.8,
+                                  width: MediaQuery.of(context).size.width * 0.75,
                                   child: TextFormField(
                               controller: _passwordController,
+                              style: const TextStyle(fontSize: 14),
                               decoration: InputDecoration(
                                 labelText: 'Password',
+                                      labelStyle: const TextStyle(fontSize: 13),
                                       filled: true,
                                       fillColor: Colors.grey[100],
                                       prefixIcon: Padding(
@@ -294,7 +298,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             _isLoading
                                 ? const CircularProgressIndicator()
                                 : SizedBox(
-                                        width: MediaQuery.of(context).size.width * 0.8,
+                                        width: MediaQuery.of(context).size.width * 0.75,
                                     child: ElevatedButton(
                                       style: ElevatedButton.styleFrom(
                                             backgroundColor:
@@ -305,7 +309,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                               BorderRadius.circular(30),
                                         ),
                                         padding: const EdgeInsets.symmetric(
-                                              vertical: 18,
+                                              vertical: 14,
                                         ),
                                       ),
                                       onPressed: _login,
@@ -326,7 +330,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               right: 0,
                               child: Container(
                                 width:
-                                    MediaQuery.of(context).size.width * 0.8,
+                                    MediaQuery.of(context).size.width * 0.75,
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(12),
@@ -426,7 +430,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 }

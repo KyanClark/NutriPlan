@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:nutriplan/screens/auth/desktop_email_verification_screen.dart';
 import 'login_screen.dart';
 import '../../widgets/animated_logo.dart';
-import '../../widgets/decorative_auth_background.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -60,40 +59,57 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final double horizontalPadding =
+        MediaQuery.of(context).size.width < 430 ? 16.0 : 24.0;
+    final double verticalPadding =
+        MediaQuery.of(context).size.height < 900 ? 16.0 : 24.0;
+
     return Scaffold(
-      body: DecorativeAuthBackground(
-        child: SafeArea(
-          child: Center(
+      backgroundColor: Colors.white,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 430),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: verticalPadding,
+            ),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20.0),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
+                  const SizedBox(height: 80), // Move layout up
                   const AnimatedLogo(),
-                  const SizedBox(height: 40),
-                  
-                  // Title
-                  const Text(
-                    'Sign Up',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                  const SizedBox(height: 32),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding:
+                          EdgeInsets.only(left: 20.0, top: 50, bottom: 16.0),
+                      child: Text(
+                        'Sign Up',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 40),
 
                   // Signup Form
                   Form(
-                        key: _formKey,
-                        child: Column(
-                          children: [
+                    key: _formKey,
+                    child: Column(
+                      children: [
                             SizedBox(
                               width: MediaQuery.of(context).size.width * 0.8,
                               child: TextFormField(
-                              controller: _fullNameController,
-                              decoration: InputDecoration(
-                                labelText: 'Full Name',
+                                controller: _fullNameController,
+                                style: const TextStyle(fontSize: 14),
+                                decoration: InputDecoration(
+                                  labelText: 'Full Name',
+                                  labelStyle: const TextStyle(fontSize: 13),
                                   filled: true,
                                   fillColor: Colors.grey[100],
                                   prefixIcon: Padding(
@@ -104,14 +120,14 @@ class _SignupScreenState extends State<SignupScreen> {
                                       color: Colors.grey[600],
                                     ),
                                   ),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
-                              ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter your full name';
-                                }
-                                return null;
-                              },
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please enter your full name';
+                                  }
+                                  return null;
+                                },
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -119,9 +135,11 @@ class _SignupScreenState extends State<SignupScreen> {
                             SizedBox(
                               width: MediaQuery.of(context).size.width * 0.8,
                               child: TextFormField(
-                              controller: _emailController,
-                              decoration: InputDecoration(
-                                labelText: 'Email address',
+                                controller: _emailController,
+                                style: const TextStyle(fontSize: 14),
+                                decoration: InputDecoration(
+                                  labelText: 'Email address',
+                                  labelStyle: const TextStyle(fontSize: 13),
                                   filled: true,
                                   fillColor: Colors.grey[100],
                                   prefixIcon: Padding(
@@ -132,18 +150,18 @@ class _SignupScreenState extends State<SignupScreen> {
                                       color: Colors.grey[600],
                                     ),
                                   ),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
-                              ),
-                              keyboardType: TextInputType.emailAddress,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter your email';
-                                }
-                                if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+').hasMatch(value)) {
-                                  return 'Please enter a valid email';
-                                }
-                                return null;
-                              },
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
+                                ),
+                                keyboardType: TextInputType.emailAddress,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please enter your email';
+                                  }
+                                  if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+').hasMatch(value)) {
+                                    return 'Please enter a valid email';
+                                  }
+                                  return null;
+                                },
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -151,9 +169,11 @@ class _SignupScreenState extends State<SignupScreen> {
                             SizedBox(
                               width: MediaQuery.of(context).size.width * 0.8,
                               child: TextFormField(
-                              controller: _passwordController,
-                              decoration: InputDecoration(
-                                labelText: 'Password',
+                                controller: _passwordController,
+                                style: const TextStyle(fontSize: 14),
+                                decoration: InputDecoration(
+                                  labelText: 'Password',
+                                  labelStyle: const TextStyle(fontSize: 13),
                                   filled: true,
                                   fillColor: Colors.grey[100],
                                   prefixIcon: Padding(
@@ -172,25 +192,25 @@ class _SignupScreenState extends State<SignupScreen> {
                                         size: 20,
                                         color: Colors.grey[600],
                                       ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _obscurePassword = !_obscurePassword;
-                                    });
-                                  },
+                                      onPressed: () {
+                                        setState(() {
+                                          _obscurePassword = !_obscurePassword;
+                                        });
+                                      },
                                     ),
+                                  ),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
                                 ),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
-                              ),
-                              obscureText: _obscurePassword,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter your password';
-                                }
-                                if (value.length < 6) {
-                                  return 'Password must be at least 6 characters';
-                                }
-                                return null;
-                              },
+                                obscureText: _obscurePassword,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please enter your password';
+                                  }
+                                  if (value.length < 6) {
+                                    return 'Password must be at least 6 characters';
+                                  }
+                                  return null;
+                                },
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -198,9 +218,11 @@ class _SignupScreenState extends State<SignupScreen> {
                             SizedBox(
                               width: MediaQuery.of(context).size.width * 0.8,
                               child: TextFormField(
-                              controller: _confirmPasswordController,
-                              decoration: InputDecoration(
-                                labelText: 'Confirm Password',
+                                controller: _confirmPasswordController,
+                                style: const TextStyle(fontSize: 14),
+                                decoration: InputDecoration(
+                                  labelText: 'Confirm Password',
+                                  labelStyle: const TextStyle(fontSize: 13),
                                   filled: true,
                                   fillColor: Colors.grey[100],
                                   prefixIcon: Padding(
@@ -219,25 +241,25 @@ class _SignupScreenState extends State<SignupScreen> {
                                         size: 20,
                                         color: Colors.grey[600],
                                       ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _obscureConfirmPassword = !_obscureConfirmPassword;
-                                    });
-                                  },
+                                      onPressed: () {
+                                        setState(() {
+                                          _obscureConfirmPassword = !_obscureConfirmPassword;
+                                        });
+                                      },
                                     ),
+                                  ),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
                                 ),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
-                              ),
-                              obscureText: _obscureConfirmPassword,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please confirm your password';
-                                }
-                                if (value != _passwordController.text) {
-                                  return 'Passwords do not match';
-                                }
-                                return null;
-                              },
+                                obscureText: _obscureConfirmPassword,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please confirm your password';
+                                  }
+                                  if (value != _passwordController.text) {
+                                    return 'Passwords do not match';
+                                  }
+                                  return null;
+                                },
                               ),
                             ),
                             const SizedBox(height: 30),
@@ -272,10 +294,13 @@ class _SignupScreenState extends State<SignupScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Text(
-                                  'Already have an account? ',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
+                            const Text(
+                              "Already have an account?",
+                              style: TextStyle(
+                                color: Color.fromARGB(255, 112, 110, 110),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                                 GestureDetector(
                                   onTap: () {
                                     Navigator.pushReplacement(
@@ -294,8 +319,8 @@ class _SignupScreenState extends State<SignupScreen> {
                               ],
                             ),
                           ],
-                    ),
-                  ),
+                        ),
+                      ),
                 ],
               ),
             ),
