@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../auth/login_screen.dart';
 import 'dietary_preferences_screen.dart';
+import 'profile_information_screen.dart';
 import '../meal_plan/meal_plan_history_screen.dart'; // Added import for MealPlanHistoryScreen
 
-import '../recipes/favorites_page.dart'; // Added import for FavoritesPage
+import 'favorites_page.dart'; // Added import for FavoritesPage
 import 'package:image_picker/image_picker.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  final VoidCallback? onAvatarUpdated;
+  const ProfileScreen({super.key, this.onAvatarUpdated});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -225,6 +227,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       }
       
+      // Notify parent widget about avatar update
+      widget.onAvatarUpdated?.call();
+      
       // Show success message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -257,179 +262,209 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _showProfileImagePicker() async {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: const Text('Choose from Gallery'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _pickAndUploadProfileImage();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.link),
-                title: const Text('Use Image URL'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _showImageUrlDialog();
-                },
-              ),
-            ],  
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _showImageUrlDialog() async {
     if (!mounted) return;
-    final controller = TextEditingController();
+    
     final result = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Enter Image URL'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(hintText: 'https://example.com/image.jpg'),
-          keyboardType: TextInputType.url,
+        title: const Text('Profile Picture'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_avatarUrl != null && _avatarUrl!.isNotEmpty)
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Remove Picture'),
+                onTap: () => Navigator.pop(context, 'remove'),
+              ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: Color(0xFF4CAF50)),
+              title: const Text('Update Picture'),
+              onTap: () => Navigator.pop(context, 'update'),
+            ),
+          ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, 'cancel'),
             child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final url = controller.text.trim();
-              if (url.startsWith('http')) {
-                Navigator.pop(context, url);
-              }
-            },
-            child: const Text('Save'),
           ),
         ],
       ),
     );
-    if (result != null && result.isNotEmpty) {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return;
-      
-      // Show loading dialog
-      if (!mounted) return;
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return WillPopScope(
-            onWillPop: () async => false,
-            child: Dialog(
-              backgroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Loading animation (same as meal history)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(3, (i) => AnimatedContainer(
-                        duration: const Duration(milliseconds: 400),
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        width: 12,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: const Color.fromARGB(255, 97, 212, 86).withOpacity(i == DateTime.now().second % 3 ? 1 : 0.4),
-                          shape: BoxShape.circle,
-                        ),
-                      )),
-                    ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Updating Profile Picture...',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
+    
+    if (result == 'update') {
+      await _pickAndUploadProfileImage();
+    } else if (result == 'remove') {
+      await _removeProfileImage();
+    }
+  }
+
+  Future<void> _removeProfileImage() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+    
+    // Show confirmation dialog
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove Profile Picture'),
+        content: const Text('Are you sure you want to remove your profile picture?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirm != true) return;
+    
+    // Show loading dialog
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return WillPopScope(
+          onWillPop: () async => false,
+          child: Dialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(3, (i) => AnimatedContainer(
+                      duration: const Duration(milliseconds: 400),
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: const Color.fromARGB(255, 97, 212, 86).withOpacity(i == DateTime.now().second % 3 ? 1 : 0.4),
+                        shape: BoxShape.circle,
                       ),
-                      textAlign: TextAlign.center,
+                    )),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Removing Profile Picture...',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Please wait while we update your profile',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.black54,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
             ),
-          );
-        },
-      );
+          ),
+        );
+      },
+    );
+    
+    try {
+      // Get the current avatar URL to extract file path
+      final currentAvatarUrl = _avatarUrl;
       
-      try {
-        await Supabase.instance.client.from('profiles').update({'avatar_url': result}).eq('id', user.id);
-        
-        // Close loading dialog
-        if (mounted) {
-          Navigator.of(context).pop();
+      // Update avatar_url to null in profiles table
+      await Supabase.instance.client
+          .from('profiles')
+          .update({'avatar_url': null})
+          .eq('id', user.id);
+      
+      // Try to delete from storage if URL exists
+      if (currentAvatarUrl != null && currentAvatarUrl.isNotEmpty) {
+        try {
+          // Extract file path from URL (assuming format: .../profile-pictures/{userId}.{ext})
+          final storage = Supabase.instance.client.storage.from('profile-pictures');
+          final fileName = currentAvatarUrl.split('/').last.split('?').first;
+          await storage.remove([fileName]);
+        } catch (e) {
+          print('Error removing file from storage: $e');
+          // Continue even if storage deletion fails
         }
-        
-        if (mounted) {
-          setState(() {
-            _avatarUrl = result;
-          });
-        }
-        
-        // Show success message
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Profile picture updated successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } catch (e) {
-        print('Error updating profile image URL: $e');
-        
-        // Close loading dialog
-        if (mounted) {
-          Navigator.of(context).pop();
-        }
-        
-        // Show error message
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to update profile picture: $e'),
-              backgroundColor: const Color(0xFFFF6961),
-            ),
-          );
-        }
+      }
+      
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+      
+      // Update the UI
+      if (mounted) {
+        setState(() {
+          _avatarUrl = null;
+        });
+      }
+      
+      // Notify parent widget about avatar update
+      widget.onAvatarUpdated?.call();
+      
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile picture removed successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error removing profile image: $e');
+      
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to remove image: $e'),
+            backgroundColor: const Color(0xFFFF6961),
+          ),
+        );
       }
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: const Color.fromARGB(255, 144, 219, 147),
+      appBar: AppBar(
+        title: const Text(
+          'Profile',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: Colors.black,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: _loading
           ? Center(
               child: Row(
@@ -450,30 +485,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Gradient header container (fixed position)
-                  Container(
-                     height: 120, // Reduced from 160 to 120
-                    width: double.infinity,
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Color(0xFF66BB6A), // Green 400
-                          Color(0xFF42A5F5), // Blue 400
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.only(
-                        bottomLeft: Radius.circular(25),
-                        bottomRight: Radius.circular(25),
-                      ),
-                    ),
-                  ),
-                  // Avatar positioned below the green container
-                  Transform.translate(
-                     offset: const Offset(0, -80), // Reduced from -120 to -80
+                  // Avatar section
+                  SizedBox(
+                    height: 160,
                     child: Stack(
-                      clipBehavior: Clip.none,
+                      alignment: Alignment.center,
                       children: [
                         CircleAvatar(
                           radius: 70,
@@ -496,12 +512,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   )),
                                 )
                               : (_avatarUrl == null || _avatarUrl!.isEmpty)
-                                  ? Icon(Icons.person, size: 75, color: const Color.fromARGB(255, 97, 212, 86))
+                                  ? const Icon(Icons.person, size: 90, color: Color.fromARGB(255, 97, 212, 86))
                                   : null,
                         ),
                         Positioned(
-                          bottom: 15,
-                          right: -8,
+                          bottom: 0,
+                          right: MediaQuery.of(context).size.width / 2 - 70 - 120,
                           child: GestureDetector(
                             behavior: HitTestBehavior.opaque,
                             onTap: _uploadingImage ? null : () {
@@ -522,13 +538,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     ),
                                   ],
                                 ),
-                                padding: const EdgeInsets.all(10),
+                                padding: const EdgeInsets.all(8),
                                 child: Icon(
                                   Icons.camera_alt, 
-                                  color: _uploadingImage 
+                                  color: _uploadingImage
                                       ? Colors.grey 
                                       : const Color.fromARGB(255, 97, 212, 86), 
-                                  size: 24
+                                  size: 16
                                 ),
                               ),
                             ),
@@ -538,107 +554,111 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   // Profile content with proper spacing
-                  Transform.translate(
-                     offset: const Offset(0, -40), // Increased offset to bring content closer to avatar
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            // Name and Email - closer to avatar
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
-                              child: Text(
-                                _fullName ?? 'User',
-                                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          if (_email != null)
-                            Padding(
-                               padding: const EdgeInsets.only(top: 1.0, bottom: 4.0, left: 16, right: 16), // Reduced top padding to bring email closer to name
-                              child: Text(
-                                _email!,
-                                style: const TextStyle(fontSize: 15, color: Colors.black54, fontWeight: FontWeight.w400),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          const SizedBox(height: 8), // Added small spacing before options
-                          // Options List
-                          Container(
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.04),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              children: [
-                                _MinimalOption(
-                                  label: 'Dietary Preferences',
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(builder: (context) => DietaryPreferencesScreen()),
-                                    );
-                                  },
-                                ),
-                                _MinimalOption(
-                                  label: 'Favorites',
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(builder: (context) => FavoritesPage()),
-                                    );
-                                  },
-                                ),
-                                _MinimalOption(
-                                  label: 'Meal Plan History',
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(builder: (context) => MealPlanHistoryScreen()),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          // Logout Button
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 16),
+                        // Name and Email
+                        Text(
+                          _fullName ?? 'User',
+                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
+                        ),
+                        if (_email != null)
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 0.0),
-                            child: SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Color.fromARGB(255, 224, 83, 83),
-                                  padding: const EdgeInsets.symmetric(vertical: 18),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                onPressed: () async {
-                                  final confirm = await _showLogoutConfirmation(context);
-                                  if (confirm == true) {
-                                    setState(() {
-                                      _shouldLogout = true;
-                                    });
-                                    _handleLogoutIfNeeded();
-                                  }
-                                },
-                                child: const Text('Logout', style: TextStyle(color: Colors.white)),
-                              ),
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              _email!,
+                              style: const TextStyle(fontSize: 15, color: Colors.black54, fontWeight: FontWeight.w400),
+                              textAlign: TextAlign.center,
                             ),
                           ),
-                        ],
-                      ),
+                        const SizedBox(height: 24),
+                        // Options List
+                        Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.04),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              _MinimalOption(
+                                label: 'Profile Information',
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const ProfileInformationScreen()),
+                                  );
+                                },
+                              ),
+                              const Divider(height: 0.5),
+                              _MinimalOption(
+                                label: 'Dietary Preferences',
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const DietaryPreferencesScreen()),
+                                  );
+                                },
+                              ),
+                              const Divider(height: 0.5),
+                              _MinimalOption(
+                                label: 'Favorites',
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const FavoritesPage()),
+                                  );
+                                },
+                              ),
+                              const Divider(height: 0.5),
+                              _MinimalOption(
+                                label: 'Meal Plan History',
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const MealPlanHistoryScreen()),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Logout Button
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color.fromARGB(255, 224, 83, 83),
+                              padding: const EdgeInsets.symmetric(vertical: 18),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onPressed: () async {
+                              final confirm = await _showLogoutConfirmation(context);
+                              if (confirm == true) {
+                                setState(() {
+                                  _shouldLogout = true;
+                                });
+                                _handleLogoutIfNeeded();
+                              }
+                            },
+                            child: const Text('Logout', style: TextStyle(color: Colors.white)),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

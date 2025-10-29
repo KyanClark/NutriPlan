@@ -21,6 +21,7 @@ class BottomNavigation extends StatefulWidget {
   State<BottomNavigation> createState() => _BottomNavigationState();
 }
 
+
 class _BottomNavigationState extends State<BottomNavigation>
     with SingleTickerProviderStateMixin {
   late AnimationController _hoverController;
@@ -54,6 +55,20 @@ class _BottomNavigationState extends State<BottomNavigation>
   }
 
   @override
+  void didUpdateWidget(BottomNavigation oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Only rebuild if essential properties changed
+    if (oldWidget.selectedIndex != widget.selectedIndex ||
+        oldWidget.mealPlanCount != widget.mealPlanCount ||
+        oldWidget.isSmallScreen != widget.isSmallScreen) {
+      // Essential properties changed, allow rebuild
+    } else {
+      // Non-essential properties changed, prevent unnecessary rebuild
+      // This prevents rebuilds when banner page changes, user name updates, etc.
+    }
+  }
+
+  @override
   void dispose() {
     _hoverController.dispose();
     super.dispose();
@@ -75,7 +90,16 @@ class _BottomNavigationState extends State<BottomNavigation>
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    // Ensure consistent icon sizing and allow a slightly taller bar for better alignment
+    final double computedIconSize = widget.isSmallScreen ? 27 : 24;
+    // Keep Meal Plan at computed size, slightly reduce others; make Meal Tracker a touch smaller
+    final double defaultIconSize = (computedIconSize - 2).clamp(18, 28).toDouble();
+    final double mealTrackerIconSize = (computedIconSize - 4).clamp(18, 26).toDouble();
+    final double barHeight = widget.isSmallScreen ? 68 : 60;
+    const double plusButtonSize = 56;
+    final double plusTop = (barHeight - plusButtonSize) / 2; // center inside bar, below top border
+    return RepaintBoundary(
+      child: Container(
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -99,39 +123,60 @@ class _BottomNavigationState extends State<BottomNavigation>
             clipBehavior: Clip.none,
             children: [
               // Main navigation bar
-          BottomNavigationBar(
-            backgroundColor: Colors.white,
-            elevation: 0,
-                currentIndex: widget.selectedIndex,
-                onTap: widget.onTap,
-            unselectedItemColor: const Color.fromARGB(255, 136, 136, 136),
-            selectedItemColor: Colors.green,
-                iconSize: widget.isSmallScreen ? 27 : 24,
-            type: BottomNavigationBarType.fixed,
-            showSelectedLabels: true,
-            showUnselectedLabels: true,
-            selectedLabelStyle: TextStyle(
-              fontSize: ResponsiveDesign.responsiveFontSize(context, 12),
-              fontWeight: FontWeight.bold,
-            ),
-            unselectedLabelStyle: TextStyle(
-              fontSize: ResponsiveDesign.responsiveFontSize(context, 12),
-            ),
-            items: [
-              _buildBottomNavItem(Icons.home, 'Home', 0),
-                  _buildBottomNavItem(Icons.restaurant_menu, 'Meal Plan', 1, badgeCount: widget.mealPlanCount, customImagePath: 'assets/navigation_icons/meal plan icon.png'),
-                  // Empty item for the plus button space
-                  const BottomNavigationBarItem(
-                    icon: SizedBox.shrink(),
-                    label: '',
+              SizedBox(
+                height: barHeight,
+                child: BottomNavigationBar(
+                  backgroundColor: Colors.white,
+                  elevation: 0,
+                  currentIndex: widget.selectedIndex,
+                  onTap: widget.onTap,
+                  unselectedItemColor: const Color.fromARGB(255, 136, 136, 136),
+                  selectedItemColor: Colors.green,
+                  iconSize: computedIconSize,
+                  type: BottomNavigationBarType.fixed,
+                  showSelectedLabels: true,
+                  showUnselectedLabels: true,
+                  selectedLabelStyle: TextStyle(
+                    fontSize: ResponsiveDesign.responsiveFontSize(context, 12),
+                    fontWeight: FontWeight.bold,
                   ),
-                  _buildBottomNavItem(Icons.track_changes, 'Meal Tracker', 3, customImagePath: 'assets/navigation_icons/chart-pie-alt.png'),
-                  _buildBottomNavItem(Icons.person, 'Profile', 4),
-                ],
+                  unselectedLabelStyle: TextStyle(
+                    fontSize: ResponsiveDesign.responsiveFontSize(context, 12),
+                  ),
+                  items: [
+                    _buildBottomNavItem(Icons.home, 'Home', 0, iconSize: defaultIconSize),
+                    _buildBottomNavItem(
+                      Icons.restaurant_menu,
+                      'Meal Plan',
+                      1,
+                      badgeCount: widget.mealPlanCount,
+                      customImagePath: 'assets/navigation_icons/meal plan icon.png',
+                      iconSize: computedIconSize,
+                    ),
+                    // Empty item for the plus button space
+                    const BottomNavigationBarItem(
+                      icon: SizedBox.shrink(),
+                      label: '',
+                    ),
+                    _buildBottomNavItem(
+                      Icons.track_changes,
+                      'Meal Tracker',
+                      3,
+                      customImagePath: 'assets/navigation_icons/chart-pie-alt.png',
+                      iconSize: mealTrackerIconSize,
+                    ),
+                    _buildBottomNavItem(
+                      Icons.analytics,
+                      'Analytics',
+                      4,
+                      iconSize: defaultIconSize,
+                    ),
+                  ],
+                ),
               ),
               // Elevated plus button with hover effect
               Positioned(
-                top: -25,
+                top: plusTop,
                 left: 0,
                 right: 0,
                 child: Center(
@@ -144,10 +189,11 @@ class _BottomNavigationState extends State<BottomNavigation>
                         return Transform.scale(
                           scale: _scaleAnimation.value,
                           child: GestureDetector(
+                            behavior: HitTestBehavior.opaque, // make full circular container tappable
                             onTap: widget.onAddMealPressed,
                             child: Container(
-                              width: 56,
-                              height: 56,
+                              width: plusButtonSize,
+                              height: plusButtonSize,
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
                                   colors: _isHovered
@@ -193,78 +239,85 @@ class _BottomNavigationState extends State<BottomNavigation>
           ),
         ],
       ),
+      ),
     );
   }
 
   BottomNavigationBarItem _buildBottomNavItem(
-      IconData icon, String label, int index, {int badgeCount = 0, String? customImagePath}) {
-    return BottomNavigationBarItem(
-      icon: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          customImagePath != null
-              ? ShaderMask(
-                  shaderCallback: (Rect bounds) {
-                    return LinearGradient(
-                      colors: index == widget.selectedIndex
-                          ? [
-                              Color.fromRGBO(142, 190, 155, 1.0),
-                              Color.fromRGBO(125, 189, 228, 1.0),
-                            ]
-                          : [Colors.grey, Colors.grey],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ).createShader(bounds);
-                  },
-                  child: Image.asset(
-                    customImagePath,
-                    width: 24,
-                    height: 24,
-                    color: Colors.white,
-                  ),
-                )
-              : ShaderMask(
+      IconData icon, String label, int index,
+      {int badgeCount = 0, String? customImagePath, double iconSize = 24}) {
+    final Widget baseIconWidget = customImagePath != null
+        ? ShaderMask(
             shaderCallback: (Rect bounds) {
               return LinearGradient(
-                      colors: index == widget.selectedIndex
+                colors: index == widget.selectedIndex
                     ? [
-                        Color.fromRGBO(142, 190, 155, 1.0),
-                        Color.fromRGBO(125, 189, 228, 1.0),
+                        const Color.fromRGBO(142, 190, 155, 1.0),
+                        const Color.fromRGBO(125, 189, 228, 1.0),
                       ]
                     : [Colors.grey, Colors.grey],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ).createShader(bounds);
             },
-            child: Icon(icon, color: Colors.white),
-          ),
-          if (badgeCount > 0)
-            Positioned(
-              top: -6,
-              right: -12,
-              child: Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFF6961),
-                  borderRadius: BorderRadius.circular(100),
-                ),
-                constraints: const BoxConstraints(
-                  minWidth: 21,
-                  minHeight: 15,
-                ),
-                child: Center(
-                  child: Text(
-                    badgeCount.toString(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+            child: Image.asset(
+              customImagePath,
+              width: iconSize,
+              height: iconSize,
+              color: Colors.white,
+            ),
+          )
+        : ShaderMask(
+            shaderCallback: (Rect bounds) {
+              return LinearGradient(
+                colors: index == widget.selectedIndex
+                    ? [
+                        const Color.fromRGBO(142, 190, 155, 1.0),
+                        const Color.fromRGBO(125, 189, 228, 1.0),
+                      ]
+                    : [Colors.grey, Colors.grey],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ).createShader(bounds);
+            },
+            child: Icon(icon, color: Colors.white, size: iconSize),
+          );
+
+    return BottomNavigationBarItem(
+      icon: SizedBox(
+        width: 70,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Center(child: baseIconWidget),
+            if (badgeCount > 0)
+              Positioned(
+                top: -6,
+                right: 1,
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF6961),
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 21,
+                    minHeight: 15,
+                  ),
+                  child: Center(
+                    child: Text(
+                      badgeCount.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
       label: label,
     );
