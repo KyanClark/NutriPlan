@@ -374,8 +374,9 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
                                         'fat': (meal['fat'] ?? 0).toDouble(),
                                       },
                                       allergyWarning: meal['allergy_warning'] ?? '',
-                                      dietTypes: List<String>.from(meal['diet_types'] ?? []),
+                                      tags: List<String>.from(meal['tags'] ?? []),
                                       cost: (meal['cost'] ?? 0.0).toDouble(),
+                                      notes: meal['notes'] ?? '',
                                     );
                                     await Navigator.push(
                                       context,

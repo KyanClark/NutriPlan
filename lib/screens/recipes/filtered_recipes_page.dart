@@ -122,7 +122,7 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
 
   List<Recipe> _getSoupRecipes(List<Recipe> recipes) {
     return recipes.where((recipe) => 
-      recipe.dietTypes.contains('Soup') ||
+      recipe.tags.contains('Soup') ||
       recipe.title.toLowerCase().contains('sinigang') ||
       recipe.title.toLowerCase().contains('tinola') ||
       recipe.title.toLowerCase().contains('monggo') ||
@@ -204,8 +204,8 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
 
   List<Recipe> _getVegetarianRecipes(List<Recipe> recipes) {
     return recipes.where((recipe) => 
-      recipe.dietTypes.contains('Vegetarian') ||
-      recipe.dietTypes.contains('Vegan') ||
+      recipe.tags.contains('Vegetarian') ||
+      recipe.tags.contains('Vegan') ||
       recipe.title.toLowerCase().contains('vegetarian') ||
       recipe.title.toLowerCase().contains('vegan') ||
       recipe.title.toLowerCase().contains('pinakbet') ||
@@ -238,7 +238,7 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
       recipe.title.toLowerCase().contains('puto') ||
       recipe.title.toLowerCase().contains('kakanin') ||
       recipe.title.toLowerCase().contains('sweet') ||
-      recipe.dietTypes.contains('Dessert')
+      recipe.tags.contains('Dessert')
     ).toList();
   }
 
@@ -247,7 +247,7 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
   List<Recipe> _getHealthyRecipes(List<Recipe> recipes) {
     return recipes.where((recipe) => 
       recipe.calories < 400 &&
-      (recipe.dietTypes.contains('Healthy') ||
+      (recipe.tags.contains('Healthy') ||
        recipe.title.toLowerCase().contains('healthy') ||
        recipe.title.toLowerCase().contains('light') ||
        recipe.title.toLowerCase().contains('grilled') ||
@@ -264,7 +264,7 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
   List<Recipe> _getLowCarbRecipes(List<Recipe> recipes) {
     return recipes.where((recipe) => 
       (recipe.macros['carbs'] ?? 0.0) < 30.0 ||
-      recipe.dietTypes.contains('Keto') ||
+      recipe.tags.contains('Keto') ||
       recipe.title.toLowerCase().contains('keto')
     ).toList();
   }
@@ -333,7 +333,7 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
     return ScaffoldMessenger(
       key: _scaffoldMessengerKey,
       child: Scaffold(
-        backgroundColor: Colors.grey[50],
+        backgroundColor: const Color(0xFFC1E7AF),
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0,

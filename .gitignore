@@ -56,3 +56,8 @@ GEMINI_API_KEY
 GROQ_API_KEY
 SUPABASE_API_KEY
 SUPABASE_URL
+
+# API Key files (if stored separately)
+api_keys.txt
+secrets.json
+config.json

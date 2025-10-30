@@ -59,6 +59,7 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
     super.initState();
     _handleTimerOnStepChange();
   }
+  
 
   void _handleTimerOnStepChange() {
     final instruction = widget.instructions[_currentStep];
@@ -438,6 +439,46 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
     return null;
   }
 
+  Widget _buildScrollableInstruction(String instruction) {
+    return Container(
+      height: 120, // Fixed height for consistent layout
+      child: Stack(
+        children: [
+          // Scrollable text
+          SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 20), // Space for fade effect
+              child: Text(
+                instruction,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w500),
+              ),
+            ),
+          ),
+          // Fade indicator at bottom
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: 20,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withOpacity(0.0),
+                    Colors.white.withOpacity(0.8),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isLastStep = _currentStep == widget.instructions.length - 1;
@@ -446,28 +487,30 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
     final showTimer = timerSeconds != null;
 
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Animated progress bar at the top
-            TweenAnimationBuilder<double>(
-              tween: Tween<double>(
-                begin: 0,
-                end: (_currentStep + 1) / widget.instructions.length,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Animated progress bar at the top
+              TweenAnimationBuilder<double>(
+                tween: Tween<double>(
+                  begin: 0,
+                  end: (_currentStep + 1) / widget.instructions.length,
+                ),
+                duration: const Duration(milliseconds: 400),
+                builder: (context, value, child) => LinearProgressIndicator(
+                  value: value,
+                  minHeight: 10,
+                  backgroundColor: Colors.grey[200],
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-              duration: const Duration(milliseconds: 400),
-              builder: (context, value, child) => LinearProgressIndicator(
-                value: value,
-                minHeight: 10,
-                backgroundColor: Colors.grey[200],
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
+            
             Center(
               child: Text(
                 'Step ${_currentStep + 1}',
@@ -490,11 +533,7 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
                       key: ValueKey(_currentStep),
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          instruction,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w500),
-                        ),
+                        _buildScrollableInstruction(instruction),
                         const SizedBox(height: 30),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -548,11 +587,7 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
                       key: ValueKey(_currentStep),
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          instruction,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w500),
-                        ),
+                        _buildScrollableInstruction(instruction),
                       ],
                     ),
               ),
@@ -601,6 +636,9 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
           ],
         ),
       ),
+    )
     );
+    
+    
   }
 } 

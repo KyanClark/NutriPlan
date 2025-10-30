@@ -401,7 +401,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
       body: SafeArea(
             child: Column(
               children: [
-            // Hero header with title, subtitle, and weekly calendar inside
+            // Hero header with title, subtitle, and weekly calendar inside (made more compact)
                           Container(
               width: double.infinity,
                             decoration: BoxDecoration(
@@ -419,7 +419,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                               ],
                             ),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 14),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -430,7 +430,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                                 'Meal Planner',
                                 style: TextStyle(
                                   color: Colors.white,
-                            fontSize: 22,
+                          fontSize: 20,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -465,13 +465,13 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                       'Plan smarter, eat better',
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.9),
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: FontWeight.w400,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     SizedBox(
-                      height: 56,
+                      height: 48,
                       child: Stack(
                         children: [
                           PageView.builder(
@@ -480,7 +480,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                             itemBuilder: (context, page) {
                               final weekStart = _startOfWeek(DateTime.now()).add(Duration(days: (page - 1000) * 7));
                               return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 6),
+                                padding: const EdgeInsets.symmetric(vertical: 4),
                                 child: Row(
                                   children: List.generate(7, (i) {
                                   final date = weekStart.add(Duration(days: i));
@@ -759,7 +759,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
           children: [
             (isSelected)
               ? Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
                     color: const Color(0xFF4CAF50),
                     borderRadius: BorderRadius.circular(6),
@@ -769,17 +769,17 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                       Text(
                         dayLetters[date.weekday % 7],
                         style: const TextStyle(
-                          fontSize: 10,
+                          fontSize: 9,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
                           height: 1.0,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Text(
                         date.day.toString(),
                         style: const TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                           height: 1.0,
@@ -793,17 +793,17 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                     Text(
                       dayLetters[date.weekday % 7],
                       style: const TextStyle(
-                        fontSize: 10,
+                        fontSize: 9,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
                         height: 1.0,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Text(
                       date.day.toString(),
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.w500,
                         color: Colors.white,
                         height: 1.0,
@@ -950,9 +950,9 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
               border: isSelected ? Border.all(color: const Color(0xFF4CAF50), width: 2) : null,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withValues(alpha: 0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+                  color: Colors.grey.withValues(alpha: 3),
+                  blurRadius: 1,
+                  offset: const Offset(0, 1),
                 ),
               ],
             ),

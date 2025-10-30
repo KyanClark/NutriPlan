@@ -6,11 +6,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'see_all_recipe.dart';
 import 'package:nutriplan/screens/meal_plan/meal_summary_page.dart';
 import 'package:nutriplan/screens/meal_plan/meal_plan_confirmation_page.dart';
+import 'package:nutriplan/screens/meal_plan/meal_planning_options_page.dart';
 import '../../widgets/loading_skeletons.dart';
 
 class RecipesPage extends StatefulWidget {
   final VoidCallback? onChanged;
-  const RecipesPage({super.key, this.onChanged});
+  final bool isAdvancePlanning;
+  const RecipesPage({super.key, this.onChanged, this.isAdvancePlanning = false});
 
   @override
   State<RecipesPage> createState() => _RecipesPageState();
@@ -28,6 +30,7 @@ class _RecipesPageState extends State<RecipesPage> {
 
   // GlobalKey for ScaffoldMessenger
   final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+  late Future<List<Recipe>> _recentlyAddedFuture;
 
   Future<void> _fetchFavorites() async {
     if (userId == null) return;
@@ -42,6 +45,7 @@ class _RecipesPageState extends State<RecipesPage> {
   void initState() {
     super.initState();
     _fetchFavorites();
+    _recentlyAddedFuture = RecipeService.fetchRecentlyAdded(limit: 20);
   }
 
   List<Recipe> _applySearchAndSort(List<Recipe> recipes) {
@@ -181,16 +185,7 @@ class _RecipesPageState extends State<RecipesPage> {
   // Silog Meals (Breakfast Classics)
   List<Recipe> _getSilogRecipes(List<Recipe> recipes) {
     return recipes.where((recipe) => 
-      recipe.title.toLowerCase().contains('silog') ||
-      recipe.title.toLowerCase().contains('tapsilog') ||
-      recipe.title.toLowerCase().contains('longsilog') ||
-      recipe.title.toLowerCase().contains('bangsilog') ||
-      recipe.title.toLowerCase().contains('tocilog') ||
-      recipe.title.toLowerCase().contains('hotsilog') ||
-      recipe.title.toLowerCase().contains('champorado') ||
-      recipe.title.toLowerCase().contains('pandesal') ||
-      recipe.title.toLowerCase().contains('tocino') ||
-      recipe.title.toLowerCase().contains('longganisa')
+      recipe.title.toLowerCase().contains('silog')
     ).toList();
   }
 
@@ -247,9 +242,9 @@ class _RecipesPageState extends State<RecipesPage> {
   // Healthy Pinoy
   List<Recipe> _getHealthyPinoyRecipes(List<Recipe> recipes) {
     return recipes.where((recipe) => 
-      recipe.dietTypes.contains('Healthy') ||
-      recipe.dietTypes.contains('Low Calorie') ||
-      recipe.dietTypes.contains('Vegetarian') ||
+      recipe.tags.contains('Healthy') ||
+      recipe.tags.contains('Low Calorie') ||
+      recipe.tags.contains('Vegetarian') ||
       recipe.title.toLowerCase().contains('steamed') ||
       recipe.title.toLowerCase().contains('boiled') ||
       recipe.title.toLowerCase().contains('fresh') ||
@@ -263,7 +258,7 @@ class _RecipesPageState extends State<RecipesPage> {
   // Sabaw & Nilaga (Soups & Stews) - Updated
   List<Recipe> _getSoupRecipes(List<Recipe> recipes) {
     return recipes.where((recipe) => 
-      recipe.dietTypes.contains('Soup') ||
+      recipe.tags.contains('Soup') ||
       recipe.title.toLowerCase().contains('sinigang') ||
       recipe.title.toLowerCase().contains('tinola') ||
       recipe.title.toLowerCase().contains('monggo') ||
@@ -482,14 +477,49 @@ class _RecipesPageState extends State<RecipesPage> {
                         flex: 3,
                         child: Stack(
                           children: [
-                            Container(
-                              width: double.infinity,
-                  decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(20),
-                                image: DecorationImage(
-                                  image: NetworkImage(recipe.imageUrl),
-                                  fit: BoxFit.cover,
-                                ),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(20),
+                              child: Image.network(
+                                recipe.imageUrl,
+                                width: double.infinity,
+                                height: double.infinity,
+                                fit: BoxFit.cover,
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) {
+                                    return child;
+                                  }
+                                  return Container(
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[200],
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Center(
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.grey[600]!,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[300],
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: const Icon(
+                                      Icons.restaurant,
+                                      color: Colors.grey,
+                                      size: 40,
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                             // Heart icon
@@ -636,7 +666,16 @@ class _RecipesPageState extends State<RecipesPage> {
                       TextButton(
                         onPressed: () {
                           Navigator.of(context).pop();
-                          Navigator.pop(context);
+                          if (widget.isAdvancePlanning) {
+                            // Navigate back to meal planning options page
+                            Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(
+                                builder: (context) => const MealPlanningOptionsPage(),
+                              ),
+                            );
+                          } else {
+                            Navigator.pop(context);
+                          }
                         },
                         child: const Text(
                           'Go Back',
@@ -648,7 +687,16 @@ class _RecipesPageState extends State<RecipesPage> {
                 },
               );
             } else {
-              Navigator.pop(context);
+              if (widget.isAdvancePlanning) {
+                // Navigate back to meal planning options page
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (context) => const MealPlanningOptionsPage(),
+                  ),
+                );
+              } else {
+                Navigator.pop(context);
+              }
             }
           },
         ),
@@ -760,6 +808,20 @@ class _RecipesPageState extends State<RecipesPage> {
 
                 final allRecipes = snapshot.data!;
                 final filteredRecipes = _applySearchAndSort(allRecipes);
+                
+                // Track shown recipe IDs to avoid duplicates across sections
+                final Set<String> shownRecipeIds = {};
+                
+                // Helper function to get unique recipes for a section
+                List<Recipe> getUniqueRecipes(List<Recipe> recipes, {int limit = 10}) {
+                  return recipes.where((recipe) {
+                    if (shownRecipeIds.contains(recipe.id)) {
+                      return false; // Skip if already shown
+                    }
+                    shownRecipeIds.add(recipe.id); // Mark as shown
+                    return true;
+                  }).take(limit).toList();
+                }
 
                 return SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
@@ -836,11 +898,57 @@ class _RecipesPageState extends State<RecipesPage> {
 
                       const SizedBox(height: 50),
 
-                      // Recently Added Recipes
-                      _buildRecipeSection(
-                        'Recently Added',
-                        filteredRecipes.take(10).toList(),
-                        allRecipes.length,
+                      // Recently Added Recipes (from DB order by created_at desc)
+                      FutureBuilder<List<Recipe>>(
+                        future: _recentlyAddedFuture,
+                        builder: (context, recentSnap) {
+                          if (recentSnap.connectionState == ConnectionState.waiting) {
+                            // Avoid nested unbounded scrollables; show a simple placeholder instead
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.grey.withValues(alpha: 0.08),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  const Text(
+                                    'Recently Added',
+                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                                  ),
+                                  const Spacer(),
+                                  SizedBox(
+                                    height: 18,
+                                    width: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                          if (recentSnap.hasError || !recentSnap.hasData) {
+                            return const SizedBox.shrink();
+                          }
+                          // Optionally apply current search filter
+                          final List<Recipe> recent = searchQuery.isEmpty
+                              ? recentSnap.data!
+                              : recentSnap.data!
+                                  .where((r) => r.title.toLowerCase().contains(searchQuery.toLowerCase()))
+                                  .toList();
+                          return _buildRecipeSection(
+                            'Recently Added',
+                            getUniqueRecipes(recent),
+                            recent.length,
+                          );
+                        },
                       ),
 
                       const SizedBox(height: 24),
@@ -848,7 +956,7 @@ class _RecipesPageState extends State<RecipesPage> {
                       // Silog Meals (Breakfast Classics)
                       _buildRecipeSection(
                         'Silog Meals',
-                        _getSilogRecipes(filteredRecipes),
+                        getUniqueRecipes(_getSilogRecipes(filteredRecipes)),
                         _getSilogRecipes(filteredRecipes).length,
                       ),
 
@@ -857,7 +965,7 @@ class _RecipesPageState extends State<RecipesPage> {
                       // Kainang Pamilya (Family Favorites)
                       _buildRecipeSection(
                         'Kainang Pamilya',
-                        _getFamilyFavorites(filteredRecipes),
+                        getUniqueRecipes(_getFamilyFavorites(filteredRecipes)),
                         _getFamilyFavorites(filteredRecipes).length,
                       ),
 
@@ -866,7 +974,7 @@ class _RecipesPageState extends State<RecipesPage> {
                       // Lutong Bahay (Home-cooked Comfort)
                       _buildRecipeSection(
                         'Lutong Bahay',
-                        _getHomeCookedRecipes(filteredRecipes),
+                        getUniqueRecipes(_getHomeCookedRecipes(filteredRecipes)),
                         _getHomeCookedRecipes(filteredRecipes).length,
                       ),
 
@@ -875,7 +983,7 @@ class _RecipesPageState extends State<RecipesPage> {
                       // Just for You (Personalized Recommendations)
                       _buildRecipeSection(
                         'Just for You',
-                        _getPersonalizedRecipes(filteredRecipes),
+                        getUniqueRecipes(_getPersonalizedRecipes(filteredRecipes)),
                         _getPersonalizedRecipes(filteredRecipes).length,
                       ),
 
@@ -884,7 +992,7 @@ class _RecipesPageState extends State<RecipesPage> {
                       // Quick & Easy Meals
                       _buildRecipeSection(
                         'Quick & Easy Meals',
-                        _getQuickEasyRecipes(filteredRecipes),
+                        getUniqueRecipes(_getQuickEasyRecipes(filteredRecipes)),
                         _getQuickEasyRecipes(filteredRecipes).length,
                       ),
 
@@ -893,7 +1001,7 @@ class _RecipesPageState extends State<RecipesPage> {
                       // Healthy Pinoy
                       _buildRecipeSection(
                         'Healthy Pinoy',
-                        _getHealthyPinoyRecipes(filteredRecipes),
+                        getUniqueRecipes(_getHealthyPinoyRecipes(filteredRecipes)),
                         _getHealthyPinoyRecipes(filteredRecipes).length,
                       ),
 
@@ -902,7 +1010,7 @@ class _RecipesPageState extends State<RecipesPage> {
                       // Sabaw & Nilaga (Soups & Stews)
                       _buildRecipeSection(
                         'Sabaw & Nilaga',
-                        _getSoupRecipes(filteredRecipes),
+                        getUniqueRecipes(_getSoupRecipes(filteredRecipes)),
                         _getSoupRecipes(filteredRecipes).length,
                       ),
 
@@ -911,7 +1019,7 @@ class _RecipesPageState extends State<RecipesPage> {
                       // Comfort Classics
                       _buildRecipeSection(
                         'Comfort Classics',
-                        _getComfortClassicsRecipes(filteredRecipes),
+                        getUniqueRecipes(_getComfortClassicsRecipes(filteredRecipes)),
                         _getComfortClassicsRecipes(filteredRecipes).length,
                       ),
 
@@ -920,7 +1028,7 @@ class _RecipesPageState extends State<RecipesPage> {
                       // Fusion Flavors
                       _buildRecipeSection(
                         'Fusion Flavors',
-                        _getFusionFlavorsRecipes(filteredRecipes),
+                        getUniqueRecipes(_getFusionFlavorsRecipes(filteredRecipes)),
                         _getFusionFlavorsRecipes(filteredRecipes).length,
                       ),
 
@@ -929,7 +1037,7 @@ class _RecipesPageState extends State<RecipesPage> {
                       // One-Pot Wonders
                       _buildRecipeSection(
                         'One-Pot Wonders',
-                        _getOnePotWondersRecipes(filteredRecipes),
+                        getUniqueRecipes(_getOnePotWondersRecipes(filteredRecipes)),
                         _getOnePotWondersRecipes(filteredRecipes).length,
                       ),
 
@@ -938,7 +1046,7 @@ class _RecipesPageState extends State<RecipesPage> {
                       // Weekend Specials
                       _buildRecipeSection(
                         'Weekend Specials',
-                        _getWeekendSpecialsRecipes(filteredRecipes),
+                        getUniqueRecipes(_getWeekendSpecialsRecipes(filteredRecipes)),
                         _getWeekendSpecialsRecipes(filteredRecipes).length,
                       ),
                     ],
@@ -1031,9 +1139,10 @@ class _RecipesPageState extends State<RecipesPage> {
                     onPressed: () async {
                       await Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => MealSummaryPage(
+                        PageRouteBuilder(
+                          pageBuilder: (context, animation, secondaryAnimation) => MealSummaryPage(
                             meals: _mealsForPlan,
+                            isAdvancePlanning: widget.isAdvancePlanning,
                             onBuildMealPlan: (mealsWithTime) async {
                               final userId = Supabase.instance.client.auth.currentUser?.id;
                               if (userId != null) {
@@ -1048,7 +1157,7 @@ class _RecipesPageState extends State<RecipesPage> {
                                           'title': m.recipe.title,
                                           'meal_type': m.mealType ?? 'dinner',
                                           'meal_time': m.time != null ? '${m.time!.hour.toString().padLeft(2, '0')}:${m.time!.minute.toString().padLeft(2, '0')}:00' : null,
-                                          'date': DateTime.now().toUtc().toIso8601String().split('T').first,
+                                          'date': (m.scheduledDate ?? DateTime.now()).toUtc().toIso8601String().split('T').first,
                                         });
                                     print('Successfully saved meal to plans: ${m.recipe.title}');
                                   } catch (e) {
@@ -1073,6 +1182,20 @@ class _RecipesPageState extends State<RecipesPage> {
                               }
                             },
                           ),
+                          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                            const begin = Offset(1.0, 0.0);
+                            const end = Offset.zero;
+                            const curve = Curves.easeInOut;
+                            
+                            var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                            var offsetAnimation = animation.drive(tween);
+                            
+                            return SlideTransition(
+                              position: offsetAnimation,
+                              child: child,
+                            );
+                          },
+                          transitionDuration: const Duration(milliseconds: 300),
                         ),
                       );
                     },

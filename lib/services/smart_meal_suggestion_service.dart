@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
 import '../models/smart_suggestion_models.dart';
 import '../models/meal_history_entry.dart';
@@ -10,6 +11,9 @@ import 'recipe_service.dart';
 
 class SmartMealSuggestionService {
   static final SupabaseClient _client = Supabase.instance.client;
+  // Read from .env via flutter_dotenv (fallback to --dart-define)
+  static String get _groqApiKey =>
+      (dotenv.env['GROQ_API_KEY'] ?? const String.fromEnvironment('GROQ_API_KEY', defaultValue: ''));
 
   /// Get smart meal suggestions for a specific meal category
   static Future<List<SmartMealSuggestion>> getSmartSuggestions({
@@ -273,188 +277,101 @@ class SmartMealSuggestionService {
     SuggestionContext context,
   ) async {
     final allRecipes = await RecipeService.fetchRecipes();
-    final suggestions = <SmartMealSuggestion>[];
 
-    // 1. Fill Gap suggestions (highest priority)
-    final fillGapSuggestions = await _generateFillGapSuggestions(
-      allRecipes, 
-      context
-    );
-    suggestions.addAll(fillGapSuggestions);
+    // Recent history to reduce repeats
+    final recentIdsOrTitles = await _getRecentRecipeIdentifiers(context.userId, days: 7);
 
-    // 2. Perfect Timing suggestions
-    final timingSuggestions = await _generateTimingSuggestions(
-      allRecipes, 
-      context
-    );
-    suggestions.addAll(timingSuggestions);
-
-    // 3. User Favorites suggestions
-    final favoriteSuggestions = await _generateFavoriteSuggestions(
-      allRecipes, 
-      context
-    );
-    suggestions.addAll(favoriteSuggestions);
-
-    // 4. Try Something New suggestions
-    final newSuggestions = await _generateNewSuggestions(
-      allRecipes, 
-      context
-    );
-    suggestions.addAll(newSuggestions);
-
-    // Sort by relevance score and return top suggestions
-    suggestions.sort((a, b) => b.relevanceScore.compareTo(a.relevanceScore));
-    return suggestions.take(6).toList();
-  }
-
-  /// Generate suggestions to fill nutritional gaps
-  static Future<List<SmartMealSuggestion>> _generateFillGapSuggestions(
-    List<Recipe> recipes,
-    SuggestionContext context,
-  ) async {
-    final suggestions = <SmartMealSuggestion>[];
-    final criticalGaps = context.nutritionalGaps
-        .where((gap) => gap.priority == Priority.critical || gap.priority == Priority.high)
-        .toList();
-
-    for (final gap in criticalGaps) {
-      List<Recipe> suitableRecipes;
-      
-      switch (gap.nutrient) {
-        case 'protein':
-          suitableRecipes = recipes
-              .where((r) => _getNutrientValue(r, 'protein') >= 15 && _getNutrientValue(r, 'protein') <= gap.gap * 1.5)
-              .toList();
-          break;
-        case 'fiber':
-          suitableRecipes = recipes
-              .where((r) => _getNutrientValue(r, 'fiber') >= 5 && _getNutrientValue(r, 'fiber') <= gap.gap * 1.5)
-              .toList();
-          break;
-        case 'calories':
-          suitableRecipes = recipes
-              .where((r) => r.calories <= gap.gap * 1.2 && r.calories >= 200)
-              .toList();
-          break;
-        default:
-          continue;
-      }
-
-      for (final recipe in suitableRecipes.take(2)) {
-        suggestions.add(SmartMealSuggestion(
-          recipe: recipe,
-          type: SuggestionType.fillGap,
-          reasoning: 'Helps fill your ${gap.nutrient} gap (${gap.gap.toStringAsFixed(1)}g remaining)',
-          relevanceScore: 0.9 - (gap.percentage / 100) * 0.3,
-          nutritionalBenefits: {gap.nutrient: _getNutrientValue(recipe, gap.nutrient)},
-          tags: ['nutritional-gap', gap.nutrient],
-        ));
-      }
-    }
-
-    return suggestions;
-  }
-
-  /// Generate timing-based suggestions
-  static Future<List<SmartMealSuggestion>> _generateTimingSuggestions(
-    List<Recipe> recipes,
-    SuggestionContext context,
-  ) async {
-    final suggestions = <SmartMealSuggestion>[];
+    // Pre-compute timing band
     final hour = context.targetTime.hour;
-    
-    List<Recipe> suitableRecipes;
-    String timingReason;
-
-    switch (context.mealCategory) {
-      case MealCategory.breakfast:
-        if (hour < 7) {
-          suitableRecipes = recipes.where((r) => r.calories <= 400).toList();
-          timingReason = 'Light breakfast for early morning';
-        } else {
-          suitableRecipes = recipes.where((r) => r.calories >= 300 && r.calories <= 600).toList();
-          timingReason = 'Balanced breakfast for your morning routine';
-        }
-        break;
-      case MealCategory.lunch:
-        suitableRecipes = recipes.where((r) => r.calories >= 400 && r.calories <= 800).toList();
-        timingReason = 'Satisfying lunch to fuel your afternoon';
-        break;
-      case MealCategory.dinner:
-        suitableRecipes = recipes.where((r) => r.calories >= 500 && r.calories <= 900).toList();
-        timingReason = 'Hearty dinner to end your day';
-        break;
-    }
-
-    for (final recipe in suitableRecipes.take(2)) {
-      suggestions.add(SmartMealSuggestion(
-        recipe: recipe,
-        type: SuggestionType.perfectTiming,
-        reasoning: timingReason,
-        relevanceScore: 0.8,
-        nutritionalBenefits: {},
-        tags: ['timing', context.mealCategory.name],
-      ));
-    }
-
-    return suggestions;
-  }
-
-  /// Generate suggestions based on user favorites
-  static Future<List<SmartMealSuggestion>> _generateFavoriteSuggestions(
-    List<Recipe> recipes,
-    SuggestionContext context,
-  ) async {
-    final suggestions = <SmartMealSuggestion>[];
-    final favoriteCategories = context.userPatterns.favoriteCategories;
-
-    for (final category in favoriteCategories.take(2)) {
-      final categoryRecipes = recipes
-          .where((r) => r.dietTypes.any((diet) => diet.toLowerCase().contains(category.toLowerCase())))
-          .toList();
-
-      for (final recipe in categoryRecipes.take(1)) {
-        suggestions.add(SmartMealSuggestion(
-          recipe: recipe,
-          type: SuggestionType.userFavorites,
-          reasoning: 'Similar to your favorite $category dishes',
-          relevanceScore: 0.7,
-          nutritionalBenefits: {},
-          tags: ['favorite', category],
-        ));
+    double timingBandScore(Recipe r) {
+      switch (context.mealCategory) {
+        case MealCategory.breakfast:
+          if (hour < 7) return r.calories <= 400 ? 1.0 : 0.4;
+          return (r.calories >= 300 && r.calories <= 600) ? 1.0 : 0.5;
+        case MealCategory.lunch:
+          return (r.calories >= 400 && r.calories <= 800) ? 1.0 : 0.5;
+        case MealCategory.dinner:
+          return (r.calories >= 500 && r.calories <= 900) ? 1.0 : 0.5;
       }
     }
 
-    return suggestions;
-  }
-
-  /// Generate suggestions for trying something new
-  static Future<List<SmartMealSuggestion>> _generateNewSuggestions(
-    List<Recipe> recipes,
-    SuggestionContext context,
-  ) async {
-    final suggestions = <SmartMealSuggestion>[];
-    final frequentRecipes = context.userPatterns.mostFrequentRecipes;
-
-    // Find recipes user hasn't tried recently
-    final newRecipes = recipes
-        .where((r) => !frequentRecipes.contains(r.title))
-        .toList();
-
-    for (final recipe in newRecipes.take(2)) {
-      suggestions.add(SmartMealSuggestion(
-        recipe: recipe,
-        type: SuggestionType.trySomethingNew,
-        reasoning: 'Try something new to expand your palate',
-        relevanceScore: 0.6,
-        nutritionalBenefits: {},
-        tags: ['new', 'variety'],
-      ));
+    // Preference score: tag/category/title match
+    double preferenceScore(Recipe r) {
+      final favCats = context.userPatterns.favoriteCategories.map((e) => e.toLowerCase()).toList();
+      final title = r.title.toLowerCase();
+      final tags = r.tags.map((t) => t.toLowerCase()).toList();
+      final matchesTitle = favCats.any((c) => title.contains(c)) ? 1.0 : 0.0;
+      final matchesTag = favCats.any((c) => tags.any((t) => t.contains(c))) ? 1.0 : 0.0;
+      final isFavoriteRecipe = context.userPatterns.mostFrequentRecipes.any((t) => t.toLowerCase() == title) ? 0.8 : 0.0;
+      return (matchesTitle * 0.6) + (matchesTag * 0.6) + isFavoriteRecipe;
     }
 
-    return suggestions;
+    // Gap fit score: how much it helps with critical gaps
+    double gapFitScore(Recipe r) {
+      double score = 0.0;
+      for (final gap in context.nutritionalGaps) {
+        if (gap.priority == Priority.critical || gap.priority == Priority.high) {
+          switch (gap.nutrient) {
+            case 'protein':
+              final v = _getNutrientValue(r, 'protein');
+              if (v >= 15) score += (v / (gap.gap.abs() + 1)).clamp(0.0, 1.0) * 1.2;
+              break;
+            case 'fiber':
+              final v2 = _getNutrientValue(r, 'fiber');
+              if (v2 >= 5) score += (v2 / (gap.gap.abs() + 1)).clamp(0.0, 1.0);
+              break;
+            case 'calories':
+              final kc = r.calories.toDouble();
+              if (kc >= 200) score += (kc / (gap.gap.abs() + 200)).clamp(0.0, 1.0);
+              break;
+          }
+        }
+      }
+      return score;
+    }
+
+    // Recency penalty: downweight items eaten in last 7 days
+    double recencyPenalty(Recipe r) {
+      final title = r.title.toLowerCase();
+      return recentIdsOrTitles.contains(title) ? -0.8 : 0.0;
+    }
+
+    // Composite scoring
+    final scored = allRecipes.map((r) {
+      final score =
+          0.45 * gapFitScore(r) +
+          0.25 * preferenceScore(r) +
+          0.2 * timingBandScore(r) +
+          0.1 * (1.0 + recencyPenalty(r));
+      return SmartMealSuggestion(
+        recipe: r,
+        type: SuggestionType.fillGap,
+        reasoning: 'Matches your patterns and goals',
+        relevanceScore: score,
+        nutritionalBenefits: {
+          'protein': _getNutrientValue(r, 'protein'),
+          'fiber': _getNutrientValue(r, 'fiber'),
+          'calories': r.calories.toDouble(),
+        },
+        tags: ['personalized'],
+      );
+    }).toList();
+
+    // Sort and enforce diversity by title prefix and primary tag
+    scored.sort((a, b) => b.relevanceScore.compareTo(a.relevanceScore));
+    final picked = <SmartMealSuggestion>[];
+    final seenBuckets = <String>{};
+    for (final s in scored) {
+      final bucket = (s.recipe.tags.isNotEmpty ? s.recipe.tags.first.toLowerCase() : '') + '|' + s.recipe.title.split(' ').first.toLowerCase();
+      if (seenBuckets.contains(bucket)) continue;
+      seenBuckets.add(bucket);
+      picked.add(s);
+      if (picked.length >= 6) break;
+    }
+    return picked;
   }
+
+  // Legacy generators removed; logic consolidated into composite scoring
 
   /// Get fallback suggestions when smart logic fails
   static Future<List<SmartMealSuggestion>> _getFallbackSuggestions(
@@ -528,19 +445,17 @@ class SmartMealSuggestionService {
   /// Test AI integration
   static Future<bool> testAIIntegration() async {
     try {
-      // Use environment variable for API key
-      const groqApiKey = String.fromEnvironment('GROQ_API_KEY');
-      if (groqApiKey.isEmpty) {
-        throw Exception('GROQ_API_KEY environment variable not set');
+      if (_groqApiKey.isEmpty) {
+        print('AI Integration Test: GROQ_API_KEY not set');
+        return false;
       }
-      print('AI Integration Test: Using GROQ_API_KEY (${groqApiKey.substring(0, 10)}...)');
 
       // Test with a simple API call
       final response = await http.post(
         Uri.parse('https://api.groq.com/openai/v1/chat/completions'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $groqApiKey',
+          'Authorization': 'Bearer $_groqApiKey',
         },
         body: jsonEncode({
           'model': 'llama-3.1-8b-instant',
@@ -568,7 +483,9 @@ class SmartMealSuggestionService {
   /// Get AI-powered suggestions using GROQ
   static Future<List<SmartMealSuggestion>> _getAIPoweredSuggestions(SuggestionContext context) async {
     try {
-      const groqApiKey = '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';
+      if (_groqApiKey.isEmpty) {
+        return [];
+      }
       
       // Build context for AI
       final prompt = _buildAIPrompt(context);
@@ -577,7 +494,7 @@ class SmartMealSuggestionService {
         Uri.parse('https://api.groq.com/openai/v1/chat/completions'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $groqApiKey',
+          'Authorization': 'Bearer $_groqApiKey',
         },
         body: jsonEncode({
           'model': 'llama-3.1-8b-instant',
@@ -593,8 +510,27 @@ class SmartMealSuggestionService {
         final data = jsonDecode(response.body);
         final aiResponse = data['choices'][0]['message']['content'];
         
-        // Parse AI response and convert to SmartMealSuggestion objects
-        return _parseAIResponse(aiResponse, context);
+        // Parse AI response and map to existing recipes only
+        final parsed = _parseAIResponse(aiResponse, context);
+        if (parsed.isEmpty) return [];
+        final allRecipes = await RecipeService.fetchRecipes();
+        final byTitle = {for (final r in allRecipes) r.title.toLowerCase(): r};
+        final mapped = <SmartMealSuggestion>[];
+        for (final s in parsed) {
+          final key = s.recipe.title.toLowerCase();
+          final match = byTitle[key];
+          if (match != null) {
+            mapped.add(SmartMealSuggestion(
+              recipe: match,
+              type: s.type,
+              reasoning: s.reasoning,
+              relevanceScore: s.relevanceScore,
+              nutritionalBenefits: s.nutritionalBenefits,
+              tags: s.tags,
+            ));
+          }
+        }
+        return mapped;
       } else {
         print('AI API error: ${response.statusCode} - ${response.body}');
         return [];
@@ -602,6 +538,26 @@ class SmartMealSuggestionService {
     } catch (e) {
       print('AI suggestions error: $e');
       return [];
+    }
+  }
+
+  /// Get recent recipe identifiers (titles) from history to penalize repeats
+  static Future<Set<String>> _getRecentRecipeIdentifiers(String userId, {int days = 7}) async {
+    try {
+      final since = DateTime.now().subtract(Duration(days: days));
+      final res = await _client
+          .from('meal_plan_history')
+          .select('title')
+          .eq('user_id', userId)
+          .gte('completed_at', since.toUtc().toIso8601String());
+      final set = <String>{};
+      for (final m in res) {
+        final t = (m['title'] ?? '').toString().toLowerCase();
+        if (t.isNotEmpty) set.add(t);
+      }
+      return set;
+    } catch (_) {
+      return <String>{};
     }
   }
 
@@ -677,8 +633,9 @@ Format your response as JSON:
           },
           allergyWarning: '',
           calories: suggestion['calories'] ?? 0,
-          dietTypes: [],
+          tags: [],
           cost: suggestion['cost']?.toDouble() ?? 0.0,
+          notes: '',
         );
         
         return SmartMealSuggestion(

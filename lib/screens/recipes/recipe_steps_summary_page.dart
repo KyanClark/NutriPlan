@@ -45,89 +45,96 @@ class RecipeStepsSummaryPage extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (imageUrl.isNotEmpty)
-            AspectRatio(
-              aspectRatio: 16 / 9,
-              child: Image.network(imageUrl, fit: BoxFit.cover),
-            ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              recipeTitle,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              itemCount: instructions.length,
-              separatorBuilder: (context, idx) => const SizedBox(height: 16),
-              itemBuilder: (context, idx) => Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CircleAvatar(
-                    radius: 14,
-                    backgroundColor: Colors.orange,
-                    child: Text('${idx + 1}', style: const TextStyle(color: Colors.white)),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      instructions[idx],
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                  ),
-                ],
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (imageUrl.isNotEmpty)
+              AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Image.network(imageUrl, fit: BoxFit.cover),
+              ),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                recipeTitle,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.play_arrow),
-                label: const Text('Start Cooking'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: () async {
-                  final navigatorContext = context;
-                  final result = await Navigator.push(
-                    navigatorContext,
-                    MaterialPageRoute(
-                      builder: (context) => InteractiveRecipePage(
-                        instructions: instructions,
-                        recipeId: recipeId,
-                        title: recipeTitle,
-                        imageUrl: imageUrl,
-                        calories: calories,
-                        cost: cost,
-                        protein: protein,
-                        carbs: carbs,
-                        fat: fat,
-                        sugar: sugar,
-                        fiber: fiber,
-                        sodium: sodium,
-                        cholesterol: cholesterol,
-                      ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              child: Column(
+                children: instructions.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final instruction = entry.value;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CircleAvatar(
+                          radius: 14,
+                          backgroundColor: Colors.orange,
+                          child: Text('${idx + 1}', style: const TextStyle(color: Colors.white)),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            instruction,
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
+                        ),
+                      ],
                     ),
                   );
-                  if (result == true && navigatorContext.mounted) {
-                    Navigator.of(navigatorContext).pop(true);
-                  }
-                },
+                }).toList(),
               ),
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.play_arrow),
+                  label: const Text('Start Cooking'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () async {
+                    final navigatorContext = context;
+                    final result = await Navigator.push(
+                      navigatorContext,
+                      MaterialPageRoute(
+                        builder: (context) => InteractiveRecipePage(
+                          instructions: instructions,
+                          recipeId: recipeId,
+                          title: recipeTitle,
+                          imageUrl: imageUrl,
+                          calories: calories,
+                          cost: cost,
+                          protein: protein,
+                          carbs: carbs,
+                          fat: fat,
+                          sugar: sugar,
+                          fiber: fiber,
+                          sodium: sodium,
+                          cholesterol: cholesterol,
+                        ),
+                      ),
+                    );
+                    if (result == true && navigatorContext.mounted) {
+                      Navigator.of(navigatorContext).pop(true);
+                    }
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

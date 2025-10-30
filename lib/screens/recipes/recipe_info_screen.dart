@@ -4,7 +4,6 @@ import 'package:nutriplan/screens/recipes/recipe_steps_summary_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/feedback_service.dart';
 import '../../services/fnri_nutrition_service.dart';
-import '../feedback/feedback_thank_you_page.dart';
 import '../../services/recipe_service.dart';
 import '../../widgets/nutrition_loading_skeleton.dart';
 
@@ -65,6 +64,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
   bool isLoadingFavorite = true;
   late AnimationController _heartAnimationController;
   late Animation<double> _heartScaleAnimation;
+  late AnimationController _shimmerController;
 
   @override
   void initState() {
@@ -82,6 +82,11 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
       parent: _heartAnimationController,
       curve: Curves.elasticOut,
     ));
+    // Shimmer animation for "Let's Cook"
+    _shimmerController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat();
     
     _loadFeedbacks();
     _checkDatabaseTable();
@@ -92,6 +97,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
   @override
   void dispose() {
     _heartAnimationController.dispose();
+    _shimmerController.dispose();
     super.dispose();
   }
 
@@ -154,7 +160,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
     // Provide fallback values for missing nutrition data
     // This prevents null check operator errors when nutrition data is missing
     return {
-      'calories': widget.recipe.calories ?? 0,
+      'calories': widget.recipe.calories,
       'protein': _safeDouble(macros['protein'], 0.0),
       'carbs': _safeDouble(macros['carbs'], 0.0),
       'fat': _safeDouble(macros['fat'], 0.0),
@@ -352,9 +358,11 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
       return;
     }
 
-    setState(() {
-      isUpdatingNutrition = true;
-    });
+    if (mounted) {
+      setState(() {
+        isUpdatingNutrition = true;
+      });
+    }
 
     try {
       print('🍽️ Updating nutrition for: ${widget.recipe.title}');
@@ -381,10 +389,12 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
       // Note: Recipe object fields are final, so we can't update them directly
       // The updatedNutrition state variable will handle displaying the new data
 
-      setState(() {
-        updatedNutrition = nutrition['summary'];
-        isUpdatingNutrition = false;
-      });
+      if (mounted) {
+        setState(() {
+          updatedNutrition = nutrition['summary'];
+          isUpdatingNutrition = false;
+        });
+      }
 
       print('✅ Nutrition updated successfully for ${widget.recipe.title}');
       
@@ -400,9 +410,11 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
       }
     } catch (e) {
       print('❌ Error updating nutrition: $e');
-      setState(() {
-        isUpdatingNutrition = false;
-      });
+      if (mounted) {
+        setState(() {
+          isUpdatingNutrition = false;
+        });
+      }
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -418,9 +430,11 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
 
   /// Manually update nutrition data for the recipe
   Future<void> _updateNutrition() async {
-    setState(() {
-      isUpdatingNutrition = true;
-    });
+    if (mounted) {
+      setState(() {
+        isUpdatingNutrition = true;
+      });
+    }
 
     try {
       print('🍽️ Manually updating nutrition for: ${widget.recipe.title}');
@@ -444,10 +458,12 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
       // Store updated nutrition data locally
       updatedNutrition = nutrition['summary'];
 
-      setState(() {
-        updatedNutrition = nutrition['summary'];
-        isUpdatingNutrition = false;
-      });
+      if (mounted) {
+        setState(() {
+          updatedNutrition = nutrition['summary'];
+          isUpdatingNutrition = false;
+        });
+      }
 
       print('✅ Nutrition updated successfully for ${widget.recipe.title}');
       
@@ -462,9 +478,11 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
       }
     } catch (e) {
       print('❌ Error updating nutrition: $e');
-      setState(() {
-        isUpdatingNutrition = false;
-      });
+      if (mounted) {
+        setState(() {
+          isUpdatingNutrition = false;
+        });
+      }
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -560,12 +578,15 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
         await RecipeService.addFavorite(user.id, widget.recipe.id);
       }
 
-      setState(() {
-        isFavorite = !isFavorite;
-      });
+      if (mounted) {
+        setState(() {
+          isFavorite = !isFavorite;
+        });
+      }
 
       // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             isFavorite 
@@ -583,14 +604,17 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
           elevation: 8,
         ),
       );
+      }
     } catch (e) {
       print('Error toggling favorite: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to update favorite: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update favorite: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -628,7 +652,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('What time would you like to set for this meal?'),
+            const Text('When would you like to eat this meal?'),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () async {
@@ -746,9 +770,11 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
     try {
       await FeedbackService.deleteFeedback(feedback['id']);
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Review deleted successfully')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Review deleted successfully')),
+        );
+      }
 
       // Remove the feedback from the local list
       if (mounted) {
@@ -758,122 +784,15 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to delete review: ${e.toString()}')),
-      );
-    }
-  }
-
-  Future<void> _showAddFeedbackDialog() async {
-    // Check if user is authenticated first
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please log in to leave feedback')),
-      );
-      return;
-    }
-
-    print('User authenticated: ${user.id}');
-    print('Recipe ID: ${widget.recipe.id}');
-
-    double rating = 0;
-    final commentController = TextEditingController();
-
-    final result = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Rate this Recipe'),
-        content: StatefulBuilder(
-          builder: (context, setState) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('How would you rate this recipe?'),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (index) {
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        rating = index + 1;
-                      });
-                    },
-                    child: Icon(
-                      index < rating ? Icons.star : Icons.star_border,
-                      color: Colors.amber,
-                      size: 32,
-                    ),
-                  );
-                }),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: commentController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  hintText: 'Share your experience with this recipe...',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (rating > 0) {
-                Navigator.of(context).pop({
-                  'rating': rating,
-                  'comment': commentController.text.trim(),
-                });
-              }
-            },
-            child: const Text('Submit'),
-          ),
-        ],
-      ),
-    );
-
-    if (result != null) {
-      await _submitFeedback(result['rating'], result['comment']);
-    }
-  }
-
-  Future<void> _submitFeedback(double rating, String comment) async {
-    try {
-      print('Submitting feedback for recipe: ${widget.recipe.id}');
-      print('Rating: $rating, Comment: $comment');
-      
-      final newFeedback = await FeedbackService.addFeedback(
-        recipeId: widget.recipe.id,
-        rating: rating,
-        comment: comment,
-      );
-
-      print('Feedback submitted successfully, navigating to thank you page...');
-      
-      // Navigate to thank you page
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => FeedbackThankYouPage(
-              recipeTitle: widget.recipe.title,
-            ),
-          ),
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete review: ${e.toString()}')),
         );
       }
-    } catch (e) {
-      print('Error submitting feedback: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to submit feedback: ${e.toString()}')),
-      );
     }
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -911,9 +830,10 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: IconButton(
-                              icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 28),
+                              icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
                               onPressed: () => Navigator.pop(context),
                               padding: const EdgeInsets.all(12),
+                              alignment: Alignment.center,
                             ),
                           ),
                         ),
@@ -992,27 +912,27 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 4.0),
                               child: Text(
-                              recipe.shortDescription,
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
-                            ),
+                                recipe.shortDescription,
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
+                              ),
                             ),
                               const SizedBox(height: 20),
-                            if (recipe.dietTypes.isNotEmpty)
+                            if (recipe.tags.isNotEmpty)
                               Wrap(
                                 spacing: 8,
                                 runSpacing: 4,
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
-                                  const Icon(Icons.eco, color: Colors.green, size: 18),
-                                  ...recipe.dietTypes.map((type) => Container(
+                                  const Icon(Icons.label, color: Colors.blue, size: 18),
+                                  ...recipe.tags.map((tag) => Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: Colors.green[50],
+                                      color: Colors.blue[50],
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Text(
-                                      type,
-                                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                                      tag,
+                                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
                                     ),
                                   )),
                                 ],
@@ -1065,72 +985,47 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                                 else if ((recipe.macros.isNotEmpty && recipe.calories > 0) || updatedNutrition != null)
                                   Align(
                                     alignment: Alignment.centerLeft,
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisSize: MainAxisSize.min,
+                                    child: Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
                                       children: [
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.start,
-                                          children: [
-                                                _MacroChip(
-                                                  label: 'Carbs', 
-                                                  value: (updatedNutrition?['carbs'] ?? recipe.macros['carbs'] ?? 0).toString(),
-                                                  unit: 'g'
-                                                ),
-                                            const SizedBox(width: 8),
-                                                _MacroChip(
-                                                  label: 'Fat', 
-                                                  value: (updatedNutrition?['fat'] ?? recipe.macros['fat'] ?? 0).toString(),
-                                                  unit: 'g'
-                                                ),
-                                            const SizedBox(width: 8),
-                                                _MacroChip(
-                                                  label: 'Fiber', 
-                                                  value: (updatedNutrition?['fiber'] ?? recipe.macros['fiber'] ?? 0).toString(),
-                                                  unit: 'g'
-                                                ),
-                                          ],
+                                        _MacroChip(
+                                          label: 'Carbs', 
+                                          value: (updatedNutrition?['carbs'] ?? recipe.macros['carbs'] ?? 0).toString(),
+                                          unit: 'g'
                                         ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.start,
-                                          children: [
-                                                _MacroChip(
-                                                  label: 'Protein', 
-                                                  value: (updatedNutrition?['protein'] ?? recipe.macros['protein'] ?? 0).toString(),
-                                                  unit: 'g'
-                                                ),
-                                            const SizedBox(width: 8),
-                                                _MacroChip(
-                                                  label: 'Sugar', 
-                                                  value: (updatedNutrition?['sugar'] ?? recipe.macros['sugar'] ?? 0).toString(),
-                                                  unit: 'g'
-                                                ),
-                                          ],
+                                        _MacroChip(
+                                          label: 'Fat', 
+                                          value: (updatedNutrition?['fat'] ?? recipe.macros['fat'] ?? 0).toString(),
+                                          unit: 'g'
+                                        ),
+                                        _MacroChip(
+                                          label: 'Fiber', 
+                                          value: (updatedNutrition?['fiber'] ?? recipe.macros['fiber'] ?? 0).toString(),
+                                          unit: 'g'
+                                        ),
+                                        _MacroChip(
+                                          label: 'Protein', 
+                                          value: (updatedNutrition?['protein'] ?? recipe.macros['protein'] ?? 0).toString(),
+                                          unit: 'g'
+                                        ),
+                                        _MacroChip(
+                                          label: 'Sugar', 
+                                          value: (updatedNutrition?['sugar'] ?? recipe.macros['sugar'] ?? 0).toString(),
+                                          unit: 'g'
                                         ),
                                         // Show additional nutrients if available
-                                        if (updatedNutrition != null && (updatedNutrition!['sodium'] != null || updatedNutrition!['cholesterol'] != null))
-                                          Padding(
-                                            padding: const EdgeInsets.only(top: 8),
-                                            child: Row(
-                                              mainAxisAlignment: MainAxisAlignment.start,
-                                              children: [
-                                                if (updatedNutrition!['sodium'] != null)
-                                                  _MacroChip(
-                                                    label: 'Sodium', 
-                                                    value: updatedNutrition!['sodium'].toStringAsFixed(1),
-                                                    unit: 'mg'
-                                                  ),
-                                                if (updatedNutrition!['sodium'] != null && updatedNutrition!['cholesterol'] != null)
-                                                  const SizedBox(width: 8),
-                                                if (updatedNutrition!['cholesterol'] != null)
-                                                  _MacroChip(
-                                                    label: 'Cholesterol', 
-                                                    value: updatedNutrition!['cholesterol'].toStringAsFixed(1),
-                                                    unit: 'mg'
-                                                  ),
-                                              ],
-                                            ),
+                                        if (updatedNutrition != null && updatedNutrition!['sodium'] != null)
+                                          _MacroChip(
+                                            label: 'Sodium', 
+                                            value: updatedNutrition!['sodium'].toStringAsFixed(1),
+                                            unit: 'mg'
+                                          ),
+                                        if (updatedNutrition != null && updatedNutrition!['cholesterol'] != null)
+                                          _MacroChip(
+                                            label: 'Cholesterol', 
+                                            value: updatedNutrition!['cholesterol'].toStringAsFixed(1),
+                                            unit: 'mg'
                                           ),
                                       ],
                                     ),
@@ -1189,7 +1084,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                                 padding: const EdgeInsets.symmetric(vertical: 4.0),
                                 child: const Text('Ingredients', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                               ),
-                            const SizedBox(height: 16),
+                              const SizedBox(height: 16),
                               ...recipe.ingredients.map((ing) => Padding(
                                 padding: const EdgeInsets.only(bottom: 8),
                                 child: Text('• $ing', style: const TextStyle(fontSize: 15)),
@@ -1199,12 +1094,94 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                                 padding: const EdgeInsets.symmetric(vertical: 4.0),
                                 child: const Text('Instructions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                               ),
-                            const SizedBox(height: 16),
+                              const SizedBox(height: 16),
                               ...recipe.instructions.asMap().entries.map((entry) => Padding(
                                 padding: const EdgeInsets.only(bottom: 12),
                                 child: Text('${entry.key + 1}. ${entry.value}', style: const TextStyle(fontSize: 15)),
                               )),
-                              const SizedBox(height: 20),
+                              const SizedBox(height: 24),
+                            
+                            // Notes Section (Displayed when notes are available)
+                            if (recipe.notes.isNotEmpty)
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          Colors.orange.shade50,
+                                          Colors.orange.shade100,
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: Colors.orange.shade300,
+                                        width: 2,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.orange.shade200,
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: Colors.orange.shade400,
+                                                borderRadius: BorderRadius.circular(10),
+                                              ),
+                                              child: const Icon(
+                                                Icons.lightbulb,
+                                                color: Colors.white,
+                                                size: 20,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            const Expanded(
+                                              child: Text(
+                                                'Note',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 20,
+                                                  color: Colors.orange,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.8),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Text(
+                                            recipe.notes,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              height: 1.5,
+                                              color: Color(0xFF2C3E50),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                ],
+                              ),
                             
                             // Reviews Section Header
                             if (isLoadingFeedbacks)
@@ -1217,40 +1194,44 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                              const SizedBox(height: 24),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 4.0),
-                                child: const Text(
-                                        'Reviews',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 20,
-                                  ),
-                                        ),
+                                      // Left side: Reviews title and count
+                                      Row(
+                                        children: [
+                                          const Text(
+                                            'User Reviews',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 20,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            '($totalFeedbacks)',
+                                            style: const TextStyle(
+                                              color: Color(0xFF757575),
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
                                       ),
+                                      // Right side: Overall rating (if reviews exist)
                                       if (totalFeedbacks > 0)
                                         Row(
-                                  children: [
+                                          children: [
                                             Icon(Icons.star, color: Colors.amber, size: 20),
                                             const SizedBox(width: 4),
-                                    Text(
+                                            Text(
                                               averageRating.toStringAsFixed(1),
                                               style: const TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 18,
                                               ),
                                             ),
-                                            Text(
-                                              ' ($totalFeedbacks reviews)',
-                                              style: const TextStyle(
-                                                color: Color(0xFF757575),
-                                                fontSize: 14,
-                                              ),
-                                            ),
                                           ],
                                         ),
                                     ],
-                              ),
+                                  ),
                             const SizedBox(height: 16),
                             
                                   // Individual Review Cards
@@ -1395,7 +1376,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                                             ),
                                             SizedBox(height: 8),
                                             Text(
-                                              'Be the first to share your experience!',
+                                              'Be the first to experience and rate this dish!',
                                               style: TextStyle(
                                                 color: Color(0xFF6C757D),
                                                 fontSize: 14,
@@ -1428,30 +1409,34 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
               bottom: 0,
               child: Container(
                 decoration: BoxDecoration(
-                  color: const Color.fromARGB(255, 145, 240, 145),
+                  color: const Color(0xFFF6F6F6),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 12,
-                      offset: Offset(0, -2),
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 20,
+                      offset: const Offset(0, -4),
                     ),
                   ],
                 ),
                 child: SafeArea(
                   top: false,
                   child: Container(
-                    height: 70,
+                    height: 90,
                     width: double.infinity,
                     alignment: Alignment.center,
                     child: SizedBox(
                       width: MediaQuery.of(context).size.width * 0.9,
-                      height: 48,
+                      height: 56,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: widget.showStartCooking ? Colors.orange : (alreadyAdded ? Colors.grey : const Color(0xFF4CAF50)),
+                          foregroundColor: Colors.white,
+                          elevation: 8,
+                          shadowColor: Colors.black.withOpacity(0.2),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(25),
                           ),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
                         onPressed: widget.showStartCooking
                           ? () async {
@@ -1512,14 +1497,45 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                               : () {
                                   Navigator.pop(context, recipe);
                                 },
-                        child: Text(
-                          widget.showStartCooking
-                            ? "Let's Cook"
-                            : widget.isFromMealHistory
-                              ? 'Re-add Meal Plan'
-                              : (alreadyAdded ? 'Already Added' : 'Add to Meal Plan'),
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
-                        ),
+                        child: widget.showStartCooking
+                            ? AnimatedBuilder(
+                                animation: _shimmerController,
+                                builder: (context, _) {
+                                  final shimmerPercent = _shimmerController.value;
+                                  return ShaderMask(
+                                    shaderCallback: (Rect bounds) {
+                                      return LinearGradient(
+                                        colors: const [
+                                          Colors.white70,
+                                          Colors.white,
+                                          Colors.white70,
+                                        ],
+                                        stops: [
+                                          (shimmerPercent - 0.2).clamp(0.0, 1.0),
+                                          shimmerPercent,
+                                          (shimmerPercent + 0.2).clamp(0.0, 1.0),
+                                        ],
+                                        begin: Alignment.centerLeft,
+                                        end: Alignment.centerRight,
+                                      ).createShader(bounds);
+                                    },
+                                    child: const Text(
+                                      "Let's Cook",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              )
+                            : Text(
+                                widget.isFromMealHistory
+                                    ? 'Re-add Meal Plan'
+                                    : (alreadyAdded ? 'Already Added' : 'Add to Meal Plan'),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
+                              ),
                       ),
                     ),
                   ),

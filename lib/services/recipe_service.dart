@@ -15,6 +15,28 @@ class RecipeService {
         .toList();
   }
 
+  static Future<List<Recipe>> fetchRecentlyAdded({int limit = 50}) async {
+    try {
+      final response = await Supabase.instance.client
+          .from('recipes')
+          .select()
+          .order('updated_at', ascending: false)
+          .limit(limit);
+      return (response as List)
+          .map((item) => Recipe.fromMap(item as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      final response = await Supabase.instance.client
+          .from('recipes')
+          .select()
+          .order('id', ascending: false)
+          .limit(limit);
+      return (response as List)
+          .map((item) => Recipe.fromMap(item as Map<String, dynamic>))
+          .toList();
+    }
+  }
+
   static Future<List<String>> fetchFavoriteRecipeIds(String userId) async {
     final response = await Supabase.instance.client
         .from('meal_favorites')
