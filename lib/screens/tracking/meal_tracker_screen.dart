@@ -24,6 +24,8 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
   Map<DateTime, bool> datesWithMeals = {};
   Map<DateTime, int> monthlyMealCounts = {};
   String? _avatarUrl;
+  static String? _cachedAvatarUrl;
+  static bool _hasFetchedAvatar = false;
   
   // Flag to track if widget is mounted
   bool _mounted = true;
@@ -34,7 +36,12 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
     selectedDate = widget.initialDate ?? DateTime.now();
     _fetchData();
     _fetchDatesWithMeals();
-    _fetchUserAvatar();
+    // Only fetch if not already cached
+    if (!_hasFetchedAvatar) {
+      _fetchUserAvatar();
+    } else {
+      _avatarUrl = _cachedAvatarUrl;
+    }
   }
   
   @override
@@ -131,9 +138,13 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
           .eq('id', user.id)
           .maybeSingle();
       
+      // Update cached value
+      _cachedAvatarUrl = data?['avatar_url'] as String?;
+      _hasFetchedAvatar = true;
+      
       if (!_mounted) return;
       setState(() {
-        _avatarUrl = data?['avatar_url'] as String?;
+        _avatarUrl = _cachedAvatarUrl;
       });
     } catch (e) {
       print('Error fetching user avatar: $e');
@@ -234,6 +245,225 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
           // Fetch data for extended range covering all visible months
           _fetchDatesWithMeals(month);
         },
+      ),
+    );
+  }
+
+  Widget _buildSkeletonLoader() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: [
+          // Header skeleton
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.only(top: 20, bottom: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 150,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: 280,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Date selector skeleton
+          Container(
+            width: 200,
+            height: 40,
+            margin: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
+          
+          // Calorie tracker skeleton
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Container(
+                width: 160,
+                height: 160,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.grey,
+                ),
+                child: Center(
+                  child: Container(
+                    width: 120,
+                    height: 120,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // Macro cards grid skeleton
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.2,
+            children: List.generate(6, (index) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withValues(alpha: 1),
+                    blurRadius: 1,
+                    spreadRadius: 1,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 60,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: 40,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    width: 80,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ],
+              ),
+            )),
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // Meals section header skeleton
+          Container(
+            width: 120,
+            height: 22,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Meal cards skeleton
+          ...List.generate(3, (index) => Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withValues(alpha: 0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(12),
+                      bottomLeft: Radius.circular(12),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 150,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          width: 100,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )),
+          
+          const SizedBox(height: 20),
+        ],
       ),
     );
   }
@@ -550,6 +780,11 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
               },
               child: Container(
                 margin: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: const Color.fromARGB(255, 80, 231, 93),
+                  shape: BoxShape.circle,
+                ),
                 child: CircleAvatar(
                   radius: 16,
                   backgroundColor: Colors.grey[200],
@@ -566,7 +801,7 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
         ],
       ),
       body: isLoading
-        ? const Center(child: CircularProgressIndicator())
+        ? _buildSkeletonLoader()
         : _buildTabContent(),
     );
   }

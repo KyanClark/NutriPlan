@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/smart_suggestion_models.dart';
 import '../../models/meal_history_entry.dart';
+import '../../models/recipes.dart';
 import '../../services/smart_meal_suggestion_service.dart';
 import '../../widgets/smart_suggestions_loading_animation.dart';
 import '../recipes/recipe_info_screen.dart';
+import '../meal_plan/meal_summary_page.dart';
+import '../meal_plan/meal_plan_confirmation_page.dart';
 
 class SmartSuggestionsPage extends StatefulWidget {
   const SmartSuggestionsPage({super.key});
@@ -17,6 +20,7 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
   List<SmartMealSuggestion> _smartSuggestions = [];
   bool _loadingSuggestions = false;
   bool _aiWorking = false;
+  List<Recipe> _selectedRecipes = [];
 
   @override
   void initState() {
@@ -118,54 +122,91 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
       ),
       body: Column(
         children: [
-          // AI Status Banner
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            margin: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: _aiWorking ? Colors.green[50] : Colors.orange[50],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: _aiWorking ? Colors.green[200]! : Colors.orange[200]!,
+          // Selected meals indicator and build button
+          if (_selectedRecipes.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.green[50],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  // Selected meal images
+                  SizedBox(
+                    height: 50,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      shrinkWrap: true,
+                      itemCount: _selectedRecipes.length,
+                      itemBuilder: (context, index) {
+                        final recipe = _selectedRecipes[index];
+                        return Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.green, width: 2),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: recipe.imageUrl.isNotEmpty
+                                ? Image.network(
+                                    recipe.imageUrl,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        color: Colors.grey[200],
+                                        child: const Icon(
+                                          Icons.restaurant,
+                                          color: Colors.grey,
+                                          size: 20,
+                                        ),
+                                      );
+                                    },
+                                  )
+                                : Container(
+                                    color: Colors.grey[200],
+                                    child: const Icon(
+                                      Icons.restaurant,
+                                      color: Colors.grey,
+                                      size: 20,
+                                    ),
+                                  ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _selectedRecipes.clear();
+                      });
+                    },
+                    child: const Text('Clear'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () => _buildMealPlan(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4CAF50),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    ),
+                    child: const Text('Build Meal Plan'),
+                  ),
+                ],
               ),
             ),
-            child: Row(
-              children: [
-                Icon(
-                  _aiWorking ? Icons.check_circle : Icons.warning,
-                  color: _aiWorking ? Colors.green[600] : Colors.orange[600],
-                  size: 24,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _aiWorking ? 'AI Integration: Working' : 'AI Integration: Failed',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: _aiWorking ? Colors.green[700] : Colors.orange[700],
-                        ),
-                      ),
-                      Text(
-                        _aiWorking 
-                          ? 'Getting personalized AI suggestions'
-                          : 'Using rule-based suggestions',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: _aiWorking ? Colors.green[600] : Colors.orange[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          // Suggestions Content
           Expanded(
             child: _buildSuggestionsContent(),
           ),
@@ -256,7 +297,7 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
         
         // Unique Suggestions Section Header
         if (index == recipesSuggestions.length + 1) {
-          return _buildSectionHeader('✨ AI-Generated Unique Suggestions', uniqueSuggestions.length);
+          return _buildSectionHeader(' Unique Meal Suggestions for you', uniqueSuggestions.length);
         }
         
         // Unique Suggestions
@@ -309,6 +350,9 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: _selectedRecipes.any((r) => r.id == suggestion.recipe.id)
+            ? Border.all(color: Colors.green, width: 2)
+            : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -322,15 +366,29 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () {
+            // Toggle selection when tapping the card
+            setState(() {
+              if (_selectedRecipes.any((r) => r.id == suggestion.recipe.id)) {
+                _selectedRecipes.removeWhere((r) => r.id == suggestion.recipe.id);
+              } else {
+                _selectedRecipes.add(suggestion.recipe);
+              }
+            });
+          },
+          onLongPress: () {
+            // Long press to view recipe details
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => RecipeInfoScreen(
                   recipe: suggestion.recipe,
-                  addedRecipeIds: [],
+                  addedRecipeIds: _selectedRecipes.map((r) => r.id).toList(),
                 ),
               ),
-            );
+            ).then((_) {
+              // Refresh selections when returning from recipe info
+              setState(() {});
+            });
           },
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -410,12 +468,19 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
                   ),
                 ),
                 
-                // Arrow icon
-                Icon(
-                  Icons.arrow_forward_ios,
-                  color: Colors.grey[400],
-                  size: 16,
-                ),
+                // Selection indicator
+                if (_selectedRecipes.any((r) => r.id == suggestion.recipe.id))
+                  const Icon(
+                    Icons.check_circle,
+                    color: Colors.green,
+                    size: 24,
+                  )
+                else
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    color: Colors.grey[400],
+                    size: 16,
+                  ),
               ],
             ),
           ),
@@ -472,6 +537,73 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
           fontWeight: FontWeight.w500,
           color: chipColor.computeLuminance() > 0.5 ? Colors.black87 : Colors.white,
         ),
+      ),
+    );
+  }
+
+  Future<void> _buildMealPlan() async {
+    if (_selectedRecipes.isEmpty) return;
+
+    await Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => MealSummaryPage(
+          meals: _selectedRecipes,
+          onBuildMealPlan: (mealsWithTime) async {
+            final userId = Supabase.instance.client.auth.currentUser?.id;
+            if (userId != null) {
+              for (final m in mealsWithTime) {
+                try {
+                  // Insert one row per meal with required date and time
+                  await Supabase.instance.client
+                      .from('meal_plans')
+                      .insert({
+                        'user_id': userId,
+                        'recipe_id': m.recipe.id,
+                        'title': m.recipe.title,
+                        'meal_type': m.mealType ?? 'dinner',
+                        'meal_time': m.time != null ? '${m.time!.hour.toString().padLeft(2, '0')}:${m.time!.minute.toString().padLeft(2, '0')}:00' : null,
+                        'date': (m.scheduledDate ?? DateTime.now()).toUtc().toIso8601String().split('T').first,
+                      });
+                  print('Successfully saved meal to plans: ${m.recipe.title}');
+                } catch (e) {
+                  print('Error saving meal plan: $e');
+                }
+              }
+
+              // Clear the selected recipes
+              if (mounted) {
+                setState(() {
+                  _selectedRecipes.clear();
+                });
+              }
+
+              // Navigate to confirmation page
+              if (mounted) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const MealPlanConfirmationPage(),
+                  ),
+                );
+              }
+            }
+          },
+        ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          const curve = Curves.easeInOut;
+          
+          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          var offsetAnimation = animation.drive(tween);
+          
+          return SlideTransition(
+            position: offsetAnimation,
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 300),
       ),
     );
   }

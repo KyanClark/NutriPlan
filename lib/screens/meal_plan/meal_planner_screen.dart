@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:intl/intl.dart';
 import '../recipes/recipe_info_screen.dart';
 import '../profile/profile_screen.dart';
 import '../../models/recipes.dart';
 import 'interface/meal_planner_widgets.dart';
+import 'meal_summary_page.dart';
 
 class MealPlannerScreen extends StatefulWidget {
   final bool forceRefresh;
@@ -28,6 +28,8 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
   bool _isDeleteMode = false;
   final Set<String> _selectedMealsForDeletion = {};
   String? _avatarUrl;
+  static String? _cachedAvatarUrl;
+  static bool _hasFetchedAvatar = false;
 
   @override
   void initState() {
@@ -35,7 +37,12 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
     _weekPageController = PageController(initialPage: 1000);
     _fetchAllMealPlans(); // Fetch all meals for badge counting
       _fetchSupabaseMealPlans();
-    _fetchUserAvatar();
+    // Only fetch if not already cached
+    if (!_hasFetchedAvatar) {
+      _fetchUserAvatar();
+    } else {
+      _avatarUrl = _cachedAvatarUrl;
+    }
     
     // Set up timer for periodic refresh
     _timer = Timer.periodic(const Duration(minutes: 5), (timer) {
@@ -167,9 +174,13 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
           .eq('id', user.id)
           .maybeSingle();
       
+      // Update cached value
+      _cachedAvatarUrl = data?['avatar_url'] as String?;
+      _hasFetchedAvatar = true;
+      
       if (!mounted) return;
-        setState(() {
-        _avatarUrl = data?['avatar_url'] as String?;
+      setState(() {
+        _avatarUrl = _cachedAvatarUrl;
       });
     } catch (e) {
       print('Error fetching user avatar: $e');
@@ -324,12 +335,59 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
     }
   }
 
-  void _navigateToRecipe(BuildContext context, String mealId) async {
+  void _navigateToRecipe(BuildContext context, Map<String, dynamic> meal) async {
     final navigatorContext = context;
+    final mealId = meal['id']?.toString() ?? '';
+    final mealDateStr = meal['date'] as String?;
+    
+    // Check if meal plan is from a past date
+    if (mealDateStr != null) {
+      final mealDate = DateTime.parse(mealDateStr);
+      final today = DateTime.now();
+      final todayOnly = DateTime(today.year, today.month, today.day);
+      final mealDateOnly = DateTime(mealDate.year, mealDate.month, mealDate.day);
+      
+      // If meal is from a past date, show dialog
+      if (mealDateOnly.isBefore(todayOnly)) {
+        final shouldAddToToday = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Past Meal Plan'),
+            content: Text(
+              'This meal plan is from a past date (${_formatDateForDialog(mealDate)}). '
+              'Would you like to add it to today\'s meal plan instead?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4CAF50),
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Add to Today'),
+              ),
+            ],
+          ),
+        );
+        
+        if (shouldAddToToday == true && mounted) {
+          // Move meal plan to today's date
+          await _moveMealToToday(mealId, meal);
+        }
+        return;
+      }
+    }
+    
+    // Normal navigation for current/future dates
+    final recipeId = meal['recipes']?['id']?.toString() ?? mealId;
     final response = await Supabase.instance.client
         .from('recipes')
         .select()
-        .eq('id', mealId)
+        .eq('id', recipeId)
         .maybeSingle();
     if (response == null || !mounted) return;
     final recipe = Recipe.fromMap(response);
@@ -342,6 +400,75 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
         ),
       ),
     );
+  }
+  
+  String _formatDateForDialog(DateTime date) {
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+  
+  Future<void> _moveMealToToday(String mealId, Map<String, dynamic> meal) async {
+    try {
+      // Get recipe data for meal summary
+      final recipeData = meal['recipes'];
+      if (recipeData != null && mounted) {
+        final recipe = Recipe.fromMap(recipeData);
+        
+        // Navigate to meal summary page - don't move meal yet
+        // Meal will only be moved when user completes the meal summary (onBuildMealPlan callback)
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => MealSummaryPage(
+              meals: [recipe],
+              onBuildMealPlan: (mealsWithTime) async {
+                // Only move meal plan AFTER user completes the meal summary
+                final today = DateTime.now();
+                final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+                
+                try {
+                  // Update meal plan date to today
+                  await Supabase.instance.client
+                      .from('meal_plans')
+                      .update({'date': todayStr})
+                      .eq('id', mealId);
+                  
+                  // Refresh data after successful move
+                  if (mounted) {
+                    await _fetchAllMealPlans();
+                    await _fetchSupabaseMealPlans();
+                    widget.onChanged?.call();
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error moving meal plan: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+                
+                // Close meal summary page
+                Navigator.of(context).pop();
+              },
+            ),
+          ),
+        );
+        
+        // If user pressed back, don't move the meal
+        // Only refresh if meal was actually moved (handled in onBuildMealPlan)
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -383,6 +510,11 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
               },
               child: Container(
                 margin: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: const Color.fromARGB(255, 80, 231, 93),
+                  shape: BoxShape.circle,
+                ),
                 child: CircleAvatar(
                   radius: 16,
                   backgroundColor: Colors.grey[200],
@@ -440,7 +572,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                             IconButton(
                               tooltip: _isDeleteMode ? 'Cancel delete' : 'Delete meals',
                               icon: Icon(
-                                _isDeleteMode ? Icons.close : Icons.delete_outline,
+                                _isDeleteMode ? Icons.close : Icons.delete,
                                 color: Colors.white,
                                 size: 24,
                               ),
@@ -538,73 +670,97 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
             // Date Display with animation and tappable indicator
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  transitionBuilder: (Widget child, Animation<double> animation) {
-                    return SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(0.0, 0.3),
-                        end: Offset.zero,
-                      ).animate(CurvedAnimation(
-                        parent: animation,
-                        curve: Curves.easeOut,
-                      )),
-                      child: FadeTransition(
-                        opacity: animation,
-                        child: child,
-                      ),
-                    );
-                  },
-                  child: InkWell(
-                    key: ValueKey('date_${selectedDate.millisecondsSinceEpoch}'),
-                    onTap: _showCalendarDialog,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[50],
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey[300]!, width: 1),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.withValues(alpha: 0.1),
-                            blurRadius: 2,
-                            offset: const Offset(0, 1),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.calendar_today,
-                            size: 16,
-                            color: Colors.grey[600],
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _formatSelectedDate(),
-                            textAlign: TextAlign.left,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        transitionBuilder: (Widget child, Animation<double> animation) {
+                          return SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0.0, 0.3),
+                              end: Offset.zero,
+                            ).animate(CurvedAnimation(
+                              parent: animation,
+                              curve: Curves.easeOut,
+                            )),
+                            child: FadeTransition(
+                              opacity: animation,
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: InkWell(
+                          key: ValueKey('date_${selectedDate.millisecondsSinceEpoch}'),
+                          onTap: _showCalendarDialog,
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[50],
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey[300]!, width: 1),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withValues(alpha: 0.1),
+                                  blurRadius: 2,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.calendar_today,
+                                  size: 16,
+                                  color: Colors.grey[600],
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _formatSelectedDate(),
+                                  textAlign: TextAlign.left,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.arrow_drop_down,
+                                  size: 16,
+                                  color: Colors.grey[600],
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.arrow_drop_down,
-                            size: 16,
-                            color: Colors.grey[600],
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
+                  // Shopping cart icon
+                  IconButton(
+                    icon: const Icon(
+                      Icons.shopping_cart_outlined,
+                      size: 24,
+                      color: Colors.black,
                     ),
+                    onPressed: () {
+                      // TODO: Navigate to shopping list/grocery list page
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Shopping cart feature coming soon!'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    tooltip: 'Shopping Cart',
                   ),
+                ],
+              ),
             ),
             // Content area with loading state and animated transitions
             Expanded(
@@ -756,6 +912,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
         },
         onLongPress: _showCalendarDialog,
         child: Stack(
+          clipBehavior: Clip.none,
           children: [
             (isSelected)
               ? Container(
@@ -823,14 +980,15 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                   ],
                 ),
             // Meal count badge - always show if meals exist, regardless of selection
+            // Color: red for past dates, blue for current date
             if (mealsForDate > 0)
               Positioned(
-                top: 0,
-                right: 0,
+                top: -2,
+                right: -2,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFF6B35),
+                    color: isToday ? Colors.blue : Colors.red,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.white, width: 1),
                   ),
@@ -917,7 +1075,6 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                                     final mealId = meal['id']?.toString() ?? '';
                                     final isSelected = _selectedMealsForDeletion.contains(mealId);
                                     final recipeData = meal['recipes'];
-                                    final recipeId = recipeData?['id']?.toString() ?? mealId;
     bool isHovered = false;
     
     // Validate recipe data
@@ -974,7 +1131,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                                              }
                                            });
                                         } else {
-                                          _navigateToRecipe(context, recipeId);
+                                          _navigateToRecipe(context, meal);
                                         }
                                       },
                 onLongPress: () {
@@ -1076,9 +1233,13 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
       mealCounts[dateKey] = (mealCounts[dateKey] ?? 0) + 1;
     }
     
-    showDialog(
+    showGeneralDialog(
       context: context,
-      builder: (context) => _CalendarDialog(
+      barrierDismissible: true,
+      barrierLabel: '',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, animation, secondaryAnimation) => _CalendarDialog(
         selectedDate: selectedDate,
         mealCounts: mealCounts,
         onDateSelected: (date) {
@@ -1089,6 +1250,21 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
           Navigator.of(context).pop();
         },
       ),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        // Slide up from bottom transition
+        const begin = Offset(0.0, 1.0);
+        const end = Offset.zero;
+        const curve = Curves.easeOut;
+
+        var tween = Tween(begin: begin, end: end).chain(
+          CurveTween(curve: curve),
+        );
+
+        return SlideTransition(
+          position: animation.drive(tween),
+          child: child,
+        );
+      },
     );
   }
 
@@ -1159,94 +1335,150 @@ class _CalendarDialogState extends State<_CalendarDialog> {
     });
   }
 
-  List<DateTime> _getDaysInMonth() {
-    final firstDay = currentMonth;
+  String _getMonthName() {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[currentMonth.month - 1];
+  }
+
+  List<int> _getDaysInMonth() {
     final lastDay = DateTime(currentMonth.year, currentMonth.month + 1, 0);
-    final daysInMonth = lastDay.day;
-
-    final firstDayOfWeek = firstDay.weekday; // Monday = 1
-    final List<DateTime> days = [];
-
-    // Add days from previous month to fill the first week
-    for (int i = firstDayOfWeek - 1; i > 0; i--) {
-      days.add(firstDay.subtract(Duration(days: i)));
-    }
-    
-    // Add days of current month
-    for (int i = 1; i <= daysInMonth; i++) {
-      days.add(DateTime(currentMonth.year, currentMonth.month, i));
-    }
-    
-    // Add days from next month to fill the last week
-    final remainingDays = 42 - days.length; // 6 rows * 7 days
-    for (int i = 1; i <= remainingDays; i++) {
-      days.add(lastDay.add(Duration(days: i)));
-    }
-    
-    return days;
+    return List.generate(lastDay.day, (index) => index + 1);
   }
 
   @override
   Widget build(BuildContext context) {
     final days = _getDaysInMonth();
+    // Get the first day of the month and its weekday (0 = Sunday, 6 = Saturday)
+    final firstDayOfMonth = DateTime(currentMonth.year, currentMonth.month, 1);
+    final weekdayOfFirstDay = firstDayOfMonth.weekday % 7; // Convert Monday=1 to Sunday=0
+    
+    // Create a list of 35 items (5 rows * 7 columns) for the grid
+    final gridItems = List<int?>.generate(35, (index) {
+      // Before the first day of the month, show empty cells
+      if (index < weekdayOfFirstDay) {
+        return null;
+      }
+      // Within the month, show the day number
+      final dayIndex = index - weekdayOfFirstDay;
+      if (dayIndex < days.length) {
+        return days[dayIndex];
+      }
+      // After the last day of the month, show empty cells
+      return null;
+    });
+
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      insetPadding: EdgeInsets.zero,
+      alignment: Alignment.bottomCenter,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       child: Container(
-        width: MediaQuery.of(context).size.width * 0.9,
-        padding: const EdgeInsets.all(20),
+        width: MediaQuery.of(context).size.width,
+        padding: const EdgeInsets.only(top: 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  onPressed: _previousMonth, 
-                  icon: const Icon(Icons.chevron_left),
-                ),
-                Text(
-                  DateFormat('MMMM yyyy').format(currentMonth),
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                IconButton(
-                  onPressed: _nextMonth, 
-                  icon: const Icon(Icons.chevron_right),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-                  .map((day) => Expanded(
-                        child: Center(
-                          child: Text(
-                            day,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                          ),
-                        ),
-                      ))
-                  .toList(),
-            ),
-            const SizedBox(height: 10),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 7,
-                childAspectRatio: 1.2,
+            // Month and Year header with navigation buttons
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    onPressed: _previousMonth,
+                    icon: const Icon(Icons.chevron_left),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(width: 16),
+                  Text(
+                    '${_getMonthName()} ${currentMonth.year}',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  IconButton(
+                    onPressed: _nextMonth,
+                    icon: const Icon(Icons.chevron_right),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
               ),
-              itemCount: days.length,
+            ),
+            const SizedBox(height: 16),
+            // Day labels row
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                    .map((day) => Expanded(
+                          child: Center(
+                            child: Text(
+                              day,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                          ),
+                        ))
+                    .toList(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Calendar grid - 5 rows x 7 columns
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 7,
+                  childAspectRatio: 1.0,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                ),
+              itemCount: gridItems.length,
               itemBuilder: (context, index) {
-                final day = days[index];
-                final isCurrentMonth = day.month == currentMonth.month;
+                final dayNumber = gridItems[index];
+                
+                if (dayNumber == null) {
+                  // Empty cell
+                  return const SizedBox.shrink();
+                }
+
+                final day = DateTime(currentMonth.year, currentMonth.month, dayNumber);
                 final isSelected = day.year == selectedDate.year && 
                                  day.month == selectedDate.month && 
                                  day.day == selectedDate.day;
-                final isToday = day.year == DateTime.now().year && 
-                               day.month == DateTime.now().month && 
-                               day.day == DateTime.now().day;
+                final now = DateTime.now();
+                final isToday = day.year == now.year && 
+                               day.month == now.month && 
+                               day.day == now.day;
                 final dateKey = DateTime(day.year, day.month, day.day);
                 final mealCount = widget.mealCounts[dateKey] ?? 0;
+
+                // Determine border and text colors
+                Color borderColor;
+                Color textColor;
+                if (isToday) {
+                  borderColor = Colors.blue;
+                  textColor = Colors.blue;
+                } else if (isSelected) {
+                  borderColor = const Color(0xFFC1E7AF);
+                  textColor = const Color(0xFFC1E7AF);
+                } else {
+                  borderColor = Colors.grey.withOpacity(0.3);
+                  textColor = Colors.grey[600]!;
+                }
 
                 return GestureDetector(
                   onTap: () {
@@ -1256,55 +1488,68 @@ class _CalendarDialogState extends State<_CalendarDialog> {
                     widget.onDateSelected(day);
                   },
                   child: Container(
-                    margin: const EdgeInsets.all(2),
                     decoration: BoxDecoration(
-                      color: isSelected 
-                          ? const Color(0xFFFF6B35)
-                          : isToday 
-                              ? const Color(0xFFFF6B35).withOpacity(0.3)
-                              : Colors.transparent,
+                      color: Colors.transparent,
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: borderColor,
+                        width: 1,
+                      ),
                     ),
                     child: Stack(
+                      clipBehavior: Clip.none,
                       children: [
                         Center(
                           child: Text(
-                            day.day.toString(),
+                            dayNumber.toString(),
                             style: TextStyle(
-                              color: isSelected 
-                                  ? Colors.white
-                                  : isCurrentMonth 
-                                      ? Colors.black 
-                                      : Colors.grey,
-                              fontWeight: isSelected || isToday ? FontWeight.bold : FontWeight.normal,
+                              color: textColor,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ),
-                        // Meal count badge
-                        if (mealCount > 0 && isCurrentMonth)
+                        // Checkmark icon for selected day (but not for today unless also selected)
+                        if (isSelected && !isToday)
                           Positioned(
-                            top: 1,
-                            right: 1,
+                            bottom: 4,
+                            right: 4,
                             child: Container(
-                              constraints: const BoxConstraints(
-                                minWidth: 16,
-                                minHeight: 16,
+                              width: 16,
+                              height: 16,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF4CAF50), // Green checkmark
+                                shape: BoxShape.circle,
                               ),
-                              padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                              child: const Icon(
+                                Icons.check,
+                                size: 12,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        // Meal count badge
+                        if (mealCount > 0)
+                          Positioned(
+                            top: -2,
+                            right: -2,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.green[600],
+                                color: isToday 
+                                    ? Colors.blue 
+                                    : (day.isBefore(DateTime(now.year, now.month, now.day))
+                                        ? Colors.red 
+                                        : Colors.green[600]),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
                                   color: Colors.white,
                                   width: 1,
                                 ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.2),
-                                    blurRadius: 2,
-                                    offset: const Offset(0, 1),
-                                  ),
-                                ],
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 16,
+                                minHeight: 16,
                               ),
                               child: Text(
                                 mealCount.toString(),
@@ -1323,7 +1568,9 @@ class _CalendarDialogState extends State<_CalendarDialog> {
                   ),
                 );
               },
+              ),
             ),
+            SizedBox(height: MediaQuery.of(context).padding.bottom + 20),
           ],
         ),
       ),
