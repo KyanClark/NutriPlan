@@ -31,7 +31,7 @@ class SmartMealSuggestionService {
       // 2. Get user goals
       final userGoals = await _getUserNutritionGoals(userId);
       if (userGoals == null) {
-        return await _getFallbackSuggestions(mealCategory);
+        return await _getFallbackSuggestions(mealCategory, userId: userId);
       }
       
       // 3. Get user eating patterns
@@ -67,7 +67,7 @@ class SmartMealSuggestionService {
       
     } catch (e) {
       print('Error generating smart suggestions: $e');
-      return await _getFallbackSuggestions(mealCategory);
+      return await _getFallbackSuggestions(mealCategory, userId: userId);
     }
   }
 
@@ -276,7 +276,15 @@ class SmartMealSuggestionService {
   static Future<List<SmartMealSuggestion>> _generateSmartSuggestions(
     SuggestionContext context,
   ) async {
-    final allRecipes = await RecipeService.fetchRecipes();
+    // Fetch recipes with allergy filtering applied
+    var allRecipes = await RecipeService.fetchRecipes(userId: context.userId);
+    // Filter out disallowed items (e.g., chicken feet, blood, intestines)
+    final beforeCount = allRecipes.length;
+    allRecipes = allRecipes.where((r) => !RecipeService.isRecipeDisallowed(r)).toList();
+    final filteredOut = beforeCount - allRecipes.length;
+    if (filteredOut > 0) {
+      print('Smart suggestions: filtered $filteredOut disallowed recipes');
+    }
 
     // Recent history to reduce repeats
     final recentIdsOrTitles = await _getRecentRecipeIdentifiers(context.userId, days: 7);
@@ -375,9 +383,10 @@ class SmartMealSuggestionService {
 
   /// Get fallback suggestions when smart logic fails
   static Future<List<SmartMealSuggestion>> _getFallbackSuggestions(
-    MealCategory mealCategory,
-  ) async {
-    final recipes = await RecipeService.fetchRecipes();
+    MealCategory mealCategory, {
+    String? userId,
+  }) async {
+    final recipes = await RecipeService.fetchRecipes(userId: userId);
     final suggestions = <SmartMealSuggestion>[];
 
     for (final recipe in recipes.take(3)) {
@@ -510,10 +519,12 @@ class SmartMealSuggestionService {
         final data = jsonDecode(response.body);
         final aiResponse = data['choices'][0]['message']['content'];
         
-        // Parse AI response and map to existing recipes only
+        // Parse AI response and map to existing recipes only (allergy-filtered)
         final parsed = _parseAIResponse(aiResponse, context);
         if (parsed.isEmpty) return [];
-        final allRecipes = await RecipeService.fetchRecipes();
+        // Get all recipes (allergy-filtered), then remove disallowed
+        var allRecipes = await RecipeService.fetchRecipes(userId: context.userId);
+        allRecipes = allRecipes.where((r) => !RecipeService.isRecipeDisallowed(r)).toList();
         final byTitle = {for (final r in allRecipes) r.title.toLowerCase(): r};
         final mapped = <SmartMealSuggestion>[];
         for (final s in parsed) {

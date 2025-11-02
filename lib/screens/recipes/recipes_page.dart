@@ -45,7 +45,7 @@ class _RecipesPageState extends State<RecipesPage> {
   void initState() {
     super.initState();
     _fetchFavorites();
-    _recentlyAddedFuture = RecipeService.fetchRecentlyAdded(limit: 20);
+    _recentlyAddedFuture = RecipeService.fetchRecentlyAdded(limit: 20, userId: userId);
   }
 
   List<Recipe> _applySearchAndSort(List<Recipe> recipes) {
@@ -128,7 +128,7 @@ class _RecipesPageState extends State<RecipesPage> {
     }
   }
 
-  void _addToMealPlan(Recipe recipe) {
+  Future<void> _addToMealPlan(Recipe recipe) async {
     // Check if recipe is already in meal plan
     if (_mealsForPlan.any((meal) => meal.id == recipe.id)) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -141,6 +141,95 @@ class _RecipesPageState extends State<RecipesPage> {
         ),
       );
       return;
+    }
+
+    // Check for allergen warnings (optional ingredients only)
+    if (userId != null) {
+      final allergies = await RecipeService.fetchUserAllergies(userId);
+      if (allergies.isNotEmpty) {
+        final warnings = RecipeService.getRecipesWithWarnings([recipe], allergies);
+        if (warnings.isNotEmpty) {
+          final warning = warnings.first;
+          final allergen = warning['allergy'] as String;
+          final matchingIngs = warning['matchingIngredients'] as List<String>;
+          
+          final proceed = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.orange[700], size: 24),
+                  const SizedBox(width: 8),
+                  const Expanded(child: Text('Allergen Warning')),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange[200]!),
+                      ),
+                      child: Text(
+                        'This recipe contains "$allergen" in OPTIONAL ingredients:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange[900],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ...matchingIngs.map((ing) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        children: [
+                          Icon(Icons.circle, size: 6, color: Colors.orange[700]),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              ing,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.orange[700],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'You can still add this meal, but you may want to skip the optional ingredients.',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange[700],
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Add Anyway'),
+                ),
+              ],
+            ),
+          );
+
+          if (proceed != true) return; // User cancelled
+        }
+      }
     }
 
     // Add recipe to meal plan
@@ -782,7 +871,7 @@ class _RecipesPageState extends State<RecipesPage> {
           // Main content
           Expanded(
             child: FutureBuilder<List<Recipe>>(
-              future: RecipeService.fetchRecipes(),
+              future: RecipeService.fetchRecipes(userId: userId),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return RecipeListSkeleton(

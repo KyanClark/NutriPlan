@@ -6,6 +6,7 @@ import '../../services/feedback_service.dart';
 import '../../services/fnri_nutrition_service.dart';
 import '../../services/recipe_service.dart';
 import '../../widgets/nutrition_loading_skeleton.dart';
+import 'ingredient_tracking_debug_page.dart';
 
 /// Macro chip widget for displaying nutrition information
 class _MacroChip extends StatelessWidget {
@@ -645,6 +646,96 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
   }
 
   Future<void> _showTimeSelection() async {
+    // Check for allergen warnings first
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      final allergies = await RecipeService.fetchUserAllergies(user.id);
+      if (allergies.isNotEmpty) {
+        final warnings = RecipeService.getRecipesWithWarnings([widget.recipe], allergies);
+        if (warnings.isNotEmpty) {
+          final warning = warnings.first;
+          final allergen = warning['allergy'] as String;
+          final matchingIngs = warning['matchingIngredients'] as List<String>;
+          
+          final proceed = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.orange[700], size: 24),
+                  const SizedBox(width: 8),
+                  const Expanded(child: Text('Allergen Warning')),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange[200]!),
+                      ),
+                      child: Text(
+                        'This recipe contains "$allergen" in OPTIONAL ingredients:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange[900],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ...matchingIngs.map((ing) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        children: [
+                          Icon(Icons.circle, size: 6, color: Colors.orange[700]),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              ing,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.orange[700],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'You can still add this meal, but you may want to skip the optional ingredients.',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange[700],
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Continue'),
+                ),
+              ],
+            ),
+          );
+
+          if (proceed != true) return; // User cancelled
+        }
+      }
+    }
+
     final result = await showDialog<TimeOfDay>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1082,7 +1173,27 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                               const SizedBox(height: 24),
                               Padding(
                                 padding: const EdgeInsets.symmetric(vertical: 4.0),
-                                child: const Text('Ingredients', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text('Ingredients', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                                    TextButton.icon(
+                                      onPressed: () async {
+                                        await Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => IngredientTrackingDebugPage(recipe: recipe),
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(Icons.analytics_outlined, size: 18),
+                                      label: const Text('Track'),
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: const Color(0xFF4CAF50),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                               const SizedBox(height: 16),
                               ...recipe.ingredients.map((ing) => Padding(
@@ -1090,18 +1201,8 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                                 child: Text('• $ing', style: const TextStyle(fontSize: 15)),
                               )),
                               const SizedBox(height: 24),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 4.0),
-                                child: const Text('Instructions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                              ),
-                              const SizedBox(height: 16),
-                              ...recipe.instructions.asMap().entries.map((entry) => Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: Text('${entry.key + 1}. ${entry.value}', style: const TextStyle(fontSize: 15)),
-                              )),
-                              const SizedBox(height: 24),
                             
-                            // Notes Section (Displayed when notes are available)
+                            // Notes Section (Displayed when notes are available) - moved above instructions
                             if (recipe.notes.isNotEmpty)
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1179,9 +1280,19 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(height: 20),
+                                  const SizedBox(height: 24),
                                 ],
                               ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4.0),
+                              child: const Text('Instructions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                            ),
+                            const SizedBox(height: 16),
+                            ...recipe.instructions.asMap().entries.map((entry) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Text('${entry.key + 1}. ${entry.value}', style: const TextStyle(fontSize: 15)),
+                            )),
+                            const SizedBox(height: 24),
                             
                             // Reviews Section Header
                             if (isLoadingFeedbacks)
@@ -1490,7 +1601,96 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                             : alreadyAdded
                               ? null
                               : (widget.onAddToMealPlan != null)
-                                ? () {
+                                ? () async {
+                                    // Check for warnings before calling callback
+                                    final user = Supabase.instance.client.auth.currentUser;
+                                    if (user != null) {
+                                      final allergies = await RecipeService.fetchUserAllergies(user.id);
+                                      if (allergies.isNotEmpty) {
+                                        final warnings = RecipeService.getRecipesWithWarnings([recipe], allergies);
+                                        if (warnings.isNotEmpty) {
+                                          final warning = warnings.first;
+                                          final allergen = warning['allergy'] as String;
+                                          final matchingIngs = warning['matchingIngredients'] as List<String>;
+                                          
+                                          final proceed = await showDialog<bool>(
+                                            context: context,
+                                            builder: (context) => AlertDialog(
+                                              title: Row(
+                                                children: [
+                                                  Icon(Icons.warning_amber_rounded, color: Colors.orange[700], size: 24),
+                                                  const SizedBox(width: 8),
+                                                  const Expanded(child: Text('Allergen Warning')),
+                                                ],
+                                              ),
+                                              content: SingleChildScrollView(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Container(
+                                                      padding: const EdgeInsets.all(12),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.orange[50],
+                                                        borderRadius: BorderRadius.circular(8),
+                                                        border: Border.all(color: Colors.orange[200]!),
+                                                      ),
+                                                      child: Text(
+                                                        'This recipe contains "$allergen" in OPTIONAL ingredients:',
+                                                        style: TextStyle(
+                                                          fontWeight: FontWeight.bold,
+                                                          color: Colors.orange[900],
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 12),
+                                                    ...matchingIngs.map((ing) => Padding(
+                                                      padding: const EdgeInsets.only(bottom: 4),
+                                                      child: Row(
+                                                        children: [
+                                                          Icon(Icons.circle, size: 6, color: Colors.orange[700]),
+                                                          const SizedBox(width: 8),
+                                                          Expanded(
+                                                            child: Text(
+                                                              ing,
+                                                              style: TextStyle(
+                                                                fontWeight: FontWeight.w600,
+                                                                color: Colors.orange[700],
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    )),
+                                                    const SizedBox(height: 12),
+                                                    const Text(
+                                                      'You can still add this meal, but you may want to skip the optional ingredients.',
+                                                      style: TextStyle(fontSize: 13),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () => Navigator.of(context).pop(false),
+                                                  child: const Text('Cancel'),
+                                                ),
+                                                ElevatedButton(
+                                                  onPressed: () => Navigator.of(context).pop(true),
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: Colors.orange[700],
+                                                    foregroundColor: Colors.white,
+                                                  ),
+                                                  child: const Text('Add Anyway'),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+
+                                          if (proceed != true) return; // User cancelled
+                                        }
+                                      }
+                                    }
                                     widget.onAddToMealPlan!(recipe);
                                     Navigator.pop(context);
                                   }

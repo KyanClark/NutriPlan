@@ -30,7 +30,7 @@ class _SeeAllRecipePageState extends State<SeeAllRecipePage> {
 
   Future<void> _fetchAll() async {
     setState(() => isLoading = true);
-    final recipes = await RecipeService.fetchRecipes();
+    final recipes = await RecipeService.fetchRecipes(userId: userId);
     if (!mounted) return;
     if (userId != null) {
       final favs = await RecipeService.fetchFavoriteRecipeIds(userId!);
