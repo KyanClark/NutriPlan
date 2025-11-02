@@ -101,6 +101,11 @@ class _ProfileIconWidgetState extends State<_ProfileIconWidget> {
         onTap: _onTap,
         child: Container(
           margin: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: const Color.fromARGB(255, 80, 231, 93),
+            shape: BoxShape.circle,
+          ),
           child: _avatarUrl != null && _avatarUrl!.isNotEmpty
               ? CircleAvatar(
                   radius: 16,
@@ -177,10 +182,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
 
     try {
+      // Only count meal plans for today's date
+      final today = DateTime.now();
+      final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+      
       final response = await Supabase.instance.client
           .from('meal_plans')
           .select('*')
-          .eq('user_id', user.id);
+          .eq('user_id', user.id)
+          .eq('date', todayStr);
 
       final mealCount = response.length;
 
@@ -613,7 +623,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               category['name'],
               style: const TextStyle(
                 fontSize: 16,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.normal,
                 color: Colors.black,
               ),
               textAlign: TextAlign.center,
@@ -784,6 +794,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.9),
                               fontSize: 13,
+                              fontWeight: FontWeight.normal,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -838,6 +849,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 style: TextStyle(
                   color: Colors.white.withOpacity(0.9),
                   fontSize: 14,
+                  fontWeight: FontWeight.normal,
                 ),
               ),
             ),
@@ -955,6 +967,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       color: Colors.white,
                       fontSize: 14,
                       fontFamily: 'Geist',
+                      fontWeight: FontWeight.normal,
                       height: 1.4,
                     ),
                   ),
