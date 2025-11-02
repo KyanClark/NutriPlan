@@ -1,4 +1,4 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'fnri_csv_service.dart';
 
 class FNRIIngredientNutrition {
   final String foodId;
@@ -210,112 +210,21 @@ class FNRINutritionService {
   static List<FNRIIngredientNutrition>? _ingredientsCache;
   static Map<String, FNRIIngredientNutrition>? _searchCache;
 
-  /// Load FNRI nutrition data from Supabase
+  /// Load FNRI nutrition data from local CSV (replaces Supabase)
   static Future<List<FNRIIngredientNutrition>> loadFNRIData() async {
     if (_ingredientsCache != null) {
       return _ingredientsCache!;
     }
 
-    try {
-      final supabase = Supabase.instance.client;
-      
-      // Fetch all nutrition data from Supabase
-      final response = await supabase
-          .from('nutrition_data_import')
-          .select()
-          .order('Food_name_and_Description')
-          .limit(2000); // Limit to prevent memory issues
-      
-      _ingredientsCache = response
-          .map((data) => FNRIIngredientNutrition.fromSupabase(data))
-          .toList();
-
-      if (_ingredientsCache != null) {
-        print('✅ Loaded ${_ingredientsCache!.length} FNRI ingredients from Supabase');
-      return _ingredientsCache!;
-      } else {
-        print('❌ Failed to create ingredients cache');
-        return [];
-      }
-    } catch (e) {
-      print('❌ Error loading FNRI data from Supabase: $e');
-      return [];
-    }
+    // Use CSV service instead of Supabase
+    _ingredientsCache = await LocalFNRIService.loadFromCSV();
+    return _ingredientsCache ?? [];
   }
 
-  /// Search for ingredients in FNRI data using Supabase
+  /// Search for ingredients in FNRI data using local CSV
   static Future<List<FNRIIngredientNutrition>> searchIngredients(String query) async {
-    try {
-      final supabase = Supabase.instance.client;
-      final queryLower = query.toLowerCase().trim();
-      
-      // Clean the query to avoid PostgreSQL syntax errors
-      final cleanQuery = queryLower
-          .replaceAll(',', ' ')  // Remove commas that break PostgreSQL
-          .replaceAll('(', ' ')  // Remove parentheses
-          .replaceAll(')', ' ')
-          .replaceAll(RegExp(r'\s+'), ' ')  // Multiple spaces to single space
-          .trim();
-      
-      print('🔍 Searching Supabase for: "$cleanQuery"');
-      
-      // Use simple LIKE search to avoid PostgreSQL parsing errors
-      final response = await supabase
-          .from('nutrition_data_import')
-          .select()
-          .ilike('Food_name_and_Description', '%$cleanQuery%')
-          .limit(50); // Increased limit to get more results
-      
-      print('📊 Found ${response.length} results from Supabase');
-      
-      final results = response
-          .map((data) => FNRIIngredientNutrition.fromSupabase(data))
-          .toList();
-      
-      // If no results, try alternate names
-      if (results.isEmpty) {
-        print('🔍 No results in food names, trying alternate names...');
-        final altResponse = await supabase
-            .from('nutrition_data_import')
-            .select()
-            .ilike('Alternate_Common_names', '%$cleanQuery%')
-            .limit(50);
-        
-        print('📊 Found ${altResponse.length} results in alternate names');
-        
-        results.addAll(altResponse
-            .map((data) => FNRIIngredientNutrition.fromSupabase(data))
-            .toList());
-      }
-      
-      // If still no results, try searching individual words
-      if (results.isEmpty && cleanQuery.contains(' ')) {
-        print('🔍 No results with full query, trying individual words...');
-        final words = cleanQuery.split(' ').where((w) => w.length >= 3).take(3);
-        for (final word in words) {
-          final wordResponse = await supabase
-              .from('nutrition_data_import')
-              .select()
-              .ilike('Food_name_and_Description', '%$word%')
-              .limit(20);
-          
-          print('📊 Found ${wordResponse.length} results for word "$word"');
-          
-          results.addAll(wordResponse
-              .map((data) => FNRIIngredientNutrition.fromSupabase(data))
-              .toList());
-        }
-      }
-      
-      // Apply additional filtering and sorting
-      return _filterAndSortResults(results, query);
-      
-    } catch (e) {
-      print('❌ Error searching ingredients in Supabase: $e');
-      // Fallback to cached search
-      print('❌ Supabase search failed, falling back to cached search');
-      return await _searchIngredientsCached(query);
-    }
+    // Use CSV service instead of Supabase
+    return await LocalFNRIService.searchIngredients(query);
   }
 
   /// Fallback search using cached data

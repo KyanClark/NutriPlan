@@ -1,4 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'fnri_nutrition_service.dart';
 import 'measurement_converter.dart';
 
@@ -18,8 +21,22 @@ class IngredientTrackingService {
     // Step 1: Extract quantity and unit
     final quantityInfo = _extractQuantityAndUnit(ingredientLower);
     
-    // Step 2: Clean ingredient name
-    final cleanName = _cleanIngredientName(ingredientLower);
+    // Step 2: Clean ingredient name (try AI first, fallback to regex)
+    String cleanName = await _cleanIngredientName(ingredientLower);
+    
+    // Try AI normalization for better accuracy (optional enhancement)
+    final aiNormalized = await _normalizeWithAI(original);
+    if (aiNormalized != null && aiNormalized.isNotEmpty) {
+      // Use AI result if it seems more accurate
+      final aiLower = aiNormalized.toLowerCase();
+      if (aiLower.length > 2 && aiLower != cleanName) {
+        print('AI normalized "$original" from "$cleanName" to "$aiLower"');
+        // Prefer AI if it's shorter (more concise) or contains key words
+        if (aiLower.length < cleanName.length * 1.5) {
+          cleanName = aiLower;
+        }
+      }
+    }
     
     // Step 3: Detect preparation method
     final preparation = _detectPreparationMethod(ingredientLower);
@@ -48,28 +65,78 @@ class IngredientTrackingService {
     return MeasurementConverter.parseMeasurement(ingredientStr);
   }
 
+  /// AI-assisted ingredient name normalization (optional enhancement)
+  static Future<String?> _normalizeWithAI(String ingredientStr) async {
+    try {
+      final apiKey = dotenv.env['GROQ_API_KEY'] ?? '';
+      if (apiKey.isEmpty) return null;
+      
+      final response = await http.post(
+        Uri.parse('https://api.groq.com/openai/v1/chat/completions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $apiKey',
+        },
+        body: jsonEncode({
+          'model': 'llama-3.1-8b-instant',
+          'messages': [
+            {
+              'role': 'system',
+              'content': 'You are a Filipino food ingredient expert. Extract ONLY the ingredient name from recipe ingredient strings. Return just the normalized ingredient name (e.g., "coconut milk", "chicken", "onion"). No explanations, just the name.'
+            },
+            {
+              'role': 'user',
+              'content': 'Extract the ingredient name from: "$ingredientStr"'
+            }
+          ],
+          'max_tokens': 30,
+          'temperature': 0.3,
+        }),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final content = (data['choices'] != null && data['choices'].isNotEmpty)
+            ? (data['choices'][0]['message']['content'] as String).trim()
+            : null;
+        return content;
+      }
+    } catch (e) {
+      print('AI normalization error: $e');
+    }
+    return null;
+  }
+
   /// Clean ingredient name with improved accuracy
-  static String _cleanIngredientName(String ingredientStr) {
+  static Future<String> _cleanIngredientName(String ingredientStr) async {
     String cleaned = ingredientStr.toLowerCase();
     
-    // Remove measurements with better regex
-    cleaned = cleaned.replaceAll(RegExp(r'\d+(?:\.\d+)?\s*(oz|ounce|cup|cups|tbsp|tsp|g|gram|grams|kg|kilogram|kilograms|lbs?|pound|pounds)'), '');
+    // Remove container/package measurements first (can, bottle, package, etc.)
+    cleaned = cleaned.replaceAll(RegExp(r'\d+\s*(can|cans|bottle|bottles|package|packages|pack|packs|box|boxes|jar|jars|tin|tins)\s*', caseSensitive: false), '');
     
-    // Remove pieces, bunches, cloves
-    cleaned = cleaned.replaceAll(RegExp(r'\d+(?:\.\d+)?\s*(piece|pieces|bunch|bunches|clove|cloves)'), '');
+    // Remove measurements with better regex (handles "1 can 2 cups" scenarios)
+    cleaned = cleaned.replaceAll(RegExp(r'\d+(?:\.\d+)?\s*(oz|ounce|ounces|cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|g|gram|grams|kg|kilogram|kilograms|lbs?|pound|pounds|ml|milliliter|milliliters|l|liter|liters)\s*'), ' ');
     
-    // Remove fractions
-    cleaned = cleaned.replaceAll(RegExp(r'\d+/\d+'), '');
+    // Remove pieces, bunches, cloves, heads, stalks, etc.
+    cleaned = cleaned.replaceAll(RegExp(r'\d+(?:\.\d+)?\s*(piece|pieces|bunch|bunches|clove|cloves|head|heads|stalk|stalks|bulb|bulbs|whole|halves)\s*'), ' ');
     
-    // Remove "to taste", "and", "with"
-    cleaned = cleaned.replaceAll(RegExp(r'\s*(to taste|and|with)\s*'), ' ');
+    // Remove fractions (standalone and with units)
+    cleaned = cleaned.replaceAll(RegExp(r'\d+/\d+\s*(cup|cups|tbsp|tsp|oz|piece|pieces)?\s*'), ' ');
     
-    // Remove any remaining numbers at the start
+    // Remove "of", "and", "with", "to taste", "for", etc.
+    cleaned = cleaned.replaceAll(RegExp(r'\s*(of|and|with|to taste|for|or|plus)\s*'), ' ');
+    
+    // Remove any remaining numbers at the start or middle
     cleaned = cleaned.replaceAll(RegExp(r'^\d+(?:\.\d+)?\s*'), '');
+    cleaned = cleaned.replaceAll(RegExp(r'\s+\d+(?:\.\d+)?\s*'), ' ');
+    
+    // Remove parenthetical descriptions and extra punctuation
+    cleaned = cleaned.replaceAll(RegExp(r'\([^)]*\)'), '');
+    cleaned = cleaned.replaceAll(RegExp(r'\[[^\]]*\]'), '');
     
     // Clean up extra spaces and punctuation
     cleaned = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
-    cleaned = cleaned.replaceAll(RegExp(r'^[.,\s]+|[.,\s]+$'), '');
+    cleaned = cleaned.replaceAll(RegExp(r'^[.,\s\-]+|[.,\s\-]+$'), '');
     
     return cleaned;
   }
