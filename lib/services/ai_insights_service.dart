@@ -2,7 +2,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/user_nutrition_goals.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'ai_nutrition_prompts.dart';
+import 'ai_nutritional_insights_prompt.dart';
 // Removed external cache service; using simple in-memory cache
 // Simple in-memory cache entry (top-level private)
 class _CacheEntry {

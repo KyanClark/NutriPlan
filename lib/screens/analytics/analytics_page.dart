@@ -17,7 +17,7 @@ class AnalyticsPage extends StatefulWidget {
   State<AnalyticsPage> createState() => _AnalyticsPageState();
 }
 
-class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateMixin {
+class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   bool _isLoading = true;
   bool _isWeeklyLoading = false;
   bool _isMonthlyLoading = false;
@@ -32,13 +32,20 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
   List<Map<String, String>> _weeklyInsights = [];
   bool _isGeneratingWeeklyInsights = false;
   String? _avatarUrl;
+  static String? _cachedAvatarUrl;
+  static bool _hasFetchedAvatar = false;
   String? _weeklyInsightsCacheKey; // Prevent redundant AI calls when data hasn't changed
+  final Set<int> _expandedInsights = {}; // Track which insights are expanded
+  final Set<int> _seenInsights = {}; // Track which insights have been tapped (for green glow)
   
   late TabController _tabController;
   // Week selection for Daily Calorie Intake (defaults to current week)
   late DateTime _selectedWeekStart; // Monday of selected week
   // Month selection for Monthly views (defaults to current month)
   late DateTime _selectedMonthStart; // First day of selected month
+
+  @override
+  bool get wantKeepAlive => true; // Preserve state when navigating away
 
   @override
   void initState() {
@@ -50,8 +57,24 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
         .subtract(Duration(days: now.weekday - 1));
     // Initialize to current month's first day
     _selectedMonthStart = DateTime(now.year, now.month, 1);
+    
+    // Only load data if we don't already have it loaded
+    if (_weeklyData.isEmpty || _goals == null) {
     _loadAnalyticsData();
+    // Only fetch avatar if not already cached
+    if (!_hasFetchedAvatar) {
     _fetchUserAvatar();
+    } else {
+      _avatarUrl = _cachedAvatarUrl;
+    }
+    } else {
+      // Data already loaded, just set loading to false
+      _isLoading = false;
+      // Use cached avatar if available
+      if (_hasFetchedAvatar) {
+        _avatarUrl = _cachedAvatarUrl;
+      }
+    }
   }
 
   @override
@@ -174,9 +197,13 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
           .eq('id', user.id)
           .maybeSingle();
       
+      // Update cached value
+      _cachedAvatarUrl = data?['avatar_url'] as String?;
+      _hasFetchedAvatar = true;
+      
       if (!mounted) return;
       setState(() {
-        _avatarUrl = data?['avatar_url'] as String?;
+        _avatarUrl = _cachedAvatarUrl;
       });
     } catch (e) {
       print('Error fetching user avatar: $e');
@@ -209,8 +236,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
         return;
       }
 
-      // Fetch available recipes for meal recommendations
-      final recipes = await RecipeService.fetchRecipes();
+      // Fetch available recipes for meal recommendations (allergy-filtered)
+      final user = Supabase.instance.client.auth.currentUser;
+      final recipes = await RecipeService.fetchRecipes(userId: user?.id);
       final recipeNames = recipes.map((r) => r.title).toList();
       if (mounted) {
         setState(() {
@@ -229,6 +257,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
         _weeklyInsights = insights;
         _weeklyInsightsCacheKey = key;
         _isGeneratingWeeklyInsights = false;
+        _seenInsights.clear(); // Reset seen insights when new insights are generated
       });
     } catch (e) {
       print('Error generating weekly insights: $e');
@@ -344,8 +373,387 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
     return 0;
   }
 
+  Widget _buildSkeletonLoader() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Period switch skeleton
+          Center(
+            child: Container(
+              width: 120,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // Top summary row skeleton
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 2,
+                child: Container(
+                  height: 100,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withValues(alpha: 0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 80,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: 120,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        width: 140,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Container(
+                  height: 100,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withValues(alpha: 0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        width: 40,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Container(
+                  height: 100,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withValues(alpha: 0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        width: 40,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 30),
+          
+          // Calorie card skeleton
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withValues(alpha: 0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 60,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Container(
+                  width: 200,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  height: 220,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 30),
+          
+          // Weekly insights card skeleton
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withValues(alpha: 0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      width: 150,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                ...List.generate(2, (index) => Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.grey[300]!,
+                      width: 2,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 200,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        width: 280,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
+              ],
+            ),
+          ),
+          const SizedBox(height: 30),
+          
+          // Charts skeleton
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withValues(alpha: 0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 150,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 30),
+          
+          // Pie chart skeleton
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withValues(alpha: 0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 150,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Center(
+                  child: Container(
+                    width: 200,
+                    height: 200,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -383,6 +791,11 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
               },
               child: Container(
                 margin: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: const Color.fromARGB(255, 80, 231, 93),
+                  shape: BoxShape.circle,
+                ),
                 child: CircleAvatar(
                   radius: 16,
                   backgroundColor: Colors.grey[200],
@@ -399,7 +812,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? _buildSkeletonLoader()
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -639,8 +1052,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
           ),
           const SizedBox(height: 12),
           if (isLoading)
-            SizedBox(
-              height: 220,
+          SizedBox(
+            height: 220,
               child: _buildChartSkeleton(),
             )
           else if (noData)
@@ -648,115 +1061,16 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
           else
             SizedBox(
             height: 220,
-            child: LineChart(
-              LineChartData(
-                lineTouchData: LineTouchData(
-                  enabled: true,
-                  touchTooltipData: LineTouchTooltipData(
-                    getTooltipItems: (touchedSpots) {
-                      return touchedSpots.map((barSpot) {
-                        final v = barSpot.y;
-                        final goal = _goals?.calorieGoal ?? 0;
-                        final pct = goal > 0 ? (v / goal) * 100 : 0;
-                        return LineTooltipItem(
-                          '${v.toStringAsFixed(0)} kcal\n${pct.toStringAsFixed(0)}% of goal',
-                          const TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
-                        );
-                      }).toList();
-                    },
-                  ),
-                  touchCallback: (FlTouchEvent event, LineTouchResponse? response) {
-                    if (event is FlTapUpEvent && response?.lineBarSpots != null && response!.lineBarSpots!.isNotEmpty) {
-                      final spot = response.lineBarSpots!.first;
-                      final dayIndex = spot.x.toInt();
-                      if (dayIndex >= 0 && dayIndex < sortedKeys.length) {
-                        final dateStr = sortedKeys[dayIndex];
-                        final date = DateTime.tryParse(dateStr);
-                        if (date != null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => MealTrackerScreen(
-                                showBackButton: true,
-                                initialDate: date,
-                              ),
-                            ),
-                          );
-                        }
-                      }
-                    }
-                  },
-                ),
-                minX: 0,
-                maxX: (spots.isEmpty ? 6 : (spots.length - 1)).toDouble(),
-                minY: 0,
-                maxY: (dailyGoal * 1.4).clamp(1000, 3000),
-                gridData: FlGridData(
-                  show: true,
-                  getDrawingHorizontalLine: (v) => FlLine(color: Colors.grey[300]!, strokeWidth: 1),
-                  getDrawingVerticalLine: (v) => FlLine(color: Colors.grey[300]!, strokeWidth: 1),
-                ),
-                titlesData: FlTitlesData(
-                  show: true,
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 24,
-                      getTitlesWidget: (value, meta) {
-                        final idx = value.toInt();
-                        if (idx < 0 || idx >= sortedKeys.length) return const SizedBox.shrink();
-                        final d = DateTime.tryParse(sortedKeys[idx]);
-                        final label = d != null ? '${_shortMonth(d.month)} ${d.day}' : '';
-                        return Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey));
-                      },
+            child: _selectedPeriod == 'monthly' && sortedKeys.length > 10
+                ? SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width: sortedKeys.length * 50.0, // 50px per day
+                      height: 220,
+                      child: LineChart(_buildMonthlyChartData(spots, sortedKeys, dailyGoal)),
                     ),
-                  ),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      interval: 600,
-                      reservedSize: 36,
-                      getTitlesWidget: (value, meta) => Text(value.toInt().toString(), style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                    ),
-                  ),
-                ),
-                borderData: FlBorderData(show: true, border: Border.all(color: Colors.grey[300]!)),
-                lineBarsData: [
-                  // Filled green curved line
-                  LineChartBarData(
-                    spots: spots.isEmpty ? [for (int i = 0; i < 7; i++) FlSpot(i.toDouble(), 0)] : spots,
-                    isCurved: true,
-                    color: Colors.green[600],
-                    barWidth: 3,
-                    isStrokeCapRound: true,
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: Colors.green[100]!.withOpacity(0.6),
-                      gradient: LinearGradient(
-                        colors: [Colors.green[200]!, Colors.green[50]!],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                    ),
-                    dotData: FlDotData(show: false),
-                  ),
-                  // Dashed orange goal line
-                  LineChartBarData(
-                    spots: [
-                      FlSpot(0, dailyGoal),
-                      FlSpot((spots.isEmpty ? 6 : (spots.length - 1)).toDouble(), dailyGoal),
-                    ],
-                    color: Colors.orange,
-                    barWidth: 2,
-                    isCurved: false,
-                    dashArray: [6, 6],
-                    dotData: FlDotData(show: false),
-                  ),
-                ],
-              ),
-            ),
+                  )
+                : LineChart(_buildMonthlyChartData(spots, sortedKeys, dailyGoal)),
           ),
         ],
       ),
@@ -969,7 +1283,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
           if (_isGeneratingWeeklyInsights)
             _buildLoadingInsights()
           else if (_weeklyInsights.isNotEmpty)
-            ..._weeklyInsights.map((insight) => _buildInsightItem(insight['title']!, insight['description']!))
+            ..._weeklyInsights.asMap().entries.map((entry) => 
+              _buildInsightItem(entry.key, entry.value['title']!, entry.value['description']!))
           else
             _buildEmptyInsights(),
         ],
@@ -977,7 +1292,36 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
     );
   }
 
-  Widget _buildInsightItem(String title, String description) {
+  Widget _buildInsightItem(int index, String title, String description) {
+    final isExpanded = _expandedInsights.contains(index);
+    
+    // Extract preview - always truncate to ~100 chars for collapsed view
+    String previewText;
+    final firstPeriod = description.indexOf('.');
+    final firstNewline = description.indexOf('\n');
+    int cutPoint = description.length;
+    
+    // Always create a preview (truncate if longer than 80 chars)
+    if (description.length > 80) {
+      // Prefer cutting at sentence end or newline
+      if (firstPeriod > 0 && firstPeriod < 120) {
+        cutPoint = firstPeriod + 1;
+      } else if (firstNewline > 0 && firstNewline < 120) {
+        cutPoint = firstNewline;
+      } else {
+        // Find last space before 120 chars to avoid cutting words
+        cutPoint = description.lastIndexOf(' ', 120);
+        if (cutPoint == -1 || cutPoint < 60) cutPoint = 120;
+      }
+      previewText = description.substring(0, cutPoint).trim();
+      if (cutPoint < description.length) {
+        previewText += '...';
+      }
+    } else {
+      // Short description - show full but still allow expand/collapse for consistency
+      previewText = description;
+    }
+    
     // Find recipe mentions in the description
     final matchedRecipes = <Recipe>[];
     final descLower = description.toLowerCase();
@@ -989,20 +1333,47 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
       }
     }
 
+    final hasBeenSeen = _seenInsights.contains(index);
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: hasBeenSeen ? Colors.transparent : Colors.green[400]!,
+          width: 2,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.05),
-            blurRadius: 4,
+            color: hasBeenSeen 
+                ? Colors.grey.withValues(alpha: 0.05)
+                : Colors.green.withValues(alpha: 0.15),
+            blurRadius: hasBeenSeen ? 4 : 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
+      child: Column(
+        children: [
+          // Header (title + expand button) - always visible
+          InkWell(
+            onTap: () {
+              setState(() {
+                _seenInsights.add(index); // Mark as seen when tapped
+                if (isExpanded) {
+                  _expandedInsights.remove(index);
+                } else {
+                  _expandedInsights.add(index);
+                }
+              });
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1014,60 +1385,114 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
               color: Colors.black87,
             ),
           ),
+                        if (!isExpanded) ...[
           const SizedBox(height: 8),
           Text(
-            description,
+                            previewText,
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey[700],
-              height: 1.4,
-            ),
-          ),
-          if (matchedRecipes.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: matchedRecipes.map((r) {
-                return GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => RecipeInfoScreen(recipe: r),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.green[50],
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.green[200]!),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.green.withValues(alpha: 0.06),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.restaurant_menu, size: 14, color: Color(0xFF2E7D32)),
-                        const SizedBox(width: 6),
-                        Text(
-                          r.title,
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF2E7D32)),
-                        ),
+                              color: Colors.grey[700],
+                              height: 1.4,
+                            ),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (description.length > 80) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'Tap to read more',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.green[600],
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ],
                       ],
                     ),
                   ),
-                );
-              }).toList(),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(
+                      isExpanded ? Icons.expand_less : Icons.expand_more,
+              color: Colors.grey[600],
+                      size: 24,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
+          ),
+          // Expandable content
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            child: isExpanded
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          description,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[700],
+              height: 1.4,
+            ),
+                        ),
+                        if (matchedRecipes.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: matchedRecipes.map((r) {
+                              return GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => RecipeInfoScreen(recipe: r),
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green[50],
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: Colors.green[200]!),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.green.withValues(alpha: 0.06),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.restaurant_menu, size: 14, color: Color(0xFF2E7D32)),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        r.title,
+                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF2E7D32)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                      ],
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
         ],
       ),
     );
@@ -1253,7 +1678,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
           else if (noData)
             _buildNoDataBanner('No data for this week')
           else
-            SizedBox(
+          SizedBox(
             height: 250,
             child: LineChart(
               LineChartData(
@@ -1461,28 +1886,28 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
         Container(
           width: 12,
           height: 12,
-          decoration: BoxDecoration(
+      decoration: BoxDecoration(
             color: color,
             borderRadius: BorderRadius.circular(2),
           ),
         ),
         const SizedBox(width: 6),
-        Text(
+          Text(
           label,
-          style: const TextStyle(
+            style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
           ),
-        ),
+            ),
       ],
       ),
     );
   }
 
-  // Multiple Pie Charts for Week Comparison
+  // Single Pie Chart for Macro Distribution with Week/Month Navigation
   Widget _buildWeeklyPieCharts() {
-    Map<String, double> totalsFrom(Map<String, dynamic> weekly) {
-      final Map<String, dynamic> rawDaily = (weekly['dailyData'] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{};
+    Map<String, double> totalsFrom(Map<String, dynamic> data) {
+      final Map<String, dynamic> rawDaily = (data['dailyData'] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{};
       double sumKey(String key) {
         double s = 0;
         for (final entry in rawDaily.entries) {
@@ -1503,77 +1928,77 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
       };
     }
 
-    PieChartData pieFromTotals(Map<String, double> t, bool isCurrent) {
+    PieChartData pieFromTotals(Map<String, double> t) {
       final total = (t['protein'] ?? 0) + (t['carbs'] ?? 0) + (t['fat'] ?? 0) + (t['fiber'] ?? 0) + (t['sugar'] ?? 0);
       double pct(double v) => total <= 0 ? 0 : (v / total) * 100;
       return PieChartData(
         sections: [
           PieChartSectionData(
-            color: isCurrent ? Colors.red[400] : Colors.red[300],
+            color: Colors.red[400]!,
             value: pct(t['protein'] ?? 0),
             title: '${pct(t['protein'] ?? 0).toStringAsFixed(0)}%',
-            radius: 50,
+            radius: 60,
             titleStyle: const TextStyle(
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
-          ),
+                  ),
           PieChartSectionData(
-            color: isCurrent ? Colors.blue[400] : Colors.blue[300],
+            color: Colors.blue[400]!,
             value: pct(t['carbs'] ?? 0),
             title: '${pct(t['carbs'] ?? 0).toStringAsFixed(0)}%',
-            radius: 50,
+            radius: 60,
             titleStyle: const TextStyle(
-              fontSize: 10,
+                          fontSize: 12,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
-          ),
+                    ),
           PieChartSectionData(
-            color: isCurrent ? Colors.green[400] : Colors.green[300],
+            color: Colors.green[400]!,
             value: pct(t['fat'] ?? 0),
             title: '${pct(t['fat'] ?? 0).toStringAsFixed(0)}%',
-            radius: 50,
+            radius: 60,
             titleStyle: const TextStyle(
-              fontSize: 10,
+                            fontSize: 12,
               fontWeight: FontWeight.bold,
               color: Colors.white,
+              ),
             ),
-          ),
           PieChartSectionData(
-            color: isCurrent ? Colors.purple[400] : Colors.purple[300],
+            color: Colors.purple[400]!,
             value: pct(t['fiber'] ?? 0),
             title: '${pct(t['fiber'] ?? 0).toStringAsFixed(0)}%',
-            radius: 50,
+            radius: 60,
             titleStyle: const TextStyle(
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
           ),
           PieChartSectionData(
-            color: isCurrent ? Colors.orange[400] : Colors.orange[300],
+            color: Colors.orange[400]!,
             value: pct(t['sugar'] ?? 0),
             title: '${pct(t['sugar'] ?? 0).toStringAsFixed(0)}%',
-            radius: 50,
+            radius: 60,
             titleStyle: const TextStyle(
-              fontSize: 10,
+            fontSize: 12,
               fontWeight: FontWeight.bold,
               color: Colors.white,
-            ),
           ),
-        ],
-        centerSpaceRadius: 30,
+        ),
+      ],
+        centerSpaceRadius: 40,
         sectionsSpace: 2,
-      );
-    }
+    );
+  }
 
-    final currentTotals = totalsFrom(_weeklyData);
-    final lastTotals = totalsFrom(_lastWeekData);
+    final Map<String, dynamic> selectedData = _selectedPeriod == 'weekly' ? _weeklyData : _monthlyData;
+    final currentTotals = totalsFrom(selectedData);
+    final bool noData = currentTotals.values.every((v) => (v) == 0);
+    final bool isLoading = _selectedPeriod == 'weekly' ? _isWeeklyLoading : _isMonthlyLoading;
 
-    final bool noDataCurrent = currentTotals.values.every((v) => (v) == 0);
-    final bool noDataLast = lastTotals.values.every((v) => (v) == 0);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -1591,75 +2016,125 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Period header with navigation
+          if (_selectedPeriod == 'weekly')
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
           Text(
-            'Weekly Macro Distribution',
+                  _formatWeekRange(_selectedWeekStart),
             style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.black54,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          Row(
+            children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left),
+                      onPressed: () {
+                        setState(() {
+                          _selectedWeekStart = _selectedWeekStart.subtract(const Duration(days: 7));
+                        });
+                        _refreshWeeklyData();
+                      },
+                      tooltip: 'Previous week',
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right),
+                      onPressed: () {
+                        final now = DateTime.now();
+                        final currentMonday = DateTime(now.year, now.month, now.day)
+                            .subtract(Duration(days: now.weekday - 1));
+                        final next = _selectedWeekStart.add(const Duration(days: 7));
+                        setState(() {
+                          _selectedWeekStart = next.isAfter(currentMonday) ? currentMonday : next;
+                        });
+                        _refreshWeeklyData();
+                      },
+                      tooltip: 'Next week',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          if (_selectedPeriod == 'monthly')
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                  '${_shortMonth(_selectedMonthStart.month)} ${_selectedMonthStart.year}',
+                      style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.black54,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left),
+                      onPressed: () async {
+                        setState(() {
+                          _selectedMonthStart = DateTime(_selectedMonthStart.year, _selectedMonthStart.month - 1, 1);
+                        });
+                        await _refreshMonthlyData();
+                      },
+                      tooltip: 'Previous month',
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right),
+                      onPressed: () async {
+                        final now = DateTime.now();
+                        final currentMonth = DateTime(now.year, now.month, 1);
+                        final next = DateTime(_selectedMonthStart.year, _selectedMonthStart.month + 1, 1);
+                        setState(() {
+                          _selectedMonthStart = next.isAfter(currentMonth) ? currentMonth : next;
+                        });
+                        await _refreshMonthlyData();
+                      },
+                      tooltip: 'Next month',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          const SizedBox(height: 12),
+          const Text(
+            'Macro Distribution',
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
               color: Colors.black87,
+                              ),
+                            ),
+          const SizedBox(height: 20),
+          
+          // Single pie chart
+          Center(
+            child: Column(
+              children: [
+                if (isLoading)
+                  SizedBox(height: 250, child: _buildChartSkeleton())
+                else if (noData)
+                  SizedBox(
+                    height: 250,
+                    child: _buildNoDataBanner('No data for this ${_selectedPeriod == 'weekly' ? 'week' : 'month'}'),
+                  )
+                else
+                  SizedBox(
+                    height: 250,
+                    width: 250,
+                    child: PieChart(
+                      pieFromTotals(currentTotals),
+                              ),
+                            ),
+                          ],
             ),
           ),
           const SizedBox(height: 20),
-          
-          Row(
-            children: [
-              // This week pie chart
-              Expanded(
-                child: Column(
-                  children: [
-                    Text(
-                      'This Week',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    if (_isWeeklyLoading)
-                      SizedBox(height: 150, child: _buildChartSkeleton())
-                    else if (noDataCurrent)
-                      _buildNoDataBanner('No data')
-                    else
-                      SizedBox(
-                        height: 150,
-                        child: PieChart(
-                          pieFromTotals(currentTotals, true),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              
-              // Last week pie chart
-              Expanded(
-                child: Column(
-                  children: [
-                    Text(
-                      'Last Week',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    if (_isWeeklyLoading)
-                      SizedBox(height: 150, child: _buildChartSkeleton())
-                    else if (noDataLast)
-                      _buildNoDataBanner('No data')
-                    else
-                      SizedBox(
-                        height: 150,
-                        child: PieChart(
-                          pieFromTotals(lastTotals, false),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Legend for pie charts
+          // Legend for pie chart
           Wrap(
             alignment: WrapAlignment.center,
             spacing: 12,
@@ -1671,22 +2146,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
               _buildMacroLegendItem('Fiber', Colors.purple[400]!),
               _buildMacroLegendItem('Sugar', Colors.orange[400]!),
             ],
-          ),
-          
-          // Legend
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _buildMacroLegendItem('Protein', Colors.red[400]!),
-              const SizedBox(width: 16),
-              _buildMacroLegendItem('Carbs', Colors.blue[400]!),
-              const SizedBox(width: 16),
-              _buildMacroLegendItem('Fat', Colors.green[400]!),
-            ],
-          ),
-        ],
-      ),
+                    ),
+                  ],
+                ),
     );
   }
 
@@ -1699,15 +2161,15 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey[200]!),
       ),
-      child: Column(
+                child: Column(
         mainAxisSize: MainAxisSize.min,
-        children: [
+                  children: [
           Icon(Icons.insights_outlined, color: Colors.grey[400], size: 36),
           const SizedBox(height: 8),
-          Text(
+                    Text(
             message,
             style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600),
-          ),
+                      ),
         ],
       ),
     );
@@ -1733,6 +2195,117 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
           }),
         );
       },
+    );
+  }
+
+  LineChartData _buildMonthlyChartData(List<FlSpot> spots, List<String> sortedKeys, double dailyGoal) {
+    return LineChartData(
+      lineTouchData: LineTouchData(
+        enabled: true,
+        touchTooltipData: LineTouchTooltipData(
+          getTooltipItems: (touchedSpots) {
+            return touchedSpots.map((barSpot) {
+              final v = barSpot.y;
+              final goal = _goals?.calorieGoal ?? 0;
+              final pct = goal > 0 ? (v / goal) * 100 : 0;
+              return LineTooltipItem(
+                '${v.toStringAsFixed(0)} kcal\n${pct.toStringAsFixed(0)}% of goal',
+                const TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+              );
+            }).toList();
+          },
+        ),
+        touchCallback: (FlTouchEvent event, LineTouchResponse? response) {
+          if (event is FlTapUpEvent && response?.lineBarSpots != null && response!.lineBarSpots!.isNotEmpty) {
+            final spot = response.lineBarSpots!.first;
+            final dayIndex = spot.x.toInt();
+            if (dayIndex >= 0 && dayIndex < sortedKeys.length) {
+              final dateStr = sortedKeys[dayIndex];
+              final date = DateTime.tryParse(dateStr);
+              if (date != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => MealTrackerScreen(
+                      showBackButton: true,
+                      initialDate: date,
+                    ),
+                  ),
+                );
+              }
+            }
+          }
+        },
+      ),
+      minX: 0,
+      maxX: (spots.isEmpty ? 6 : (spots.length - 1)).toDouble(),
+      minY: 0,
+      maxY: (dailyGoal * 1.4).clamp(1000, 3000),
+      gridData: FlGridData(
+        show: true,
+        getDrawingHorizontalLine: (v) => FlLine(color: Colors.grey[300]!, strokeWidth: 1),
+        getDrawingVerticalLine: (v) => FlLine(color: Colors.grey[300]!, strokeWidth: 1),
+      ),
+      titlesData: FlTitlesData(
+        show: true,
+        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        bottomTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            reservedSize: 24,
+            interval: _selectedPeriod == 'monthly' && sortedKeys.length > 15 ? 2.0 : 1.0, // Show every other date if too many
+            getTitlesWidget: (value, meta) {
+              final idx = value.toInt();
+              if (idx < 0 || idx >= sortedKeys.length) return const SizedBox.shrink();
+              final d = DateTime.tryParse(sortedKeys[idx]);
+              final label = d != null ? '${_shortMonth(d.month)} ${d.day}' : '';
+              return Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey));
+            },
+                              ),
+                            ),
+        leftTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            interval: 600,
+            reservedSize: 36,
+            getTitlesWidget: (value, meta) => Text(value.toInt().toString(), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                    ),
+                ),
+              ),
+      borderData: FlBorderData(show: true, border: Border.all(color: Colors.grey[300]!)),
+      lineBarsData: [
+        // Filled green curved line
+        LineChartBarData(
+          spots: spots.isEmpty ? [for (int i = 0; i < 7; i++) FlSpot(i.toDouble(), 0)] : spots,
+          isCurved: true,
+          color: Colors.green[600],
+          barWidth: 3,
+          isStrokeCapRound: true,
+          belowBarData: BarAreaData(
+            show: true,
+            color: Colors.green[100]!.withOpacity(0.6),
+            gradient: LinearGradient(
+              colors: [Colors.green[200]!, Colors.green[50]!],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+          dotData: FlDotData(show: false),
+        ),
+        // Dashed orange goal line
+        LineChartBarData(
+          spots: [
+            FlSpot(0, dailyGoal),
+            FlSpot((spots.isEmpty ? 6 : (spots.length - 1)).toDouble(), dailyGoal),
+          ],
+          color: Colors.orange,
+          barWidth: 2,
+          isCurved: false,
+          dashArray: [6, 6],
+          dotData: FlDotData(show: false),
+          ),
+        ],
     );
   }
 }
