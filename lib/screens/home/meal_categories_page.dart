@@ -146,20 +146,21 @@ class AllMealCategoriesPage extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // Centered asset (image or gif) with padding for floating effect
-              Center(
+              // Centered asset (image or gif) with padding for floating effect, positioned slightly higher
+              Align(
+                alignment: const Alignment(0, -0.9),
                 child: Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),  
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: Image.asset(
                       asset,
                       fit: BoxFit.contain,
-                      width: 100,
-                      height: 100,
+                      width: category == 'chicken' || category == 'pork' ? 70 : 100,
+                      height: category == 'chicken' || category == 'pork' ? 70 : 100,
                       errorBuilder: (context, error, stackTrace) => Container(
-                        width: 100,
-                        height: 100,
+                        width: category == 'chicken' || category == 'pork' ? 70 : 100,
+                        height: category == 'chicken' || category == 'pork' ? 70 : 100,
                         color: Colors.grey[200],
                         child: Icon(
                           Icons.restaurant,
@@ -187,7 +188,7 @@ class AllMealCategoriesPage extends StatelessWidget {
                     name,
                     style: const TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.normal,
                       color: Colors.black,
                       shadows: [
                         Shadow(

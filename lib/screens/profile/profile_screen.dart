@@ -448,24 +448,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 144, 219, 147),
-      appBar: AppBar(
-        title: const Text(
-          'Profile',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-            color: Colors.black,
-          ),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: _loading
+      backgroundColor: const Color(0xFFC1E7AF),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            _loading
           ? Center(
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -485,6 +472,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  const SizedBox(height: 45),
                   // Avatar section
                   SizedBox(
                     height: 160,
@@ -540,7 +528,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                                 padding: const EdgeInsets.all(8),
                                 child: Icon(
-                                  Icons.camera_alt, 
+                                  Icons.photo_camera, 
                                   color: _uploadingImage
                                       ? Colors.grey 
                                       : const Color.fromARGB(255, 97, 212, 86), 
@@ -664,6 +652,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
+            // Back button
+            Positioned(
+              top: 8,
+              left: 8,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

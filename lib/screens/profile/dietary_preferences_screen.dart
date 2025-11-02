@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../models/recipes.dart';
+import '../../services/recipe_service.dart';
+import 'dishes_like_selection_page.dart';
 
 class DietaryPreferencesScreen extends StatefulWidget {
   const DietaryPreferencesScreen({super.key});
@@ -13,9 +16,15 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
   List<String> _dishPreferences = [];
   List<String> _allergies = [];
   List<String> _healthConditions = [];
+  List<String> _dietTypes = [];
   
   bool _loading = true;
   bool _saving = false;
+  
+  // Debug: Excluded recipes and warnings
+  bool _loadingExcluded = false;
+  List<Map<String, dynamic>> _excludedRecipes = []; // {recipe, matchedAllergen, matchingIngredients}
+  List<Map<String, dynamic>> _warningRecipes = []; // {recipe, allergy, matchingIngredients}
 
   // Available options
   final List<Map<String, dynamic>> _dishOptions = [
@@ -47,13 +56,25 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
     {'key': 'diabetes', 'title': '🩺 Diabetes / High Blood Sugar', 'desc': 'Lower carbs, higher fiber'},
     {'key': 'stroke_recovery', 'title': '🧠 Stroke Recovery', 'desc': 'Low sodium, heart-healthy fats'},
     {'key': 'hypertension', 'title': '🫀 High Blood Pressure', 'desc': 'Very low sodium, DASH diet'},
-    {'key': 'fitness_enthusiast', 'title': '💪 Fitness Enthusiast', 'desc': 'High protein, increased calories'},
-    {'key': 'kidney_disease', 'title': '🫘 Kidney Disease', 'desc': 'Controlled protein, low sodium'},
     {'key': 'heart_disease', 'title': '❤️ Heart Disease', 'desc': 'Low saturated fat, omega-3 rich'},
-    {'key': 'elderly', 'title': '👴 Senior (65+)', 'desc': 'Higher protein, calcium, vitamin D'},
-    {'key': 'anemia', 'title': '🩸 Anemia / Low Iron', 'desc': 'Iron-rich foods, vitamin C'},
     {'key': 'fatty_liver', 'title': '🍺 Fatty Liver Disease', 'desc': 'Very low sugar, reduced fats'},
     {'key': 'malnutrition', 'title': '🌾 Malnutrition / Underweight', 'desc': 'High calories, nutrient-dense foods'},
+  ];
+
+  final List<String> _dietTypeOptions = [
+    'Balance Diet',
+    'High Protein',
+    'Low Carb',
+    'Low Fat',
+    'Vegetarian',
+    'Vegan',
+    'Dairy-Free',
+    'Gluten-Free',
+    'Pescatarian',
+    'Flexitarian',
+    'Keto',
+    'Paleo',
+    'Mediterranean',
   ];
 
   @override
@@ -75,9 +96,10 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
         if (data != null) {
           setState(() {
             // Dish preferences and health data
-            _dishPreferences = List<String>.from(data['dish_preferences'] ?? []);
+            _dishPreferences = List<String>.from(data['like_dishes'] ?? data['dish_preferences'] ?? []);
             _allergies = List<String>.from(data['allergies'] ?? []);
             _healthConditions = List<String>.from(data['health_conditions'] ?? []);
+            _dietTypes = List<String>.from(data['diet_type'] ?? []);
           });
         }
       } catch (e) {
@@ -101,12 +123,18 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
             .from('user_preferences')
             .upsert({
               'user_id': user.id,
-              'dish_preferences': _dishPreferences,
+              'like_dishes': _dishPreferences,
               'allergies': _allergies,
               'health_conditions': _healthConditions,
+              'diet_type': _dietTypes,
             });
         
         if (!mounted) return;
+        // Clear excluded recipes and warnings cache after saving
+          setState(() {
+          _excludedRecipes = [];
+          _warningRecipes = [];
+          });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Preferences updated successfully!')),
         );
@@ -172,13 +200,36 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
                       title: const Text('Dishes I like'),
                       subtitle: Text(_getDisplayText(_dishPreferences, _dishOptions, 'key')),
                       leading: const Icon(Icons.restaurant_menu, color: Color(0xFF4CAF50)),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      onTap: () async {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => DishesLikeSelectionPage(
+                              initialSelections: _dishPreferences,
+                            ),
+                          ),
+                        );
+                        if (result != null && result is List<String>) {
+                          setState(() => _dishPreferences = result);
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Diet Type
+                  Card(
+                    child: ListTile(
+                      title: const Text('Diet Type'),
+                      subtitle: Text(_dietTypes.isEmpty ? 'None selected' : _dietTypes.join(', ')),
+                      leading: const Icon(Icons.restaurant, color: Colors.blue),
                       trailing: const Icon(Icons.edit),
-                      onTap: () => _showMultiSelectDialog(
-                        'Dishes I like',
-                        _dishOptions,
-                        _dishPreferences,
-                        'key',
-                        (selected) => setState(() => _dishPreferences = selected),
+                      onTap: () => _showSimpleMultiSelectDialog(
+                        'Diet Type',
+                        _dietTypeOptions,
+                        _dietTypes,
+                        (selected) => setState(() => _dietTypes = selected),
                       ),
                     ),
                   ),
@@ -215,11 +266,263 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
                         'Allergies & Restrictions',
                         _allergyOptions,
                         _allergies,
-                        (selected) => setState(() => _allergies = selected),
+                        (selected) {
+                          setState(() {
+                            _allergies = selected;
+                            _excludedRecipes = []; // Reset when allergies change
+                            _warningRecipes = [];
+                          });
+                        },
                       ),
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
+                  
+                  // Debug Section: Excluded Recipes & Warnings
+                  if (_allergies.isNotEmpty) ...[
+                    ExpansionTile(
+                      initiallyExpanded: false,
+                      leading: const Icon(Icons.bug_report, color: Colors.orange),
+                      title: const Text(
+                        'Debug: Excluded Recipes',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(_excludedRecipes.isEmpty 
+                          ? 'Tap to check excluded recipes'
+                          : '${_excludedRecipes.length} excluded, ${_warningRecipes.length} with warnings'),
+                      onExpansionChanged: (expanded) {
+                        if (expanded && _excludedRecipes.isEmpty) {
+                          _checkExcludedRecipes();
+                        }
+                      },
+                    children: [
+                        if (_loadingExcluded)
+                          const Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Center(child: CircularProgressIndicator()),
+                          )
+                        else if (_excludedRecipes.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text(
+                              'No recipes excluded based on your allergies.',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                          )
+                        else
+                          ..._excludedRecipes.map((item) {
+                            final recipe = item['recipe'] as Recipe;
+                            final allergen = item['matchedAllergen'] as String;
+                            return ListTile(
+                              dense: true,
+                              leading: const Icon(Icons.block, color: Colors.red, size: 20),
+                              title: Text(
+                                recipe.title,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              subtitle: Text(
+                                'Matched: $allergen',
+                                style: TextStyle(fontSize: 12, color: Colors.red[700]),
+                              ),
+                              trailing: Icon(Icons.info_outline, size: 16, color: Colors.grey[600]),
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: Text(recipe.title),
+                                    content: SingleChildScrollView(
+                              child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                children: [
+                                          Text(
+                                            'Excluded due to: $allergen',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.red,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          const Text(
+                                            'Ingredients:',
+                                            style: TextStyle(fontWeight: FontWeight.bold),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          ...recipe.ingredients.map((ing) {
+                                            final matchingIngs = item['matchingIngredients'] as List<String>? ?? [];
+                                            final isMatching = matchingIngs.any((mi) => ing.toLowerCase().contains(mi.toLowerCase()) || mi.toLowerCase().contains(ing.toLowerCase()));
+                                            return Text.rich(
+                                              TextSpan(
+                                                children: [
+                                                  const TextSpan(text: '• '),
+                                                  TextSpan(
+                                                    text: ing,
+                                                    style: TextStyle(
+                                                      fontWeight: isMatching ? FontWeight.bold : FontWeight.normal,
+                                                      color: isMatching ? Colors.red[700] : Colors.black,
+                                                      decoration: isMatching ? TextDecoration.underline : TextDecoration.none,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          }),
+                                          if (recipe.allergyWarning.isNotEmpty) ...[
+                                            const SizedBox(height: 12),
+                                            const Text(
+                                              'Allergy Warning:',
+                                              style: TextStyle(fontWeight: FontWeight.bold),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(recipe.allergyWarning),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('Close'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            );
+                          }).toList(),
+                    ],
+                  ),
+                const SizedBox(height: 12),
+                
+                    // Warnings Section (Optional Ingredients Only)
+                    ExpansionTile(
+                      initiallyExpanded: false,
+                      leading: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                      title: const Text(
+                        'Recipes with Allergen Warnings',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(_warningRecipes.isEmpty 
+                          ? 'Tap to check recipes with optional allergens'
+                          : '${_warningRecipes.length} recipes (can still add)'),
+                      onExpansionChanged: (expanded) {
+                        if (expanded && _warningRecipes.isEmpty) {
+                          _checkWarningRecipes();
+                        }
+                      },
+                    children: [
+                        if (_loadingExcluded)
+                          const Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Center(child: CircularProgressIndicator()),
+                          )
+                        else if (_warningRecipes.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text(
+                              'No recipes with optional allergen ingredients.',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                          )
+                        else
+                          ..._warningRecipes.map((item) {
+                            final recipe = item['recipe'] as Recipe;
+                            final allergen = item['allergy'] as String;
+                            final matchingIngs = item['matchingIngredients'] as List<String>;
+                            return ListTile(
+                              dense: true,
+                              leading: const Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                              title: Text(
+                                recipe.title,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              subtitle: Text(
+                                'Warning: $allergen (optional ingredients)',
+                                style: TextStyle(fontSize: 12, color: Colors.orange[700]),
+                              ),
+                              trailing: Icon(Icons.info_outline, size: 16, color: Colors.grey[600]),
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: Text(recipe.title),
+                                    content: SingleChildScrollView(
+                              child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(12),
+                                            decoration: BoxDecoration(
+                                              color: Colors.orange[50],
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: Colors.orange[200]!),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.warning_amber_rounded, color: Colors.orange[700], size: 20),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    'This recipe contains $allergen in OPTIONAL ingredients. You can still add it, but be careful!',
+                                                    style: TextStyle(
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.orange[900],
+                                                      fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                                            ),
+                  ),
+                  const SizedBox(height: 12),
+                                          const Text(
+                                            'Ingredients:',
+                                            style: TextStyle(fontWeight: FontWeight.bold),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          ...recipe.ingredients.map((ing) {
+                                            final isMatching = matchingIngs.any((mi) {
+                                              final miLower = mi.toLowerCase();
+                                              final ingLower = ing.toLowerCase();
+                                              return ingLower.contains(miLower) || miLower.contains(ingLower);
+                                            });
+                                            return Text.rich(
+                                              TextSpan(
+                    children: [
+                                                  const TextSpan(text: '• '),
+                                                  TextSpan(
+                                                    text: ing,
+                                                    style: TextStyle(
+                                                      fontWeight: isMatching ? FontWeight.bold : FontWeight.normal,
+                                                      color: isMatching ? Colors.orange[700] : Colors.black,
+                                                      decoration: isMatching ? TextDecoration.underline : TextDecoration.none,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          }),
+                                ],
+                              ),
+                            ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('Close'),
+                          ),
+                                    ],
+                        ),
+                                );
+                              },
+                            );
+                          }).toList(),
+                    ],
+                  ),
+                    const SizedBox(height: 12),
+                  ],
+                
+                const SizedBox(height: 20),
                 
                 // Save Button
                 SizedBox(
@@ -383,6 +686,97 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
               ],
             ),
     );
+  }
+
+  Future<void> _checkExcludedRecipes() async {
+    if (_allergies.isEmpty) {
+      setState(() => _excludedRecipes = []);
+      return;
+    }
+
+    setState(() => _loadingExcluded = true);
+
+    try {
+      // Fetch all recipes without filtering
+      final allRecipes = await RecipeService.fetchRecipes(userId: null);
+      
+      final excluded = <Map<String, dynamic>>[];
+      
+      for (final recipe in allRecipes) {
+        // Check which allergen matches in required ingredients (exclusion)
+        String? matchedAllergen;
+        List<String> matchingIngredients = [];
+        
+        for (final allergy in _allergies) {
+          final result = RecipeService.getMatchingIngredients(recipe, allergy);
+          // Check if it's excluded (has required match)
+          final filtered = RecipeService.filterRecipesByAllergies([recipe], [allergy]);
+          if (filtered.isEmpty && result.isNotEmpty) {
+            matchedAllergen = allergy;
+            matchingIngredients = result;
+            break;
+          }
+        }
+        
+        if (matchedAllergen != null) {
+          excluded.add({
+            'recipe': recipe,
+            'matchedAllergen': matchedAllergen,
+            'matchingIngredients': matchingIngredients,
+          });
+        }
+      }
+
+      // Also check for warning recipes (optional ingredients only)
+      final warnings = RecipeService.getRecipesWithWarnings(allRecipes, _allergies);
+
+      if (mounted) {
+                setState(() {
+          _excludedRecipes = excluded;
+          _warningRecipes = warnings;
+          _loadingExcluded = false;
+        });
+      }
+    } catch (e) {
+      print('Error checking excluded recipes: $e');
+      if (mounted) {
+                setState(() {
+          _loadingExcluded = false;
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading excluded recipes: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _checkWarningRecipes() async {
+    if (_allergies.isEmpty) {
+      setState(() => _warningRecipes = []);
+      return;
+    }
+
+    setState(() => _loadingExcluded = true);
+
+    try {
+      // Fetch all recipes
+      final allRecipes = await RecipeService.fetchRecipes(userId: null);
+      final warnings = RecipeService.getRecipesWithWarnings(allRecipes, _allergies);
+
+      if (mounted) {
+                  setState(() {
+          _warningRecipes = warnings;
+          _loadingExcluded = false;
+        });
+      }
+    } catch (e) {
+      print('Error checking warning recipes: $e');
+      if (mounted) {
+                  setState(() {
+          _loadingExcluded = false;
+        });
+      }
+    }
   }
 
 } 
