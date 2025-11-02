@@ -5,6 +5,7 @@ import '../../widgets/animated_logo.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../onboarding/diet_type.dart';
 import '../../services/login_history_service.dart';
+import 'package:lottie/lottie.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,6 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   List<String> _emailSuggestions = [];
   bool _showSuggestions = false;
+  bool _showSuccessAnimation = false;
 
   @override
   void initState() {
@@ -31,6 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
+        _showSuccessAnimation = false;
       });
 
       final navigatorContext = context;
@@ -56,6 +59,11 @@ class _LoginScreenState extends State<LoginScreen> {
           final user = response.user;
 
           if (user?.emailConfirmedAt == null) {
+            if (!mounted) return;
+            setState(() {
+              _isLoading = false;
+              _showSuccessAnimation = false;
+            });
             ScaffoldMessenger.of(navigatorContext).showSnackBar(
               const SnackBar(
                 content: Text('Please verify your email before logging in.'),
@@ -64,6 +72,18 @@ class _LoginScreenState extends State<LoginScreen> {
             await Supabase.instance.client.auth.signOut();
             return;
           }
+
+          // Show success animation
+          if (!mounted) return;
+          setState(() {
+            _isLoading = false;
+            _showSuccessAnimation = true;
+          });
+
+          // Wait for animation to complete (animation is ~1 second, op: 63 frames at 24fps)
+          await Future.delayed(const Duration(milliseconds: 1500));
+
+          if (!mounted) return;
 
           final prefs = await Supabase.instance.client
               .from('user_preferences')
@@ -85,6 +105,11 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           }
         } else {
+          if (!mounted) return;
+          setState(() {
+            _isLoading = false;
+            _showSuccessAnimation = false;
+          });
           ScaffoldMessenger.of(navigatorContext).showSnackBar(
             const SnackBar(content: Text('Login failed. Please try again.')),
           );
@@ -93,6 +118,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (!mounted) return;
         setState(() {
           _isLoading = false;
+          _showSuccessAnimation = false;
         });
 
         String errorMsg = e.toString().toLowerCase();
@@ -295,30 +321,47 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                             ),
                             const SizedBox(height: 24),
-                            _isLoading
-                                ? const CircularProgressIndicator()
-                                : SizedBox(
-                                        width: MediaQuery.of(context).size.width * 0.75,
-                                    child: ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                            backgroundColor:
-                                                const Color(0xFF4CAF50),
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(30),
+                            _showSuccessAnimation
+                                ? SizedBox(
+                                    width: MediaQuery.of(context).size.width * 0.75,
+                                    child: Center(
+                                      child: SizedBox(
+                                        width: 70,
+                                        height: 70,
+                                        child: Lottie.asset(
+                                          'assets/widgets/Checked.json',
+                                          fit: BoxFit.contain,
                                         ),
-                                        padding: const EdgeInsets.symmetric(
-                                              vertical: 14,
-                                        ),
-                                      ),
-                                      onPressed: _login,
-                                      child: const Text(
-                                        'Login',
-                                        style: TextStyle(fontSize: 18),
                                       ),
                                     ),
-                                  ),
+                                  )
+                                : _isLoading
+                                    ? SizedBox(
+                                        width: MediaQuery.of(context).size.width * 0.75,
+                                        child: const Center(
+                                          child: CircularProgressIndicator(),
+                                        ),
+                                      )
+                                    : SizedBox(
+                                        width: MediaQuery.of(context).size.width * 0.75,
+                                        child: ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: const Color(0xFF4CAF50),
+                                            foregroundColor: Colors.white,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(30),
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 14,
+                                            ),
+                                          ),
+                                          onPressed: _login,
+                                          child: const Text(
+                                            'Login',
+                                            style: TextStyle(fontSize: 18),
+                                          ),
+                                        ),
+                                      ),
                           ],
                         ),
                           ),
