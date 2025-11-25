@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:nutriplan/screens/auth/login_screen.dart';
-import 'package:nutriplan/screens/home/home_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (e) {
+    // .env file not found, will use environment variables or defaults
+    print('Warning: .env file not found. Using environment variables or defaults.');
+  }
+  
   await Supabase.initialize(
-    url: 'https://ehpwztftkbzjwezmdwzt.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVocHd6dGZ0a2J6andlem1kd3p0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE5ODU3NjUsImV4cCI6MjA2NzU2MTc2NX0.2jdAwYW8Iv1j5SkrW9YrPCzqEjM1R8jVcuM_5hrabM4',
+    url: dotenv.env['SUPABASE_URL'] ?? const String.fromEnvironment('SUPABASE_URL', defaultValue: ''),
+    anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? const String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: ''),
   );
   runApp(const NutriPlan());
 }
@@ -30,7 +37,6 @@ class NutriPlan extends StatelessWidget {
         // Responsive text themes for iPhone 11
         textTheme: const TextTheme(
           headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-          headlineMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
           headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),  
           titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
           titleMedium: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),

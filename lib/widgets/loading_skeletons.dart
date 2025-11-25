@@ -69,35 +69,95 @@ class _RecipeListSkeletonState extends State<RecipeListSkeleton>
   Widget _buildLoadingHeader() {
     return Container(
       margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.blue[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue[200]!, width: 1),
+        gradient: LinearGradient(
+          colors: [
+            Colors.blue[50]!,
+            Colors.green[50]!,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.blue[200]!.withOpacity(0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blue[100]!.withOpacity(0.5),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.restaurant_menu,
-            color: Colors.blue[600],
-            size: 20,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            widget.loadingMessage ?? 'Loading recipes...',
-            style: TextStyle(
-              color: Colors.blue[700],
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.blue[200]!.withOpacity(0.3),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.restaurant_menu,
+              color: Colors.blue[600],
+              size: 20,
             ),
           ),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue[600]!),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.loadingMessage ?? 'Loading recipes...',
+                  style: TextStyle(
+                    color: Colors.blue[700],
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Fetching delicious recipes',
+                  style: TextStyle(
+                    color: Colors.green[600],
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.blue[200]!.withOpacity(0.3),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+            child: SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue[600]!),
+              ),
             ),
           ),
         ],
@@ -174,35 +234,95 @@ class _MealHistorySkeletonState extends State<MealHistorySkeleton>
   Widget _buildLoadingHeader() {
     return Container(
       margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.green[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.green[200]!, width: 1),
+        gradient: LinearGradient(
+          colors: [
+            Colors.green[50]!,
+            Colors.blue[50]!,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.green[200]!.withOpacity(0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green[100]!.withOpacity(0.5),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.history,
-            color: Colors.green[600],
-            size: 20,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            widget.loadingMessage ?? 'Loading meal history...',
-            style: TextStyle(
-              color: Colors.green[700],
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.green[200]!.withOpacity(0.3),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.history,
+              color: Colors.green[600],
+              size: 20,
             ),
           ),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.green[600]!),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.loadingMessage ?? 'Loading meal history...',
+                  style: TextStyle(
+                    color: Colors.green[700],
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Processing your data',
+                  style: TextStyle(
+                    color: Colors.blue[600],
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.green[200]!.withOpacity(0.3),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+            child: SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.green[600]!),
+              ),
             ),
           ),
         ],

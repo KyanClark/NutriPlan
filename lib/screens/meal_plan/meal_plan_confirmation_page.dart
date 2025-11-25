@@ -35,32 +35,73 @@ class _MealPlanConfirmationPageState extends State<MealPlanConfirmationPage> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: _goToMealPlanner,
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.check_circle, color: Colors.green, size: 80),
-                SizedBox(height: 24),
-                Text(
-                  'Meal Plan added!',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'Your meal plan has been set. You will be redirected shortly.\nTap anywhere to go back now.',
-                  style: TextStyle(fontSize: 18, color: Colors.black54),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.check_circle, color: Colors.green, size: 80),
+              const SizedBox(height: 24),
+              const Text(
+                'Meal Plan added!',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Your meal plan has been set.',
+                style: TextStyle(fontSize: 18, color: Colors.black54),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 48),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Skip button
+                  OutlinedButton(
+                    onPressed: _goToMealPlanner,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                      side: const BorderSide(color: Colors.grey),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      'Skip',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Let's Cook button
+                  ElevatedButton(
+                    onPressed: _goToMealPlanner,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange[700],
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      "Let's Cook",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),

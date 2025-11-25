@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../services/nutrition_calculator_service.dart';
+import '../../models/recipes.dart';
+import '../../services/recipe_service.dart';
+import 'dishes_like_selection_page.dart';
 
 class DietaryPreferencesScreen extends StatefulWidget {
   const DietaryPreferencesScreen({super.key});
@@ -14,20 +16,15 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
   List<String> _dishPreferences = [];
   List<String> _allergies = [];
   List<String> _healthConditions = [];
-  
-  // User profile data
-  int? _age;
-  String? _gender;
-  double? _heightCm;
-  double? _weightKg;
-  String? _activityLevel;
-  String? _weightGoal;
-  
-  // Nutrition goals (calculated)
-  Map<String, double>? _nutritionGoals;
+  List<String> _dietTypes = [];
   
   bool _loading = true;
   bool _saving = false;
+  
+  // Debug: Excluded recipes and warnings
+  bool _loadingExcluded = false;
+  List<Map<String, dynamic>> _excludedRecipes = []; // {recipe, matchedAllergen, matchingIngredients}
+  List<Map<String, dynamic>> _warningRecipes = []; // {recipe, allergy, matchingIngredients}
 
   // Available options
   final List<Map<String, dynamic>> _dishOptions = [
@@ -59,13 +56,25 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
     {'key': 'diabetes', 'title': '🩺 Diabetes / High Blood Sugar', 'desc': 'Lower carbs, higher fiber'},
     {'key': 'stroke_recovery', 'title': '🧠 Stroke Recovery', 'desc': 'Low sodium, heart-healthy fats'},
     {'key': 'hypertension', 'title': '🫀 High Blood Pressure', 'desc': 'Very low sodium, DASH diet'},
-    {'key': 'fitness_enthusiast', 'title': '💪 Fitness Enthusiast', 'desc': 'High protein, increased calories'},
-    {'key': 'kidney_disease', 'title': '🫘 Kidney Disease', 'desc': 'Controlled protein, low sodium'},
     {'key': 'heart_disease', 'title': '❤️ Heart Disease', 'desc': 'Low saturated fat, omega-3 rich'},
-    {'key': 'elderly', 'title': '👴 Senior (65+)', 'desc': 'Higher protein, calcium, vitamin D'},
-    {'key': 'anemia', 'title': '🩸 Anemia / Low Iron', 'desc': 'Iron-rich foods, vitamin C'},
     {'key': 'fatty_liver', 'title': '🍺 Fatty Liver Disease', 'desc': 'Very low sugar, reduced fats'},
     {'key': 'malnutrition', 'title': '🌾 Malnutrition / Underweight', 'desc': 'High calories, nutrient-dense foods'},
+  ];
+
+  final List<String> _dietTypeOptions = [
+    'Balance Diet',
+    'High Protein',
+    'Low Carb',
+    'Low Fat',
+    'Vegetarian',
+    'Vegan',
+    'Dairy-Free',
+    'Gluten-Free',
+    'Pescatarian',
+    'Flexitarian',
+    'Keto',
+    'Paleo',
+    'Mediterranean',
   ];
 
   @override
@@ -87,34 +96,10 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
         if (data != null) {
           setState(() {
             // Dish preferences and health data
-            _dishPreferences = List<String>.from(data['dish_preferences'] ?? []);
+            _dishPreferences = List<String>.from(data['like_dishes'] ?? data['dish_preferences'] ?? []);
             _allergies = List<String>.from(data['allergies'] ?? []);
             _healthConditions = List<String>.from(data['health_conditions'] ?? []);
-            
-            // User profile data
-            _age = data['age'] as int?;
-            _gender = data['gender'] as String?;
-            _heightCm = data['height_cm']?.toDouble();
-            _weightKg = data['weight_kg']?.toDouble();
-            _activityLevel = data['activity_level'] as String?;
-            _weightGoal = data['weight_goal'] as String?;
-            
-            // Nutrition goals
-            if (_age != null && _gender != null && _heightCm != null && _weightKg != null && 
-                _activityLevel != null && _weightGoal != null) {
-              _nutritionGoals = {
-                'calories': data['calorie_goal']?.toDouble() ?? 2000.0,
-                'protein': data['protein_goal']?.toDouble() ?? 150.0,
-                'carbs': data['carb_goal']?.toDouble() ?? 250.0,
-                'fat': data['fat_goal']?.toDouble() ?? 70.0,
-                'fiber': data['fiber_goal']?.toDouble() ?? 30.0,
-                'sugar': data['sugar_goal']?.toDouble() ?? 50.0,
-                'cholesterol': data['cholesterol_goal']?.toDouble() ?? 300.0,
-                'sodium': data['sodium_limit']?.toDouble() ?? 2300.0,
-                'iron_goal': data['iron_goal']?.toDouble() ?? 18.0,
-                'vitamin_c_goal': data['vitamin_c_goal']?.toDouble() ?? 90.0,
-              };
-            }
+            _dietTypes = List<String>.from(data['diet_type'] ?? []);
           });
         }
       } catch (e) {
@@ -134,59 +119,22 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
     final user = Supabase.instance.client.auth.currentUser;
     if (user != null) {
       try {
-        // Recalculate nutrition goals if profile data changed
-        Map<String, double>? updatedGoals;
-        if (_age != null && _gender != null && _heightCm != null && _weightKg != null && 
-            _activityLevel != null && _weightGoal != null) {
-          updatedGoals = NutritionCalculatorService.calculateGoals(
-            age: _age!,
-            gender: _gender!,
-            heightCm: _heightCm!,
-            weightKg: _weightKg!,
-            activityLevel: _activityLevel!,
-            weightGoal: _weightGoal!,
-          );
-          
-          // Apply health condition adjustments
-          if (_healthConditions.isNotEmpty && !_healthConditions.contains('none')) {
-            updatedGoals = _applyHealthAdjustments(updatedGoals);
-          }
-        }
-
         await Supabase.instance.client
             .from('user_preferences')
             .upsert({
               'user_id': user.id,
-              'dish_preferences': _dishPreferences,
+              'like_dishes': _dishPreferences,
               'allergies': _allergies,
               'health_conditions': _healthConditions,
-              'age': _age,
-              'gender': _gender,
-              'height_cm': _heightCm,
-              'weight_kg': _weightKg,
-              'activity_level': _activityLevel,
-              'weight_goal': _weightGoal,
-              if (updatedGoals != null) ...{
-                'calorie_goal': updatedGoals['calories'],
-                'protein_goal': updatedGoals['protein'],
-                'carb_goal': updatedGoals['carbs'],
-                'fat_goal': updatedGoals['fat'],
-                'fiber_goal': updatedGoals['fiber'],
-                'sugar_goal': updatedGoals['sugar'],
-                'cholesterol_goal': updatedGoals['cholesterol'],
-                'sodium_limit': updatedGoals['sodium'],
-                'iron_goal': updatedGoals['iron_goal'],
-                'vitamin_c_goal': updatedGoals['vitamin_c_goal'],
-              },
+              'diet_type': _dietTypes,
             });
         
-        if (updatedGoals != null) {
-          setState(() {
-            _nutritionGoals = updatedGoals;
-          });
-        }
-        
         if (!mounted) return;
+        // Clear excluded recipes and warnings cache after saving
+          setState(() {
+          _excludedRecipes = [];
+          _warningRecipes = [];
+          });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Preferences updated successfully!')),
         );
@@ -198,51 +146,6 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
       }
     }
     setState(() => _saving = false);
-  }
-
-  Map<String, double> _applyHealthAdjustments(Map<String, double> baseGoals) {
-    Map<String, double> adjustedGoals = Map.from(baseGoals);
-    
-    for (String condition in _healthConditions) {
-      switch (condition) {
-        case 'diabetes':
-          adjustedGoals['carbs'] = adjustedGoals['carbs']! * 0.7;
-          adjustedGoals['fiber'] = adjustedGoals['fiber']! * 1.5;
-          adjustedGoals['sugar'] = adjustedGoals['sugar']! * 0.5;
-          adjustedGoals['protein'] = adjustedGoals['protein']! * 1.2;
-          break;
-        case 'fatty_liver':
-          adjustedGoals['sugar'] = adjustedGoals['sugar']! * 0.3;
-          adjustedGoals['fat'] = adjustedGoals['fat']! * 0.8;
-          adjustedGoals['calories'] = adjustedGoals['calories']! * 0.9;
-          adjustedGoals['fiber'] = adjustedGoals['fiber']! * 1.4;
-          break;
-        case 'malnutrition':
-          adjustedGoals['calories'] = adjustedGoals['calories']! * 1.4;
-          adjustedGoals['protein'] = adjustedGoals['protein']! * 1.3;
-          adjustedGoals['fat'] = adjustedGoals['fat']! * 1.4;
-          break;
-        case 'anemia':
-          adjustedGoals['iron_goal'] = adjustedGoals['iron_goal']! * 2.0;
-          adjustedGoals['vitamin_c_goal'] = adjustedGoals['vitamin_c_goal']! * 1.5;
-          break;
-        case 'fitness_enthusiast':
-          adjustedGoals['protein'] = adjustedGoals['protein']! * 1.5;
-          adjustedGoals['calories'] = adjustedGoals['calories']! * 1.2;
-          break;
-        case 'hypertension':
-        case 'stroke_recovery':
-        case 'heart_disease':
-          adjustedGoals['sodium'] = 2000.0;
-          break;
-      }
-    }
-    
-    adjustedGoals.forEach((key, value) {
-      adjustedGoals[key] = value.round().toDouble();
-    });
-    
-    return adjustedGoals;
   }
 
   String _getDisplayText(List<String> items, List<Map<String, dynamic>> options, String keyField) {
@@ -284,63 +187,6 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Profile Summary Card
-                  if (_nutritionGoals != null) ...[
-                    Card(
-                      color: const Color(0xFF4CAF50).withOpacity(0.1),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                              '📊 Your Current Goals',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF388E3C)),
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    children: [
-                                      Text('🔥 ${_nutritionGoals!['calories']!.toInt()} kcal', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                      const Text('Calories', style: TextStyle(fontSize: 12)),
-                                    ],
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Column(
-                                    children: [
-                                      Text('🥩 ${_nutritionGoals!['protein']!.toInt()}g', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                      const Text('Protein', style: TextStyle(fontSize: 12)),
-                                    ],
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Column(
-                                    children: [
-                                      Text('🍚 ${_nutritionGoals!['carbs']!.toInt()}g', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                      const Text('Carbs', style: TextStyle(fontSize: 12)),
-                                    ],
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Column(
-                                    children: [
-                                      Text('🥑 ${_nutritionGoals!['fat']!.toInt()}g', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                      const Text('Fat', style: TextStyle(fontSize: 12)),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-
                   // Preferences Section
                   const Text(
                     'Food Preferences',
@@ -351,30 +197,53 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
                   // Dish Preferences
                   Card(
                     child: ListTile(
-                      title: const Text('Favorite Dishes'),
+                      title: const Text('Dishes I like'),
                       subtitle: Text(_getDisplayText(_dishPreferences, _dishOptions, 'key')),
                       leading: const Icon(Icons.restaurant_menu, color: Color(0xFF4CAF50)),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      onTap: () async {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => DishesLikeSelectionPage(
+                              initialSelections: _dishPreferences,
+                            ),
+                          ),
+                        );
+                        if (result != null && result is List<String>) {
+                          setState(() => _dishPreferences = result);
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Diet Type
+                  Card(
+                    child: ListTile(
+                      title: const Text('Diet Type'),
+                      subtitle: Text(_dietTypes.isEmpty ? 'None selected' : _dietTypes.join(', ')),
+                      leading: const Icon(Icons.restaurant, color: Colors.blue),
                       trailing: const Icon(Icons.edit),
-                      onTap: () => _showMultiSelectDialog(
-                        'Dish Preferences',
-                        _dishOptions,
-                        _dishPreferences,
-                        'key',
-                        (selected) => setState(() => _dishPreferences = selected),
+                      onTap: () => _showSimpleMultiSelectDialog(
+                        'Diet Type',
+                        _dietTypeOptions,
+                        _dietTypes,
+                        (selected) => setState(() => _dietTypes = selected),
                       ),
                     ),
                   ),
                   const SizedBox(height: 12),
                   
-                  // Health Conditions
+                  // Nutrition Needs
                 Card(
                   child: ListTile(
-                      title: const Text('Health Conditions'),
+                      title: const Text('Nutrition Needs'),
                       subtitle: Text(_getDisplayText(_healthConditions, _healthOptions, 'key')),
-                      leading: const Icon(Icons.medical_services, color: Colors.red),
+                      leading: const Icon(Icons.favorite, color: Colors.blue),
                     trailing: const Icon(Icons.edit),
                       onTap: () => _showMultiSelectDialog(
-                        'Health Conditions',
+                        'Nutrition Needs',
                         _healthOptions,
                         _healthConditions,
                         'key',
@@ -397,160 +266,263 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
                         'Allergies & Restrictions',
                         _allergyOptions,
                         _allergies,
-                        (selected) => setState(() => _allergies = selected),
+                        (selected) {
+                          setState(() {
+                            _allergies = selected;
+                            _excludedRecipes = []; // Reset when allergies change
+                            _warningRecipes = [];
+                          });
+                        },
                       ),
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
                   
-                  // Profile Section
-                  const Text(
-                    'Profile Information',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  
-                  // Basic Info Row
-                  Row(
+                  // Debug Section: Excluded Recipes & Warnings
+                  if (_allergies.isNotEmpty) ...[
+                    ExpansionTile(
+                      initiallyExpanded: false,
+                      leading: const Icon(Icons.bug_report, color: Colors.orange),
+                      title: const Text(
+                        'Debug: Excluded Recipes',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(_excludedRecipes.isEmpty 
+                          ? 'Tap to check excluded recipes'
+                          : '${_excludedRecipes.length} excluded, ${_warningRecipes.length} with warnings'),
+                      onExpansionChanged: (expanded) {
+                        if (expanded && _excludedRecipes.isEmpty) {
+                          _checkExcludedRecipes();
+                        }
+                      },
                     children: [
-                      Expanded(
-                        child: Card(
-                          child: InkWell(
-                            onTap: () => _showAgeDialog(),
-                            borderRadius: BorderRadius.circular(12),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                children: [
-                                  const Icon(Icons.cake, color: Color(0xFF4CAF50)),
-                                  const SizedBox(height: 8),
-                                  Text('${_age ?? "Not set"}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  const Text('Age', style: TextStyle(fontSize: 12)),
-                                ],
-                              ),
+                        if (_loadingExcluded)
+                          const Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Center(child: CircularProgressIndicator()),
+                          )
+                        else if (_excludedRecipes.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text(
+                              'No recipes excluded based on your allergies.',
+                              style: TextStyle(color: Colors.grey[600]),
                             ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Card(
-                          child: InkWell(
-                            onTap: () => _showGenderDialog(),
-                            borderRadius: BorderRadius.circular(12),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                children: [
-                                  Icon(_gender == 'male' ? Icons.male : _gender == 'female' ? Icons.female : Icons.person, 
-                                       color: const Color(0xFF4CAF50)),
-                                  const SizedBox(height: 8),
-                                  Text(_gender?.toUpperCase() ?? "Not set", style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  const Text('Gender', style: TextStyle(fontSize: 12)),
-                                ],
+                          )
+                        else
+                          ..._excludedRecipes.map((item) {
+                            final recipe = item['recipe'] as Recipe;
+                            final allergen = item['matchedAllergen'] as String;
+                            return ListTile(
+                              dense: true,
+                              leading: const Icon(Icons.block, color: Colors.red, size: 20),
+                              title: Text(
+                                recipe.title,
+                                style: const TextStyle(fontSize: 14),
                               ),
-                            ),
-                          ),
-                        ),
-                      ),
+                              subtitle: Text(
+                                'Matched: $allergen',
+                                style: TextStyle(fontSize: 12, color: Colors.red[700]),
+                              ),
+                              trailing: Icon(Icons.info_outline, size: 16, color: Colors.grey[600]),
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: Text(recipe.title),
+                                    content: SingleChildScrollView(
+                              child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                children: [
+                                          Text(
+                                            'Excluded due to: $allergen',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.red,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          const Text(
+                                            'Ingredients:',
+                                            style: TextStyle(fontWeight: FontWeight.bold),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          ...recipe.ingredients.map((ing) {
+                                            final matchingIngs = item['matchingIngredients'] as List<String>? ?? [];
+                                            final isMatching = matchingIngs.any((mi) => ing.toLowerCase().contains(mi.toLowerCase()) || mi.toLowerCase().contains(ing.toLowerCase()));
+                                            return Text.rich(
+                                              TextSpan(
+                                                children: [
+                                                  const TextSpan(text: '• '),
+                                                  TextSpan(
+                                                    text: ing,
+                                                    style: TextStyle(
+                                                      fontWeight: isMatching ? FontWeight.bold : FontWeight.normal,
+                                                      color: isMatching ? Colors.red[700] : Colors.black,
+                                                      decoration: isMatching ? TextDecoration.underline : TextDecoration.none,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          }),
+                                          if (recipe.allergyWarning.isNotEmpty) ...[
+                                            const SizedBox(height: 12),
+                                            const Text(
+                                              'Allergy Warning:',
+                                              style: TextStyle(fontWeight: FontWeight.bold),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(recipe.allergyWarning),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('Close'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            );
+                          }).toList(),
                     ],
                   ),
                 const SizedBox(height: 12),
                 
-                  // Height/Weight Row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Card(
-                          child: InkWell(
-                            onTap: () => _showHeightDialog(),
-                            borderRadius: BorderRadius.circular(12),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                children: [
-                                  const Icon(Icons.height, color: Color(0xFF4CAF50)),
-                                  const SizedBox(height: 8),
-                                  Text('${_heightCm?.toInt() ?? "Not set"}${_heightCm != null ? " cm" : ""}', 
-                                       style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  const Text('Height', style: TextStyle(fontSize: 12)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
+                    // Warnings Section (Optional Ingredients Only)
+                    ExpansionTile(
+                      initiallyExpanded: false,
+                      leading: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                      title: const Text(
+                        'Recipes with Allergen Warnings',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                       ),
-                      Expanded(
-                        child: Card(
-                          child: InkWell(
-                            onTap: () => _showWeightDialog(),
-                            borderRadius: BorderRadius.circular(12),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                children: [
-                                  const Icon(Icons.monitor_weight, color: Color(0xFF4CAF50)),
-                                  const SizedBox(height: 8),
-                                  Text('${_weightKg?.toInt() ?? "Not set"}${_weightKg != null ? " kg" : ""}', 
-                                       style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  const Text('Weight', style: TextStyle(fontSize: 12)),
-                                ],
-                              ),
+                      subtitle: Text(_warningRecipes.isEmpty 
+                          ? 'Tap to check recipes with optional allergens'
+                          : '${_warningRecipes.length} recipes (can still add)'),
+                      onExpansionChanged: (expanded) {
+                        if (expanded && _warningRecipes.isEmpty) {
+                          _checkWarningRecipes();
+                        }
+                      },
+                    children: [
+                        if (_loadingExcluded)
+                          const Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Center(child: CircularProgressIndicator()),
+                          )
+                        else if (_warningRecipes.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text(
+                              'No recipes with optional allergen ingredients.',
+                              style: TextStyle(color: Colors.grey[600]),
                             ),
+                          )
+                        else
+                          ..._warningRecipes.map((item) {
+                            final recipe = item['recipe'] as Recipe;
+                            final allergen = item['allergy'] as String;
+                            final matchingIngs = item['matchingIngredients'] as List<String>;
+                            return ListTile(
+                              dense: true,
+                              leading: const Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                              title: Text(
+                                recipe.title,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              subtitle: Text(
+                                'Warning: $allergen (optional ingredients)',
+                                style: TextStyle(fontSize: 12, color: Colors.orange[700]),
+                              ),
+                              trailing: Icon(Icons.info_outline, size: 16, color: Colors.grey[600]),
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: Text(recipe.title),
+                                    content: SingleChildScrollView(
+                              child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(12),
+                                            decoration: BoxDecoration(
+                                              color: Colors.orange[50],
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: Colors.orange[200]!),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.warning_amber_rounded, color: Colors.orange[700], size: 20),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    'This recipe contains $allergen in OPTIONAL ingredients. You can still add it, but be careful!',
+                                                    style: TextStyle(
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.orange[900],
+                                                      fontSize: 13,
                           ),
                         ),
                       ),
                     ],
+                                            ),
                   ),
                   const SizedBox(height: 12),
-                  
-                  // Activity Level & Weight Goal Row
-                  Row(
+                                          const Text(
+                                            'Ingredients:',
+                                            style: TextStyle(fontWeight: FontWeight.bold),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          ...recipe.ingredients.map((ing) {
+                                            final isMatching = matchingIngs.any((mi) {
+                                              final miLower = mi.toLowerCase();
+                                              final ingLower = ing.toLowerCase();
+                                              return ingLower.contains(miLower) || miLower.contains(ingLower);
+                                            });
+                                            return Text.rich(
+                                              TextSpan(
                     children: [
-                      Expanded(
-                        child: Card(
-                          child: InkWell(
-                            onTap: () => _showActivityLevelDialog(),
-                            borderRadius: BorderRadius.circular(12),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                children: [
-                                  const Icon(Icons.fitness_center, color: Color(0xFF4CAF50)),
-                                  const SizedBox(height: 8),
-                                  Text(_activityLevel?.replaceAll('_', ' ').split(' ').map((word) => 
-                                    word.isEmpty ? '' : word[0].toUpperCase() + word.substring(1)).join(' ') ?? "Not set", 
-                                    style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  const Text('Activity Level', style: TextStyle(fontSize: 12)),
+                                                  const TextSpan(text: '• '),
+                                                  TextSpan(
+                                                    text: ing,
+                                                    style: TextStyle(
+                                                      fontWeight: isMatching ? FontWeight.bold : FontWeight.normal,
+                                                      color: isMatching ? Colors.orange[700] : Colors.black,
+                                                      decoration: isMatching ? TextDecoration.underline : TextDecoration.none,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          }),
                                 ],
                               ),
                             ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('Close'),
                           ),
+                                    ],
                         ),
-                      ),
-                      Expanded(
-                        child: Card(
-                          child: InkWell(
-                            onTap: () => _showWeightGoalDialog(),
-                            borderRadius: BorderRadius.circular(12),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                children: [
-                                  const Icon(Icons.trending_up, color: Color(0xFF4CAF50)),
-                                  const SizedBox(height: 8),
-                                  Text(_weightGoal?.replaceAll('_', ' ').split(' ').map((word) => 
-                                    word.isEmpty ? '' : word[0].toUpperCase() + word.substring(1)).join(' ') ?? "Not set", 
-                                    style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  const Text('Weight Goal', style: TextStyle(fontSize: 12)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
+                                );
+                              },
+                            );
+                          }).toList(),
                     ],
                   ),
-                  const SizedBox(height: 32),
+                    const SizedBox(height: 12),
+                  ],
+                
+                const SizedBox(height: 20),
                 
                 // Save Button
                 SizedBox(
@@ -716,263 +688,95 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
     );
   }
 
-  void _showAgeDialog() {
-    final TextEditingController ageController = TextEditingController(text: _age?.toString() ?? '');
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Age'),
-        content: TextField(
-          controller: ageController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Age',
-            hintText: 'Enter your age',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final age = int.tryParse(ageController.text);
-              if (age != null && age > 0 && age < 150) {
+  Future<void> _checkExcludedRecipes() async {
+    if (_allergies.isEmpty) {
+      setState(() => _excludedRecipes = []);
+      return;
+    }
+
+    setState(() => _loadingExcluded = true);
+
+    try {
+      // Fetch all recipes without filtering
+      final allRecipes = await RecipeService.fetchRecipes(userId: null);
+      
+      final excluded = <Map<String, dynamic>>[];
+      
+      for (final recipe in allRecipes) {
+        // Check which allergen matches in required ingredients (exclusion)
+        String? matchedAllergen;
+        List<String> matchingIngredients = [];
+        
+        for (final allergy in _allergies) {
+          final result = RecipeService.getMatchingIngredients(recipe, allergy);
+          // Check if it's excluded (has required match)
+          final filtered = RecipeService.filterRecipesByAllergies([recipe], [allergy]);
+          if (filtered.isEmpty && result.isNotEmpty) {
+            matchedAllergen = allergy;
+            matchingIngredients = result;
+            break;
+          }
+        }
+        
+        if (matchedAllergen != null) {
+          excluded.add({
+            'recipe': recipe,
+            'matchedAllergen': matchedAllergen,
+            'matchingIngredients': matchingIngredients,
+          });
+        }
+      }
+
+      // Also check for warning recipes (optional ingredients only)
+      final warnings = RecipeService.getRecipesWithWarnings(allRecipes, _allergies);
+
+      if (mounted) {
                 setState(() {
-                  _age = age;
+          _excludedRecipes = excluded;
+          _warningRecipes = warnings;
+          _loadingExcluded = false;
+        });
+      }
+    } catch (e) {
+      print('Error checking excluded recipes: $e');
+      if (mounted) {
+                setState(() {
+          _loadingExcluded = false;
                 });
-                Navigator.pop(context);
-              } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter a valid age (1-149)')),
-                );
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
+          SnackBar(content: Text('Error loading excluded recipes: $e')),
+        );
+      }
+    }
   }
 
-  void _showGenderDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Gender'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            RadioListTile<String>(
-              title: const Text('Male'),
-              value: 'male',
-              groupValue: _gender,
-              onChanged: (value) {
-                setState(() {
-                  _gender = value;
-                });
-                Navigator.pop(context);
-              },
-            ),
-            RadioListTile<String>(
-              title: const Text('Female'),
-              value: 'female',
-              groupValue: _gender,
-              onChanged: (value) {
-                setState(() {
-                  _gender = value;
-                });
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
-    );
-  }
+  Future<void> _checkWarningRecipes() async {
+    if (_allergies.isEmpty) {
+      setState(() => _warningRecipes = []);
+      return;
+    }
 
-  void _showHeightDialog() {
-    final TextEditingController heightController = TextEditingController(text: _heightCm?.toString() ?? '');
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Height'),
-        content: TextField(
-          controller: heightController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Height (cm)',
-            hintText: 'Enter your height in centimeters',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final height = double.tryParse(heightController.text);
-              if (height != null && height > 50 && height < 300) {
-                setState(() {
-                  _heightCm = height;
-                });
-                Navigator.pop(context);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter a valid height (50-300 cm)')),
-                );
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
+    setState(() => _loadingExcluded = true);
 
-  void _showWeightDialog() {
-    final TextEditingController weightController = TextEditingController(text: _weightKg?.toString() ?? '');
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Weight'),
-        content: TextField(
-          controller: weightController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Weight (kg)',
-            hintText: 'Enter your weight in kilograms',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final weight = double.tryParse(weightController.text);
-              if (weight != null && weight > 20 && weight < 300) {
-                setState(() {
-                  _weightKg = weight;
-                });
-                Navigator.pop(context);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter a valid weight (20-300 kg)')),
-                );
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
+    try {
+      // Fetch all recipes
+      final allRecipes = await RecipeService.fetchRecipes(userId: null);
+      final warnings = RecipeService.getRecipesWithWarnings(allRecipes, _allergies);
 
-  void _showActivityLevelDialog() {
-    final List<Map<String, dynamic>> activityOptions = [
-      {'key': 'sedentary', 'title': 'Sedentary', 'desc': 'Little to no exercise'},
-      {'key': 'lightly_active', 'title': 'Lightly Active', 'desc': 'Light exercise 1-3 days/week'},
-      {'key': 'moderately_active', 'title': 'Moderately Active', 'desc': 'Moderate exercise 3-5 days/week'},
-      {'key': 'very_active', 'title': 'Very Active', 'desc': 'Heavy exercise 6-7 days/week'},
-      {'key': 'extremely_active', 'title': 'Extremely Active', 'desc': 'Very heavy exercise, physical job'},
-    ];
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Activity Level'),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 300,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: activityOptions.length,
-            itemBuilder: (context, index) {
-              final option = activityOptions[index];
-              
-              return RadioListTile<String>(
-                title: Text(option['title']),
-                subtitle: Text(option['desc']),
-                value: option['key'],
-                groupValue: _activityLevel,
-                onChanged: (value) {
+      if (mounted) {
                   setState(() {
-                    _activityLevel = value;
-                  });
-                  Navigator.pop(context);
-                },
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showWeightGoalDialog() {
-    final List<Map<String, dynamic>> weightGoalOptions = [
-      {'key': 'lose_weight', 'title': 'Lose Weight', 'desc': 'Create a calorie deficit'},
-      {'key': 'maintain_weight', 'title': 'Maintain Weight', 'desc': 'Keep current weight'},
-      {'key': 'gain_weight', 'title': 'Gain Weight', 'desc': 'Create a calorie surplus'},
-    ];
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Weight Goal'),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 200,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: weightGoalOptions.length,
-            itemBuilder: (context, index) {
-              final option = weightGoalOptions[index];
-              
-              return RadioListTile<String>(
-                title: Text(option['title']),
-                subtitle: Text(option['desc']),
-                value: option['key'],
-                groupValue: _weightGoal,
-                onChanged: (value) {
+          _warningRecipes = warnings;
+          _loadingExcluded = false;
+        });
+      }
+    } catch (e) {
+      print('Error checking warning recipes: $e');
+      if (mounted) {
                   setState(() {
-                    _weightGoal = value;
-                  });
-                  Navigator.pop(context);
-                },
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
-    );
+          _loadingExcluded = false;
+        });
+      }
+    }
   }
+
 } 

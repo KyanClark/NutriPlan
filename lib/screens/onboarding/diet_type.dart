@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'user_profile_page.dart';
+import 'allergy_selection_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DietTypePage extends StatefulWidget {
@@ -99,7 +99,7 @@ class _DietTypePreferencePageState extends State<DietTypePage> {
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -223,7 +223,7 @@ class _DietTypePreferencePageState extends State<DietTypePage> {
                     }
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const UserProfilePage()),
+                      MaterialPageRoute(builder: (context) => const AllergySelectionPage()),
                     );
                   } : null,
                   child: const Text('Confirm', style: TextStyle(fontSize: 18)),

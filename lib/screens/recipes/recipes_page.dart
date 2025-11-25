@@ -6,12 +6,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'see_all_recipe.dart';
 import 'package:nutriplan/screens/meal_plan/meal_summary_page.dart';
 import 'package:nutriplan/screens/meal_plan/meal_plan_confirmation_page.dart';
+import 'package:nutriplan/screens/meal_plan/meal_planning_options_page.dart';
 import '../../widgets/loading_skeletons.dart';
-// import 'package:nutriplan/screens/home/home_page.dart';
 
 class RecipesPage extends StatefulWidget {
   final VoidCallback? onChanged;
-  const RecipesPage({super.key, this.onChanged});
+  final bool isAdvancePlanning;
+  const RecipesPage({super.key, this.onChanged, this.isAdvancePlanning = false});
 
   @override
   State<RecipesPage> createState() => _RecipesPageState();
@@ -29,6 +30,7 @@ class _RecipesPageState extends State<RecipesPage> {
 
   // GlobalKey for ScaffoldMessenger
   final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+  late Future<List<Recipe>> _recentlyAddedFuture;
 
   Future<void> _fetchFavorites() async {
     if (userId == null) return;
@@ -43,6 +45,7 @@ class _RecipesPageState extends State<RecipesPage> {
   void initState() {
     super.initState();
     _fetchFavorites();
+    _recentlyAddedFuture = RecipeService.fetchRecentlyAdded(limit: 20, userId: userId);
   }
 
   List<Recipe> _applySearchAndSort(List<Recipe> recipes) {
@@ -125,7 +128,7 @@ class _RecipesPageState extends State<RecipesPage> {
     }
   }
 
-  void _addToMealPlan(Recipe recipe) {
+  Future<void> _addToMealPlan(Recipe recipe) async {
     // Check if recipe is already in meal plan
     if (_mealsForPlan.any((meal) => meal.id == recipe.id)) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -138,6 +141,95 @@ class _RecipesPageState extends State<RecipesPage> {
         ),
       );
       return;
+    }
+
+    // Check for allergen warnings (optional ingredients only)
+    if (userId != null) {
+      final allergies = await RecipeService.fetchUserAllergies(userId);
+      if (allergies.isNotEmpty) {
+        final warnings = RecipeService.getRecipesWithWarnings([recipe], allergies);
+        if (warnings.isNotEmpty) {
+          final warning = warnings.first;
+          final allergen = warning['allergy'] as String;
+          final matchingIngs = warning['matchingIngredients'] as List<String>;
+          
+          final proceed = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.orange[700], size: 24),
+                  const SizedBox(width: 8),
+                  const Expanded(child: Text('Allergen Warning')),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange[200]!),
+                      ),
+                      child: Text(
+                        'This recipe contains "$allergen" in OPTIONAL ingredients:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange[900],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ...matchingIngs.map((ing) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        children: [
+                          Icon(Icons.circle, size: 6, color: Colors.orange[700]),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              ing,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.orange[700],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'You can still add this meal, but you may want to skip the optional ingredients.',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange[700],
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Add Anyway'),
+                ),
+              ],
+            ),
+          );
+
+          if (proceed != true) return; // User cancelled
+        }
+      }
     }
 
     // Add recipe to meal plan
@@ -178,39 +270,191 @@ class _RecipesPageState extends State<RecipesPage> {
   }
 
   // Helper methods for recipe categorization
-  List<Recipe> _getFilipinoRecipes(List<Recipe> recipes) {
+  
+  // Silog Meals (Breakfast Classics)
+  List<Recipe> _getSilogRecipes(List<Recipe> recipes) {
     return recipes.where((recipe) => 
-      recipe.dietTypes.contains('Filipino Cuisine') ||
-      recipe.title.toLowerCase().contains('sinigang') ||
-      recipe.title.toLowerCase().contains('adobo') ||
-      recipe.title.toLowerCase().contains('sisig') ||
-      recipe.title.toLowerCase().contains('kaldereta') ||
-      recipe.title.toLowerCase().contains('tinola') ||
-      recipe.title.toLowerCase().contains('monggo') ||
-      recipe.title.toLowerCase().contains('afritada')
+      recipe.title.toLowerCase().contains('silog')
     ).toList();
   }
 
+  // Kainang Pamilya (Family Favorites)
+  List<Recipe> _getFamilyFavorites(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      recipe.title.toLowerCase().contains('adobo') ||
+      recipe.title.toLowerCase().contains('sinigang') ||
+      recipe.title.toLowerCase().contains('kaldereta') ||
+      recipe.title.toLowerCase().contains('afritada') ||
+      recipe.title.toLowerCase().contains('menudo') ||
+      recipe.title.toLowerCase().contains('mechado') ||
+      recipe.title.toLowerCase().contains('kare-kare') ||
+      recipe.title.toLowerCase().contains('pinakbet') ||
+      recipe.title.toLowerCase().contains('laing') ||
+      recipe.title.toLowerCase().contains('ginataang')
+    ).toList();
+  }
+
+  // Lutong Bahay (Home-cooked Comfort)
+  List<Recipe> _getHomeCookedRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      recipe.title.toLowerCase().contains('tinola') ||
+      recipe.title.toLowerCase().contains('nilaga') ||
+      recipe.title.toLowerCase().contains('bulalo') ||
+      recipe.title.toLowerCase().contains('monggo') ||
+      recipe.title.toLowerCase().contains('ginisang') ||
+      recipe.title.toLowerCase().contains('pritong') ||
+      recipe.title.toLowerCase().contains('ginataang') ||
+      recipe.title.toLowerCase().contains('pakbet') ||
+      recipe.title.toLowerCase().contains('dinuguan') ||
+      recipe.title.toLowerCase().contains('pancit')
+    ).toList();
+  }
+
+  // Quick & Easy Meals
+  List<Recipe> _getQuickEasyRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      recipe.title.toLowerCase().contains('quick') ||
+      recipe.title.toLowerCase().contains('easy') ||
+      recipe.title.toLowerCase().contains('simple') ||
+      recipe.title.toLowerCase().contains('fast') ||
+      recipe.title.toLowerCase().contains('ginisang') ||
+      recipe.title.toLowerCase().contains('pritong') ||
+      recipe.title.toLowerCase().contains('scrambled') ||
+      recipe.title.toLowerCase().contains('fried') ||
+      recipe.title.toLowerCase().contains('instant') ||
+      recipe.title.toLowerCase().contains('one-pot') ||
+      recipe.title.toLowerCase().contains('30-minute') ||
+      recipe.title.toLowerCase().contains('15-minute')
+    ).toList();
+  }
+
+  // Healthy Pinoy
+  List<Recipe> _getHealthyPinoyRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      recipe.tags.contains('Healthy') ||
+      recipe.tags.contains('Low Calorie') ||
+      recipe.tags.contains('Vegetarian') ||
+      recipe.title.toLowerCase().contains('steamed') ||
+      recipe.title.toLowerCase().contains('boiled') ||
+      recipe.title.toLowerCase().contains('fresh') ||
+      recipe.title.toLowerCase().contains('salad') ||
+      recipe.title.toLowerCase().contains('vegetable') ||
+      recipe.title.toLowerCase().contains('fish') ||
+      recipe.title.toLowerCase().contains('chicken breast')
+    ).toList();
+  }
+
+  // Sabaw & Nilaga (Soups & Stews) - Updated
   List<Recipe> _getSoupRecipes(List<Recipe> recipes) {
     return recipes.where((recipe) => 
-      recipe.dietTypes.contains('Soup') ||
+      recipe.tags.contains('Soup') ||
       recipe.title.toLowerCase().contains('sinigang') ||
       recipe.title.toLowerCase().contains('tinola') ||
       recipe.title.toLowerCase().contains('monggo') ||
-      recipe.title.toLowerCase().contains('soup')
+      recipe.title.toLowerCase().contains('nilaga') ||
+      recipe.title.toLowerCase().contains('bulalo') ||
+      recipe.title.toLowerCase().contains('soup') ||
+      recipe.title.toLowerCase().contains('sabaw') ||
+      recipe.title.toLowerCase().contains('batchoy') ||
+      recipe.title.toLowerCase().contains('mami')
     ).toList();
   }
 
-  List<Recipe> _getMeatSeafoodRecipes(List<Recipe> recipes) {
+
+  // New creative category methods
+  List<Recipe> _getPersonalizedRecipes(List<Recipe> recipes) {
+    // Personalized recommendations based on user preferences and favorites
+    final favoriteRecipes = recipes.where((recipe) => 
+      favoriteRecipeIds.contains(recipe.id)
+    ).toList();
+    
+    // If user has favorites, show them; otherwise show popular recipes
+    if (favoriteRecipes.isNotEmpty) {
+      return favoriteRecipes.take(6).toList();
+    } else {
+      // Show popular Filipino dishes
     return recipes.where((recipe) => 
-      recipe.dietTypes.contains('High Protein') ||
-      recipe.title.toLowerCase().contains('chicken') ||
-      recipe.title.toLowerCase().contains('beef') ||
-      recipe.title.toLowerCase().contains('pork') ||
-      recipe.title.toLowerCase().contains('shrimp') ||
-      recipe.title.toLowerCase().contains('fish') ||
-      recipe.title.toLowerCase().contains('bangus') ||
-      recipe.title.toLowerCase().contains('hipon')
+        recipe.title.toLowerCase().contains('adobo') ||
+        recipe.title.toLowerCase().contains('sinigang') ||
+        recipe.title.toLowerCase().contains('kare-kare') ||
+        recipe.title.toLowerCase().contains('lechon') ||
+        recipe.title.toLowerCase().contains('sisig') ||
+        recipe.title.toLowerCase().contains('nilaga') ||
+        recipe.title.toLowerCase().contains('tinola')
+      ).take(6).toList();
+    }
+  }
+
+  List<Recipe> _getComfortClassicsRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      recipe.title.toLowerCase().contains('adobo') ||
+      recipe.title.toLowerCase().contains('sinigang') ||
+      recipe.title.toLowerCase().contains('kare-kare') ||
+      recipe.title.toLowerCase().contains('nilaga') ||
+      recipe.title.toLowerCase().contains('tinola') ||
+      recipe.title.toLowerCase().contains('bulalo') ||
+      recipe.title.toLowerCase().contains('pancit') ||
+      recipe.title.toLowerCase().contains('lumpia') ||
+      recipe.title.toLowerCase().contains('lechon') ||
+      recipe.title.toLowerCase().contains('sisig') ||
+      recipe.title.toLowerCase().contains('crispy pata') ||
+      recipe.title.toLowerCase().contains('bicol express')
+    ).toList();
+  }
+
+  List<Recipe> _getFusionFlavorsRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      recipe.title.toLowerCase().contains('fusion') ||
+      recipe.title.toLowerCase().contains('asian') ||
+      recipe.title.toLowerCase().contains('western') ||
+      recipe.title.toLowerCase().contains('italian') ||
+      recipe.title.toLowerCase().contains('chinese') ||
+      recipe.title.toLowerCase().contains('japanese') ||
+      recipe.title.toLowerCase().contains('korean') ||
+      recipe.title.toLowerCase().contains('thai') ||
+      recipe.title.toLowerCase().contains('indian') ||
+      recipe.title.toLowerCase().contains('mexican') ||
+      recipe.title.toLowerCase().contains('spanish') ||
+      recipe.title.toLowerCase().contains('american')
+    ).toList();
+  }
+
+  List<Recipe> _getOnePotWondersRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      recipe.title.toLowerCase().contains('sinigang') ||
+      recipe.title.toLowerCase().contains('nilaga') ||
+      recipe.title.toLowerCase().contains('tinola') ||
+      recipe.title.toLowerCase().contains('bulalo') ||
+      recipe.title.toLowerCase().contains('kare-kare') ||
+      recipe.title.toLowerCase().contains('caldereta') ||
+      recipe.title.toLowerCase().contains('menudo') ||
+      recipe.title.toLowerCase().contains('afritada') ||
+      recipe.title.toLowerCase().contains('pochero') ||
+      recipe.title.toLowerCase().contains('paella') ||
+      recipe.title.toLowerCase().contains('risotto') ||
+      recipe.title.toLowerCase().contains('casserole') ||
+      recipe.title.toLowerCase().contains('stew') ||
+      recipe.title.toLowerCase().contains('pot')
+    ).toList();
+  }
+
+  List<Recipe> _getWeekendSpecialsRecipes(List<Recipe> recipes) {
+    return recipes.where((recipe) => 
+      recipe.title.toLowerCase().contains('lechon') ||
+      recipe.title.toLowerCase().contains('crispy pata') ||
+      recipe.title.toLowerCase().contains('kare-kare') ||
+      recipe.title.toLowerCase().contains('caldereta') ||
+      recipe.title.toLowerCase().contains('paella') ||
+      recipe.title.toLowerCase().contains('roast') ||
+      recipe.title.toLowerCase().contains('barbecue') ||
+      recipe.title.toLowerCase().contains('bbq') ||
+      recipe.title.toLowerCase().contains('grilled') ||
+      recipe.title.toLowerCase().contains('inihaw') ||
+      recipe.title.toLowerCase().contains('special') ||
+      recipe.title.toLowerCase().contains('feast') ||
+      recipe.title.toLowerCase().contains('celebration') ||
+      recipe.title.toLowerCase().contains('party') ||
+      recipe.title.toLowerCase().contains('occasion')
     ).toList();
   }
 
@@ -322,14 +566,49 @@ class _RecipesPageState extends State<RecipesPage> {
                         flex: 3,
                         child: Stack(
                           children: [
-                            Container(
-                              width: double.infinity,
-                  decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(20),
-                                image: DecorationImage(
-                                  image: NetworkImage(recipe.imageUrl),
-                                  fit: BoxFit.cover,
-                                ),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(20),
+                              child: Image.network(
+                                recipe.imageUrl,
+                                width: double.infinity,
+                                height: double.infinity,
+                                fit: BoxFit.cover,
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) {
+                                    return child;
+                                  }
+                                  return Container(
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[200],
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Center(
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.grey[600]!,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[300],
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: const Icon(
+                                      Icons.restaurant,
+                                      color: Colors.grey,
+                                      size: 40,
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                             // Heart icon
@@ -476,7 +755,16 @@ class _RecipesPageState extends State<RecipesPage> {
                       TextButton(
                         onPressed: () {
                           Navigator.of(context).pop();
-                          Navigator.pop(context);
+                          if (widget.isAdvancePlanning) {
+                            // Navigate back to meal planning options page
+                            Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(
+                                builder: (context) => const MealPlanningOptionsPage(),
+                              ),
+                            );
+                          } else {
+                            Navigator.pop(context);
+                          }
                         },
                         child: const Text(
                           'Go Back',
@@ -488,7 +776,16 @@ class _RecipesPageState extends State<RecipesPage> {
                 },
               );
             } else {
-              Navigator.pop(context);
+              if (widget.isAdvancePlanning) {
+                // Navigate back to meal planning options page
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (context) => const MealPlanningOptionsPage(),
+                  ),
+                );
+              } else {
+                Navigator.pop(context);
+              }
             }
           },
         ),
@@ -574,7 +871,7 @@ class _RecipesPageState extends State<RecipesPage> {
           // Main content
           Expanded(
             child: FutureBuilder<List<Recipe>>(
-              future: RecipeService.fetchRecipes(),
+              future: RecipeService.fetchRecipes(userId: userId),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return RecipeListSkeleton(
@@ -600,9 +897,23 @@ class _RecipesPageState extends State<RecipesPage> {
 
                 final allRecipes = snapshot.data!;
                 final filteredRecipes = _applySearchAndSort(allRecipes);
+                
+                // Track shown recipe IDs to avoid duplicates across sections
+                final Set<String> shownRecipeIds = {};
+                
+                // Helper function to get unique recipes for a section
+                List<Recipe> getUniqueRecipes(List<Recipe> recipes, {int limit = 10}) {
+                  return recipes.where((recipe) {
+                    if (shownRecipeIds.contains(recipe.id)) {
+                      return false; // Skip if already shown
+                    }
+                    shownRecipeIds.add(recipe.id); // Mark as shown
+                    return true;
+                  }).take(limit).toList();
+                }
 
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -676,38 +987,156 @@ class _RecipesPageState extends State<RecipesPage> {
 
                       const SizedBox(height: 50),
 
-                      // Recently Added Recipes - Horizontal Scroll
-                      _buildRecipeSection(
-                        'Recently Added',
-                        filteredRecipes.take(10).toList(),
-                        allRecipes.length,
+                      // Recently Added Recipes (from DB order by created_at desc)
+                      FutureBuilder<List<Recipe>>(
+                        future: _recentlyAddedFuture,
+                        builder: (context, recentSnap) {
+                          if (recentSnap.connectionState == ConnectionState.waiting) {
+                            // Avoid nested unbounded scrollables; show a simple placeholder instead
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.grey.withValues(alpha: 0.08),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  const Text(
+                                    'Recently Added',
+                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                                  ),
+                                  const Spacer(),
+                                  SizedBox(
+                                    height: 18,
+                                    width: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                          if (recentSnap.hasError || !recentSnap.hasData) {
+                            return const SizedBox.shrink();
+                          }
+                          // Optionally apply current search filter
+                          final List<Recipe> recent = searchQuery.isEmpty
+                              ? recentSnap.data!
+                              : recentSnap.data!
+                                  .where((r) => r.title.toLowerCase().contains(searchQuery.toLowerCase()))
+                                  .toList();
+                          return _buildRecipeSection(
+                            'Recently Added',
+                            getUniqueRecipes(recent),
+                            recent.length,
+                          );
+                        },
                       ),
 
                       const SizedBox(height: 24),
 
-                      // Filipino Favorites
+                      // Silog Meals (Breakfast Classics)
                       _buildRecipeSection(
-                        'Filipino Favorites',
-                        _getFilipinoRecipes(filteredRecipes),
-                        _getFilipinoRecipes(filteredRecipes).length,
+                        'Silog Meals',
+                        getUniqueRecipes(_getSilogRecipes(filteredRecipes)),
+                        _getSilogRecipes(filteredRecipes).length,
                       ),
 
                       const SizedBox(height: 24),
 
-                      // Soups & Stews
+                      // Kainang Pamilya (Family Favorites)
                       _buildRecipeSection(
-                        'Soups & Stews',
-                        _getSoupRecipes(filteredRecipes),
+                        'Kainang Pamilya',
+                        getUniqueRecipes(_getFamilyFavorites(filteredRecipes)),
+                        _getFamilyFavorites(filteredRecipes).length,
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Lutong Bahay (Home-cooked Comfort)
+                      _buildRecipeSection(
+                        'Lutong Bahay',
+                        getUniqueRecipes(_getHomeCookedRecipes(filteredRecipes)),
+                        _getHomeCookedRecipes(filteredRecipes).length,
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Just for You (Personalized Recommendations)
+                      _buildRecipeSection(
+                        'Just for You',
+                        getUniqueRecipes(_getPersonalizedRecipes(filteredRecipes)),
+                        _getPersonalizedRecipes(filteredRecipes).length,
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Quick & Easy Meals
+                      _buildRecipeSection(
+                        'Quick & Easy Meals',
+                        getUniqueRecipes(_getQuickEasyRecipes(filteredRecipes)),
+                        _getQuickEasyRecipes(filteredRecipes).length,
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Healthy Pinoy
+                      _buildRecipeSection(
+                        'Healthy Pinoy',
+                        getUniqueRecipes(_getHealthyPinoyRecipes(filteredRecipes)),
+                        _getHealthyPinoyRecipes(filteredRecipes).length,
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Sabaw & Nilaga (Soups & Stews)
+                      _buildRecipeSection(
+                        'Sabaw & Nilaga',
+                        getUniqueRecipes(_getSoupRecipes(filteredRecipes)),
                         _getSoupRecipes(filteredRecipes).length,
                       ),
 
                       const SizedBox(height: 24),
 
-                      // Meat & Seafood
+                      // Comfort Classics
                       _buildRecipeSection(
-                        'Meat & Seafood',
-                        _getMeatSeafoodRecipes(filteredRecipes),
-                        _getMeatSeafoodRecipes(filteredRecipes).length,
+                        'Comfort Classics',
+                        getUniqueRecipes(_getComfortClassicsRecipes(filteredRecipes)),
+                        _getComfortClassicsRecipes(filteredRecipes).length,
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Fusion Flavors
+                      _buildRecipeSection(
+                        'Fusion Flavors',
+                        getUniqueRecipes(_getFusionFlavorsRecipes(filteredRecipes)),
+                        _getFusionFlavorsRecipes(filteredRecipes).length,
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // One-Pot Wonders
+                      _buildRecipeSection(
+                        'One-Pot Wonders',
+                        getUniqueRecipes(_getOnePotWondersRecipes(filteredRecipes)),
+                        _getOnePotWondersRecipes(filteredRecipes).length,
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Weekend Specials
+                      _buildRecipeSection(
+                        'Weekend Specials',
+                        getUniqueRecipes(_getWeekendSpecialsRecipes(filteredRecipes)),
+                        _getWeekendSpecialsRecipes(filteredRecipes).length,
                       ),
                     ],
                   ),
@@ -737,6 +1166,7 @@ class _RecipesPageState extends State<RecipesPage> {
                   Expanded(
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                     child: Row(
                       children: _mealsForPlan.map(
                         (meal) => Container(
@@ -765,21 +1195,21 @@ class _RecipesPageState extends State<RecipesPage> {
                               ),
                               // Remove button overlay - positioned to overlap with image edge like a badge
                               Positioned(
-                                top: -8,
-                                right: -8,
+                                top: -6,
+                                right: -6,
                                 child: GestureDetector(
                                   onTap: () => _removeFromMealPlan(meal),
                                   child: Container(
-                                    width: 20,
-                                    height: 20,
+                                    width: 18,
+                                    height: 18,
                                     decoration: const BoxDecoration(
-                                      color: const Color(0xFFFF6961),
+                                      color: Color(0xFFFF6961),
                                       shape: BoxShape.circle,
                                     ),
                                     child: const Icon(
                                       Icons.close,
                                       color: Colors.white,
-                                      size: 14,
+                                      size: 12,
                                     ),
                                   ),
                                 ),
@@ -792,13 +1222,16 @@ class _RecipesPageState extends State<RecipesPage> {
                     ),
                   ),
                   // Right side: Build Meal Plan button
-                  ElevatedButton(
+                  Container(
+                    margin: const EdgeInsets.only(left: 16),
+                    child: ElevatedButton(
                     onPressed: () async {
                       await Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => MealSummaryPage(
+                        PageRouteBuilder(
+                          pageBuilder: (context, animation, secondaryAnimation) => MealSummaryPage(
                             meals: _mealsForPlan,
+                            isAdvancePlanning: widget.isAdvancePlanning,
                             onBuildMealPlan: (mealsWithTime) async {
                               final userId = Supabase.instance.client.auth.currentUser?.id;
                               if (userId != null) {
@@ -813,7 +1246,7 @@ class _RecipesPageState extends State<RecipesPage> {
                                           'title': m.recipe.title,
                                           'meal_type': m.mealType ?? 'dinner',
                                           'meal_time': m.time != null ? '${m.time!.hour.toString().padLeft(2, '0')}:${m.time!.minute.toString().padLeft(2, '0')}:00' : null,
-                                          'date': DateTime.now().toUtc().toIso8601String().split('T').first,
+                                          'date': (m.scheduledDate ?? DateTime.now()).toUtc().toIso8601String().split('T').first,
                                         });
                                     print('Successfully saved meal to plans: ${m.recipe.title}');
                                   } catch (e) {
@@ -838,6 +1271,20 @@ class _RecipesPageState extends State<RecipesPage> {
                               }
                             },
                           ),
+                          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                            const begin = Offset(1.0, 0.0);
+                            const end = Offset.zero;
+                            const curve = Curves.easeInOut;
+                            
+                            var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                            var offsetAnimation = animation.drive(tween);
+                            
+                            return SlideTransition(
+                              position: offsetAnimation,
+                              child: child,
+                            );
+                          },
+                          transitionDuration: const Duration(milliseconds: 300),
                         ),
                       );
                     },
@@ -858,6 +1305,7 @@ class _RecipesPageState extends State<RecipesPage> {
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         fontFamily: 'Geist',
+                      ),
                       ),
                     ),
                   ),

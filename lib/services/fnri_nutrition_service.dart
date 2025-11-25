@@ -1,4 +1,4 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'fnri_csv_service.dart';
 
 class FNRIIngredientNutrition {
   final String foodId;
@@ -202,7 +202,7 @@ class FNRIIngredientNutrition {
 
   @override
   String toString() {
-    return 'FNRIIngredientNutrition($foodName: ${protein}g protein, ${totalFat}g fat, ${totalCarbohydrate}g carbs, ${energyKcal} kcal, EP: $ediblePortion)';
+    return 'FNRIIngredientNutrition($foodName: ${protein}g protein, ${totalFat}g fat, ${totalCarbohydrate}g carbs, $energyKcal kcal, EP: $ediblePortion)';
   }
 }
 
@@ -210,93 +210,21 @@ class FNRINutritionService {
   static List<FNRIIngredientNutrition>? _ingredientsCache;
   static Map<String, FNRIIngredientNutrition>? _searchCache;
 
-  /// Load FNRI nutrition data from Supabase
+  /// Load FNRI nutrition data from local CSV (replaces Supabase)
   static Future<List<FNRIIngredientNutrition>> loadFNRIData() async {
     if (_ingredientsCache != null) {
       return _ingredientsCache!;
     }
 
-    try {
-      final supabase = Supabase.instance.client;
-      
-      // Fetch all nutrition data from Supabase
-      final response = await supabase
-          .from('nutrition_data_import')
-          .select()
-          .order('Food_name_and_Description')
-          .limit(2000); // Limit to prevent memory issues
-      
-      _ingredientsCache = response
-          .map((data) => FNRIIngredientNutrition.fromSupabase(data))
-          .toList();
-
-      if (_ingredientsCache != null) {
-        print('✅ Loaded ${_ingredientsCache!.length} FNRI ingredients from Supabase');
-      return _ingredientsCache!;
-      } else {
-        print('❌ Failed to create ingredients cache');
-        return [];
-      }
-    } catch (e) {
-      print('❌ Error loading FNRI data from Supabase: $e');
-      return [];
-    }
+    // Use CSV service instead of Supabase
+    _ingredientsCache = await LocalFNRIService.loadFromCSV();
+    return _ingredientsCache ?? [];
   }
 
-  /// Search for ingredients in FNRI data using Supabase
+  /// Search for ingredients in FNRI data using local CSV
   static Future<List<FNRIIngredientNutrition>> searchIngredients(String query) async {
-    try {
-      final supabase = Supabase.instance.client;
-      final queryLower = query.toLowerCase().trim();
-      
-      // Clean the query to avoid PostgreSQL syntax errors
-      final cleanQuery = queryLower
-          .replaceAll(',', ' ')  // Remove commas that break PostgreSQL
-          .replaceAll('(', ' ')  // Remove parentheses
-          .replaceAll(')', ' ')
-          .replaceAll(RegExp(r'\s+'), ' ')  // Multiple spaces to single space
-          .trim();
-      
-      print('🔍 Searching Supabase for: "$cleanQuery"');
-      
-      // Use simple LIKE search to avoid PostgreSQL parsing errors
-      final response = await supabase
-          .from('nutrition_data_import')
-          .select()
-          .ilike('Food_name_and_Description', '%$cleanQuery%')
-          .limit(20);
-      
-      print('📊 Found ${response.length} results from Supabase');
-      
-      final results = response
-          .map((data) => FNRIIngredientNutrition.fromSupabase(data))
-          .toList();
-      
-      // If no results, try alternate names
-      if (results.isEmpty) {
-        print('🔍 No results in food names, trying alternate names...');
-        final altResponse = await supabase
-            .from('nutrition_data_import')
-            .select()
-            .ilike('Alternate_Common_names', '%$cleanQuery%')
-            .limit(20);
-        
-        print('📊 Found ${altResponse.length} results in alternate names');
-        
-        results.addAll(altResponse
-            .map((data) => FNRIIngredientNutrition.fromSupabase(data))
-            .toList());
-      }
-      
-      // Apply additional filtering and sorting
-      return _filterAndSortResults(results, query);
-      
-    } catch (e) {
-      print('❌ Error searching ingredients in Supabase: $e');
-      // Fallback to cached search
-      print('❌ Supabase search failed, falling back to cached search');
-      return await _searchIngredientsCached(query);
-    }
+    // Use CSV service instead of Supabase
+    return await LocalFNRIService.searchIngredients(query);
   }
 
   /// Fallback search using cached data
@@ -370,6 +298,20 @@ class FNRINutritionService {
           }
         }
       }
+      
+      // Strategy 4: If still no results, try fuzzy matching - look for partial word matches
+      if (results.isEmpty && searchWords.isNotEmpty) {
+        for (final entry in _searchCache!.entries) {
+          final entryLower = entry.key.toLowerCase();
+          for (final searchWord in searchWords) {
+            if (searchWord.length >= 3 && entryLower.contains(searchWord.substring(0, (searchWord.length / 2).ceil()))) {
+              if (!results.contains(entry.value)) {
+                results.add(entry.value);
+              }
+            }
+          }
+        }
+      }
     }
 
     return _filterAndSortResults(results, query);
@@ -440,9 +382,15 @@ class FNRINutritionService {
       'lettuce': ['lettuce', 'litsugas', 'lactuca', 'leafy'],
       'spinach': ['spinach', 'kangkong', 'spinacia', 'leafy'],
       'water spinach': ['water spinach', 'kangkong', 'swamp cabbage', 'ipomoea'],
-      'string beans': ['string beans', 'sitaw', 'yard long bean', 'vigna'],
-      'eggplant': ['eggplant', 'talong', 'solanum', 'vegetable'],
-      'okra': ['okra', 'abelmoschus', 'vegetable'],
+      'string beans': ['string beans', 'sitaw', 'yard long bean', 'vigna', 'long bean'],
+      'eggplant': ['eggplant', 'talong', 'solanum', 'vegetable', 'aubergine'],
+      'okra': ['okra', 'abelmoschus', 'vegetable', 'lady finger'],
+      'bitter melon': ['bitter melon', 'ampalaya', 'momordica', 'vegetable', 'bitter gourd'],
+      'ampalaya': ['ampalaya', 'bitter melon', 'momordica', 'vegetable', 'bitter gourd'],
+      'squash': ['squash', 'kalabasa', 'calabaza', 'vegetable', 'pumpkin'],
+      'kalabasa': ['kalabasa', 'squash', 'calabaza', 'vegetable', 'pumpkin'],
+      'patola': ['patola', 'sponge gourd', 'ridge gourd', 'luffa'],
+      'winter melon': ['winter melon', 'winter squash', 'calabaza'],
       'potato': ['potato', 'patatas', 'solanum', 'tuber'],
       'sweet potato': ['sweet potato', 'kamote', 'ipomoea', 'tuber'],
       'cassava': ['cassava', 'kamoteng kahoy', 'manihot', 'tuber'],
@@ -482,7 +430,6 @@ class FNRINutritionService {
       'ginataang gulay mix': ['ginataang gulay mix', 'knorr ginataang gulay mix', 'seasoning mix'],
       'mushroom': ['mushroom', 'kabute', 'fungus', 'fungi'],
       'tofu': ['tofu', 'tokwa', 'soy', 'protein'],
-      'egg': ['egg', 'itlog', 'gallus', 'protein'],
       'milk': ['milk', 'gatas', 'dairy', 'liquid'],
       'cheese': ['cheese', 'keso', 'dairy', 'solid'],
       'butter': ['butter', 'mantikilya', 'dairy', 'fat'],
@@ -518,12 +465,15 @@ class FNRINutritionService {
     cleaned = cleaned
         // Remove numbers and fractions at the start
         .replaceAll(RegExp(r'^\d+(/\d+)?\s*'), '')
-        // Remove common measurement units
-        .replaceAll(RegExp(r'^\d*\s*(pieces?|pcs?|cups?|tbsp|tablespoons?|tsp|teaspoons?|lbs?|pounds?|oz|ounces?|kg|grams?|g|ml|liters?|l)\s+'), '')
-        // Remove size descriptors
-        .replaceAll(RegExp(r'^(small|medium|large|big|tiny)\s+'), '')
-        // Remove preparation methods
-        .replaceAll(RegExp(r'\s+(sliced|diced|chopped|minced|crushed|ground|cooked|fried|boiled|steamed|raw)$'), '')
+        // Remove leading quantities and units (be more careful)
+        .replaceAll(RegExp(r'^\d+(?:\.\d+)?\s*(?:ml|oz|lb|lbs|kg|g|pieces?|pcs?)\s+'), '')
+        .replaceAll(RegExp(r'^\d+(?:\.\d+)?\s*(?:cup|tbsp|tsp|tablespoon|teaspoon)s?\s+'), '')
+        // Remove leading fraction quantities
+        .replaceAll(RegExp(r'^½|⅓|¼|¾|⅔\s+'), '')
+        // Only remove preparation methods at the END, not in the middle
+        .replaceAll(RegExp(r',\s*(sliced|diced|chopped|minced|crushed|ground|cooked|fried|boiled|steamed)$'), '')
+        // Remove trailing parenthetical descriptions
+        .replaceAll(RegExp(r'\s*\(.*?\)$'), '')
         .trim();
     
     // Handle specific ingredient patterns
@@ -598,11 +548,15 @@ class FNRINutritionService {
 
   /// Find best matching ingredient for a recipe ingredient
   static Future<FNRIIngredientNutrition?> findBestMatch(String ingredientName) async {
+    print('🔍 === SEARCHING FOR INGREDIENT ===');
+    print('  Original: "$ingredientName"');
+    
     // Extract the actual ingredient name from portions/quantities
     final cleanedName = _extractIngredientName(ingredientName);
-    print('    🧹 Cleaned ingredient: "$ingredientName" → "$cleanedName"');
+    print('  🧹 After cleaning: "$cleanedName"');
     
     final results = await searchIngredients(cleanedName);
+    print('  📊 Search found ${results.length} results');
 
     // Special handling for ground pork - find the best pork cut substitute
     if (cleanedName.toLowerCase().contains('ground pork') || 
@@ -784,11 +738,27 @@ class FNRINutritionService {
     final validResults = results.where((ingredient) => _isValidNutritionData(ingredient)).toList();
     
     if (validResults.isEmpty) {
-      print('⚠️ All matches for "$cleanedName" had invalid nutrition data');
+      print('❌ === INGREDIENT NOT FOUND ===');
+      print('  ❌ All matches for "$cleanedName" had invalid nutrition data');
+      if (results.isNotEmpty) {
+        print('  📋 Top match found but rejected: "${results.first.foodName}"');
+        print('  📋 Alternate names tried: ${results.map((r) => r.foodName).take(5).join(", ")}');
+      } else {
+        print('  🔍 No results found in Supabase for: "$cleanedName"');
+        print('  💡 Search strategies attempted:');
+        print('    1. Main column search (Food_name_and_Description)');
+        print('    2. Alternate names search');
+        print('    3. Word-by-word search');
+      }
+      print('=== END SEARCH ===\n');
       return null;
     }
 
     // Return the best match (usually the first one)
+    print('✅ === INGREDIENT FOUND ===');
+    print('  ✅ Match: "${validResults.first.foodName}"');
+    print('  📊 Nutrition: ${validResults.first.protein}g protein, ${validResults.first.totalFat}g fat, ${validResults.first.totalCarbohydrate}g carbs, ${validResults.first.energyKcal}kcal');
+    print('=== END SEARCH ===\n');
     return validResults.first;
   }
 
@@ -892,7 +862,13 @@ class FNRINutritionService {
           'quantity': quantity,
         };
       } else {
-        print('    ⚠️ No match found for: $ingredient');
+        print('    ❌ === MISSING INGREDIENT DETECTED ===');
+        print('    ❌ Ingredient: "$ingredient"');
+        print('    ❌ Quantity requested: ${quantity}g');
+        print('    ⚠️ REASON: No match found in FNRI database');
+        print('    📋 This ingredient will be skipped in nutrition calculation');
+        print('    💡 SUGGESTION: Check if ingredient exists in FNRI data with alternate name');
+        print('    ❌ =======================================');
         missingIngredients.add(ingredient);
         
         results[ingredient] = {
@@ -941,7 +917,15 @@ class FNRINutritionService {
     print('  Calories: ${validatedSummary['calories']}');
     
     if (missingIngredients.isNotEmpty) {
-      print('\n⚠️ Missing ingredients: ${missingIngredients.join(', ')}');
+      print('\n⚠️ === MISSING INGREDIENTS SUMMARY ===');
+      print('⚠️ Total missing: ${missingIngredients.length} out of ${ingredients.length} ingredients');
+      print('⚠️ Missing ingredients: ${missingIngredients.join(', ')}');
+      print('📋 IMPACT: Nutrition calculation may be incomplete due to missing data');
+      print('💡 ACTION REQUIRED: Check debug logs above for each missing ingredient to see:');
+      print('   1. What the cleaned search term was');
+      print('   2. Why it failed (no results or invalid nutrition data)');
+      print('   3. What alternate names were tried');
+      print('⚠️ ========================================');
     }
     
     return {

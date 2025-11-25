@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:nutriplan/screens/auth/desktop_email_verification_screen.dart';
 import 'login_screen.dart';
 import '../../widgets/animated_logo.dart';
-import '../../widgets/decorative_auth_background.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -60,28 +59,43 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final double horizontalPadding =
+        MediaQuery.of(context).size.width < 430 ? 16.0 : 24.0;
+    final double verticalPadding =
+        MediaQuery.of(context).size.height < 900 ? 16.0 : 24.0;
+
     return Scaffold(
-      body: DecorativeAuthBackground(
-        child: SafeArea(
-          child: Center(
+      backgroundColor: Colors.white,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 430),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: verticalPadding,
+            ),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20.0),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
+                  const SizedBox(height: 80), // Move layout up
                   const AnimatedLogo(),
-                  const SizedBox(height: 40),
-                  
-                  // Title
-                  const Text(
-                    'Sign Up',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                  const SizedBox(height: 32),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding:
+                          EdgeInsets.only(left: 20.0, top: 50, bottom: 16.0),
+                      child: Text(
+                        'Sign Up',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 40),
 
                   // Signup Form
                   Form(
@@ -92,8 +106,12 @@ class _SignupScreenState extends State<SignupScreen> {
                               width: MediaQuery.of(context).size.width * 0.8,
                               child: TextFormField(
                                 controller: _fullNameController,
+                                style: const TextStyle(fontSize: 14),
                                 decoration: InputDecoration(
                                   labelText: 'Full Name',
+                                  labelStyle: const TextStyle(fontSize: 13),
+                                  filled: true,
+                                  fillColor: Colors.grey[100],
                                   prefixIcon: Padding(
                                     padding: const EdgeInsets.all(12.0),
                                     child: Icon(
@@ -118,8 +136,12 @@ class _SignupScreenState extends State<SignupScreen> {
                               width: MediaQuery.of(context).size.width * 0.8,
                               child: TextFormField(
                                 controller: _emailController,
+                                style: const TextStyle(fontSize: 14),
                                 decoration: InputDecoration(
                                   labelText: 'Email address',
+                                  labelStyle: const TextStyle(fontSize: 13),
+                                  filled: true,
+                                  fillColor: Colors.grey[100],
                                   prefixIcon: Padding(
                                     padding: const EdgeInsets.all(12.0),
                                     child: Icon(
@@ -148,8 +170,12 @@ class _SignupScreenState extends State<SignupScreen> {
                               width: MediaQuery.of(context).size.width * 0.8,
                               child: TextFormField(
                                 controller: _passwordController,
+                                style: const TextStyle(fontSize: 14),
                                 decoration: InputDecoration(
                                   labelText: 'Password',
+                                  labelStyle: const TextStyle(fontSize: 13),
+                                  filled: true,
+                                  fillColor: Colors.grey[100],
                                   prefixIcon: Padding(
                                     padding: const EdgeInsets.all(12.0),
                                     child: Icon(
@@ -193,8 +219,12 @@ class _SignupScreenState extends State<SignupScreen> {
                               width: MediaQuery.of(context).size.width * 0.8,
                               child: TextFormField(
                                 controller: _confirmPasswordController,
+                                style: const TextStyle(fontSize: 14),
                                 decoration: InputDecoration(
                                   labelText: 'Confirm Password',
+                                  labelStyle: const TextStyle(fontSize: 13),
+                                  filled: true,
+                                  fillColor: Colors.grey[100],
                                   prefixIcon: Padding(
                                     padding: const EdgeInsets.all(12.0),
                                     child: Icon(
@@ -264,10 +294,13 @@ class _SignupScreenState extends State<SignupScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Text(
-                                  'Already have an account? ',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
+                            const Text(
+                              "Already have an account?",
+                              style: TextStyle(
+                                color: Color.fromARGB(255, 112, 110, 110),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                                 GestureDetector(
                                   onTap: () {
                                     Navigator.pushReplacement(

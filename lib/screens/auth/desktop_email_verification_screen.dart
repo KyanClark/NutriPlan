@@ -96,7 +96,7 @@ class _DesktopEmailVerificationScreenState extends State<DesktopEmailVerificatio
       print('Sending email verification to: ${widget.email}');
       
       // Create account with email verification
-      final response = await Supabase.instance.client.auth.signUp(
+      await Supabase.instance.client.auth.signUp(
         email: widget.email,
         password: widget.password,
         data: {

@@ -1,5 +1,6 @@
 /// Measurement conversion service for recipe ingredients
 /// Handles various measurement units and converts them to grams for consistency
+library;
 
 class MeasurementConverter {
   

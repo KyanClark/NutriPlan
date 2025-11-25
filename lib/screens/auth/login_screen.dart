@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:nutriplan/screens/home/home_page.dart';
 import 'signup_screen.dart';
 import '../../widgets/animated_logo.dart';
-import '../../widgets/decorative_auth_background.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../onboarding/diet_type.dart';
 import '../../services/login_history_service.dart';
+import 'package:lottie/lottie.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,6 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   List<String> _emailSuggestions = [];
   bool _showSuggestions = false;
+  bool _showSuccessAnimation = false;
 
   @override
   void initState() {
@@ -32,6 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
+        _showSuccessAnimation = false;
       });
 
       final navigatorContext = context;
@@ -57,6 +59,11 @@ class _LoginScreenState extends State<LoginScreen> {
           final user = response.user;
 
           if (user?.emailConfirmedAt == null) {
+            if (!mounted) return;
+            setState(() {
+              _isLoading = false;
+              _showSuccessAnimation = false;
+            });
             ScaffoldMessenger.of(navigatorContext).showSnackBar(
               const SnackBar(
                 content: Text('Please verify your email before logging in.'),
@@ -65,6 +72,18 @@ class _LoginScreenState extends State<LoginScreen> {
             await Supabase.instance.client.auth.signOut();
             return;
           }
+
+          // Show success animation
+          if (!mounted) return;
+          setState(() {
+            _isLoading = false;
+            _showSuccessAnimation = true;
+          });
+
+          // Wait for animation to complete (animation is ~1 second, op: 63 frames at 24fps)
+          await Future.delayed(const Duration(milliseconds: 1500));
+
+          if (!mounted) return;
 
           final prefs = await Supabase.instance.client
               .from('user_preferences')
@@ -86,6 +105,11 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           }
         } else {
+          if (!mounted) return;
+          setState(() {
+            _isLoading = false;
+            _showSuccessAnimation = false;
+          });
           ScaffoldMessenger.of(navigatorContext).showSnackBar(
             const SnackBar(content: Text('Login failed. Please try again.')),
           );
@@ -94,6 +118,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (!mounted) return;
         setState(() {
           _isLoading = false;
+          _showSuccessAnimation = false;
         });
 
         String errorMsg = e.toString().toLowerCase();
@@ -123,10 +148,10 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _loadEmailSuggestions(String input) async {
     final suggestions = await LoginHistoryService.getFilteredHistory(input);
     if (mounted) {
-      setState(() {
-        _emailSuggestions = suggestions;
-        _showSuggestions = suggestions.isNotEmpty && input.isNotEmpty;
-      });
+    setState(() {
+      _emailSuggestions = suggestions;
+      _showSuggestions = suggestions.isNotEmpty && input.isNotEmpty;
+    });
     }
   }
 
@@ -159,19 +184,20 @@ class _LoginScreenState extends State<LoginScreen> {
         MediaQuery.of(context).size.height < 900 ? 16.0 : 24.0;
 
     return Scaffold(
-      body: DecorativeAuthBackground(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 430),
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: horizontalPadding,
-                vertical: verticalPadding,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
+      backgroundColor: Colors.white,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 430),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: verticalPadding,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 40), // Move layout up slightly
                     const AnimatedLogo(),
                     const SizedBox(height: 32),
                     const Align(
@@ -182,7 +208,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Text(
                           'Login',
                           style: TextStyle(
-                            fontSize: 28,
+                            fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: Colors.black87,
                           ),
@@ -195,16 +221,20 @@ class _LoginScreenState extends State<LoginScreen> {
                         clipBehavior: Clip.none,
                         children: [
                           Form(
-                            key: _formKey,
-                            child: Column(
-                              children: [
+                        key: _formKey,
+                        child: Column(
+                          children: [
                                 SizedBox(
                                   width:
-                                      MediaQuery.of(context).size.width * 0.8,
+                                      MediaQuery.of(context).size.width * 0.75,
                                   child: TextFormField(
-                                    controller: _emailController,
-                                    decoration: InputDecoration(
-                                      labelText: 'Email address',
+                                  controller: _emailController,
+                                  style: const TextStyle(fontSize: 14),
+                                  decoration: InputDecoration(
+                                    labelText: 'Email address',
+                                      labelStyle: const TextStyle(fontSize: 13),
+                                      filled: true,
+                                      fillColor: Colors.grey[100],
                                       prefixIcon: Padding(
                                         padding: const EdgeInsets.all(12.0),
                                         child: Icon(
@@ -217,37 +247,41 @@ class _LoginScreenState extends State<LoginScreen> {
                                         borderRadius:
                                             BorderRadius.circular(30),
                                       ),
-                                    ),
-                                    keyboardType: TextInputType.emailAddress,
-                                    onChanged: (value) {
-                                      _loadEmailSuggestions(value);
-                                    },
-                                    onTap: () {
-                                      if (_emailController.text.isNotEmpty) {
-                                        _loadEmailSuggestions(
+                                  ),
+                                  keyboardType: TextInputType.emailAddress,
+                                  onChanged: (value) {
+                                    _loadEmailSuggestions(value);
+                                  },
+                                  onTap: () {
+                                    if (_emailController.text.isNotEmpty) {
+                                      _loadEmailSuggestions(
                                             _emailController.text);
-                                      }
-                                    },
-                                    validator: (value) {
-                                      if (value == null || value.isEmpty) {
-                                        return 'Please enter your email';
-                                      }
-                                      if (!RegExp(
+                                    }
+                                  },
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Please enter your email';
+                                    }
+                                    if (!RegExp(
                                               r'^[^@\s]+@[^@\s]+\.[^@\s]+')
                                           .hasMatch(value)) {
-                                        return 'Please enter a valid email';
-                                      }
-                                      return null;
-                                    },
-                                  ),
+                                      return 'Please enter a valid email';
+                                    }
+                                    return null;
+                                  },
                                 ),
-                                const SizedBox(height: 16),
+                            ),
+                            const SizedBox(height: 16),
                                 SizedBox(
-                                  width: MediaQuery.of(context).size.width * 0.8,
+                                  width: MediaQuery.of(context).size.width * 0.75,
                                   child: TextFormField(
-                                    controller: _passwordController,
-                                    decoration: InputDecoration(
-                                      labelText: 'Password',
+                              controller: _passwordController,
+                              style: const TextStyle(fontSize: 14),
+                              decoration: InputDecoration(
+                                labelText: 'Password',
+                                      labelStyle: const TextStyle(fontSize: 13),
+                                      filled: true,
+                                      fillColor: Colors.grey[100],
                                       prefixIcon: Padding(
                                         padding: const EdgeInsets.all(12.0),
                                         child: Icon(
@@ -259,49 +293,66 @@ class _LoginScreenState extends State<LoginScreen> {
                                       suffixIcon: Padding(
                                         padding: const EdgeInsets.all(8.0),
                                         child: IconButton(
-                                          icon: Icon(
-                                            _obscurePassword
-                                                ? Icons.visibility_off
-                                                : Icons.visibility,
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_off
+                                        : Icons.visibility,
                                             size: 20,
                                             color: Colors.grey[600],
-                                          ),
-                                          onPressed: () {
-                                            setState(() {
-                                              _obscurePassword = !_obscurePassword;
-                                            });
-                                          },
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _obscurePassword = !_obscurePassword;
+                                    });
+                                  },
+                                        ),
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                              ),
+                              obscureText: _obscurePassword,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please enter your password';
+                                }
+                                return null;
+                              },
+                                  ),
+                            ),
+                            const SizedBox(height: 24),
+                            _showSuccessAnimation
+                                ? SizedBox(
+                                    width: MediaQuery.of(context).size.width * 0.75,
+                                    child: Center(
+                                      child: SizedBox(
+                                        width: 70,
+                                        height: 70,
+                                        child: Lottie.asset(
+                                          'assets/widgets/Checked.json',
+                                          fit: BoxFit.contain,
                                         ),
                                       ),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(30),
-                                      ),
                                     ),
-                                    obscureText: _obscurePassword,
-                                    validator: (value) {
-                                      if (value == null || value.isEmpty) {
-                                        return 'Please enter your password';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-                                _isLoading
-                                    ? const CircularProgressIndicator()
+                                  )
+                                : _isLoading
+                                    ? SizedBox(
+                                        width: MediaQuery.of(context).size.width * 0.75,
+                                        child: const Center(
+                                          child: CircularProgressIndicator(),
+                                        ),
+                                      )
                                     : SizedBox(
-                                        width: MediaQuery.of(context).size.width * 0.8,
+                                        width: MediaQuery.of(context).size.width * 0.75,
                                         child: ElevatedButton(
                                           style: ElevatedButton.styleFrom(
-                                            backgroundColor:
-                                                const Color(0xFF4CAF50),
+                                            backgroundColor: const Color(0xFF4CAF50),
                                             foregroundColor: Colors.white,
                                             shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(30),
+                                              borderRadius: BorderRadius.circular(30),
                                             ),
                                             padding: const EdgeInsets.symmetric(
-                                              vertical: 18,
+                                              vertical: 14,
                                             ),
                                           ),
                                           onPressed: _login,
@@ -311,8 +362,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                           ),
                                         ),
                                       ),
-                              ],
-                            ),
+                          ],
+                        ),
                           ),
                           if (_showSuggestions &&
                               _emailSuggestions.isNotEmpty)
@@ -322,7 +373,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               right: 0,
                               child: Container(
                                 width:
-                                    MediaQuery.of(context).size.width * 0.8,
+                                    MediaQuery.of(context).size.width * 0.75,
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(12),
@@ -383,12 +434,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
-                          "Don't have an account?",
-                          style: TextStyle(
-                            color: Color.fromARGB(255, 112, 110, 110),
-                            fontWeight: FontWeight.bold,
-                          ),
+                         const Text(
+                            "Don't have an account?",
+                            style: TextStyle(
+                              color: Color.fromARGB(255, 112, 110, 110),
+                              fontWeight: FontWeight.bold,
+                            ),
                         ),
                         const SizedBox(width: 4),
                         TextButton(
@@ -422,7 +473,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 }

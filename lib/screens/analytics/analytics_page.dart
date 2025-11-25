@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../../models/user_nutrition_goals.dart';
-import '../../services/analytics_service.dart';
+// Removed external analytics service; using inline data fetchers
 import '../../services/ai_insights_service.dart';
+import '../../services/recipe_service.dart';
+import '../profile/profile_screen.dart';
+import '../recipes/recipe_info_screen.dart';
+import '../../models/recipes.dart';
+import '../tracking/meal_tracker_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AnalyticsPage extends StatefulWidget {
   const AnalyticsPage({super.key});
@@ -11,22 +17,64 @@ class AnalyticsPage extends StatefulWidget {
   State<AnalyticsPage> createState() => _AnalyticsPageState();
 }
 
-class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateMixin {
+class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   bool _isLoading = true;
+  bool _isWeeklyLoading = false;
+  bool _isMonthlyLoading = false;
   UserNutritionGoals? _goals;
   Map<String, dynamic> _weeklyData = {};
+  Map<String, dynamic> _lastWeekData = {};
   Map<String, dynamic> _monthlyData = {};
-  String _aiInsights = '';
-  bool _isGeneratingInsights = false;
-  String _selectedPeriod = 'weekly'; // 'weekly' or 'monthly'
+  final Map<String, Map<String, dynamic>> _weeklyCache = {};
+  final Map<String, Map<String, dynamic>> _monthlyCache = {};
+  List<Recipe> _allRecipes = [];
+  String _selectedPeriod = 'weekly'; // 'weekly' | 'monthly'
+  List<Map<String, String>> _weeklyInsights = [];
+  bool _isGeneratingWeeklyInsights = false;
+  String? _avatarUrl;
+  static String? _cachedAvatarUrl;
+  static bool _hasFetchedAvatar = false;
+  String? _weeklyInsightsCacheKey; // Prevent redundant AI calls when data hasn't changed
+  final Set<int> _expandedInsights = {}; // Track which insights are expanded
+  final Set<int> _seenInsights = {}; // Track which insights have been tapped (for green glow)
   
   late TabController _tabController;
+  // Week selection for Daily Calorie Intake (defaults to current week)
+  late DateTime _selectedWeekStart; // Monday of selected week
+  // Month selection for Monthly views (defaults to current month)
+  late DateTime _selectedMonthStart; // First day of selected month
+
+  @override
+  bool get wantKeepAlive => true; // Preserve state when navigating away
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    // Initialize to current week's Monday
+    final now = DateTime.now();
+    _selectedWeekStart = DateTime(now.year, now.month, now.day)
+        .subtract(Duration(days: now.weekday - 1));
+    // Initialize to current month's first day
+    _selectedMonthStart = DateTime(now.year, now.month, 1);
+    
+    // Only load data if we don't already have it loaded
+    if (_weeklyData.isEmpty || _goals == null) {
     _loadAnalyticsData();
+    // Only fetch avatar if not already cached
+    if (!_hasFetchedAvatar) {
+    _fetchUserAvatar();
+    } else {
+      _avatarUrl = _cachedAvatarUrl;
+    }
+    } else {
+      // Data already loaded, just set loading to false
+      _isLoading = false;
+      // Use cached avatar if available
+      if (_hasFetchedAvatar) {
+        _avatarUrl = _cachedAvatarUrl;
+      }
+    }
   }
 
   @override
@@ -59,20 +107,23 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
 
       final userGoals = prefsRes != null ? UserNutritionGoals.fromMap(prefsRes) : null;
 
-      // Fetch weekly and monthly data
-      final weeklyData = await AnalyticsService.getWeeklyData(user.id);
-      final monthlyData = await AnalyticsService.getMonthlyData(user.id);
+      // Fetch weekly and monthly data inline (totals/averages)
+      final weeklyData = await _getWeeklyData(user.id, weekStart: _selectedWeekStart);
+      final prevWeekStart = _selectedWeekStart.subtract(const Duration(days: 7));
+      final lastWeekData = await _getWeeklyData(user.id, weekStart: prevWeekStart);
+      final monthlyData = await _getMonthlyData(user.id, monthStart: _selectedMonthStart);
 
       if (!mounted) return;
       setState(() {
         _goals = userGoals;
         _weeklyData = weeklyData;
+        _lastWeekData = lastWeekData;
         _monthlyData = monthlyData;
         _isLoading = false;
       });
 
       // Generate AI insights
-      _generateAIInsights();
+      _generateWeeklyInsights();
     } catch (e) {
       print('Error loading analytics data: $e');
       if (!mounted) return;
@@ -85,89 +136,1008 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
     }
   }
 
-  Future<void> _generateAIInsights() async {
+  Future<void> _refreshWeeklyData() async {
     if (!mounted) return;
-    setState(() => _isGeneratingInsights = true);
-
     try {
-      final insights = await AIInsightsService.generateNutritionInsights(_weeklyData, _monthlyData, _goals);
+    setState(() => _isWeeklyLoading = true);
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+      // Fetch weekly data for the selected week
+      final weeklyData = await _getWeeklyData(user.id, weekStart: _selectedWeekStart);
+      final prevWeekStart = _selectedWeekStart.subtract(const Duration(days: 7));
+      final lastWeekData = await _getWeeklyData(user.id, weekStart: prevWeekStart);
+      
       if (!mounted) return;
       setState(() {
-        _aiInsights = insights;
-        _isGeneratingInsights = false;
+        _weeklyData = weeklyData;
+        _lastWeekData = lastWeekData;
+        _isWeeklyLoading = false;
+      });
+
+      // Regenerate insights for the new week
+      _generateWeeklyInsights();
+    } catch (e) {
+      print('Error refreshing weekly data: $e');
+      if (mounted) {
+        setState(() => _isWeeklyLoading = false);
+      }
+    }
+  }
+
+  Future<void> _refreshMonthlyData() async {
+    if (!mounted) return;
+    try {
+      setState(() => _isMonthlyLoading = true);
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
+      final monthlyData = await _getMonthlyData(user.id, monthStart: _selectedMonthStart);
+      if (!mounted) return;
+      setState(() {
+        _monthlyData = monthlyData;
+        _isMonthlyLoading = false;
       });
     } catch (e) {
-      print('Error generating AI insights: $e');
+      print('Error refreshing monthly data: $e');
+      if (mounted) {
+        setState(() => _isMonthlyLoading = false);
+      }
+    }
+  }
+
+
+  Future<void> _fetchUserAvatar() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final data = await Supabase.instance.client
+          .from('profiles')
+          .select('avatar_url')
+          .eq('id', user.id)
+          .maybeSingle();
+      
+      // Update cached value
+      _cachedAvatarUrl = data?['avatar_url'] as String?;
+      _hasFetchedAvatar = true;
+      
       if (!mounted) return;
       setState(() {
-        _aiInsights = AIInsightsService.getDefaultInsights();
-        _isGeneratingInsights = false;
+        _avatarUrl = _cachedAvatarUrl;
+      });
+    } catch (e) {
+      print('Error fetching user avatar: $e');
+    }
+  }
+
+  Future<void> _generateWeeklyInsights() async {
+    if (!mounted) return;
+    setState(() => _isGeneratingWeeklyInsights = true);
+
+    try {
+      // Build a lightweight cache key from weekly averages and key goals
+      final Map<String, double> avgs = (_weeklyData['averages'] as Map<String, double>?) ?? const {};
+      final key = [
+        avgs['calories']?.toStringAsFixed(1) ?? '0',
+        avgs['protein']?.toStringAsFixed(1) ?? '0',
+        avgs['carbs']?.toStringAsFixed(1) ?? '0',
+        avgs['fat']?.toStringAsFixed(1) ?? '0',
+        avgs['fiber']?.toStringAsFixed(1) ?? '0',
+        avgs['sugar']?.toStringAsFixed(1) ?? '0',
+        (_goals?.calorieGoal ?? 0).toStringAsFixed(0),
+        (_goals?.proteinGoal ?? 0).toStringAsFixed(0),
+        (_goals?.carbGoal ?? 0).toStringAsFixed(0),
+        (_goals?.fatGoal ?? 0).toStringAsFixed(0),
+      ].join('|');
+
+      // If nothing changed, skip re-generation
+      if (_weeklyInsightsCacheKey == key && _weeklyInsights.isNotEmpty) {
+        setState(() => _isGeneratingWeeklyInsights = false);
+        return;
+      }
+
+      // Fetch available recipes for meal recommendations (allergy-filtered)
+      final user = Supabase.instance.client.auth.currentUser;
+      final recipes = await RecipeService.fetchRecipes(userId: user?.id);
+      final recipeNames = recipes.map((r) => r.title).toList();
+      if (mounted) {
+        setState(() {
+          _allRecipes = recipes;
+        });
+      }
+
+      final insights = await AIInsightsService.generateWeeklyInsights(
+        _weeklyData, 
+        _monthlyData, 
+        _goals,
+        availableRecipes: recipeNames,
+      );
+      if (!mounted) return;
+      setState(() {
+        _weeklyInsights = insights;
+        _weeklyInsightsCacheKey = key;
+        _isGeneratingWeeklyInsights = false;
+        _seenInsights.clear(); // Reset seen insights when new insights are generated
+      });
+    } catch (e) {
+      print('Error generating weekly insights: $e');
+      if (!mounted) return;
+      setState(() {
+        _weeklyInsights = [];
+        _isGeneratingWeeklyInsights = false;
       });
     }
   }
 
+  Future<Map<String, dynamic>> _getWeeklyData(String userId, {DateTime? weekStart}) async {
+    // Use provided weekStart or default to current week's Monday
+    final startOfWeek = weekStart ?? 
+        DateTime.now().subtract(Duration(days: DateTime.now().weekday - 1));
+    final endOfWeek = startOfWeek.add(const Duration(days: 6));
+    final cacheKey = 'w:${startOfWeek.year}-${startOfWeek.month}-${startOfWeek.day}';
+    if (_weeklyCache.containsKey(cacheKey)) {
+      return _weeklyCache[cacheKey]!;
+    }
+    final startUtc = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day).toUtc();
+    final endUtc = DateTime(endOfWeek.year, endOfWeek.month, endOfWeek.day, 23, 59, 59).toUtc();
+    final res = await Supabase.instance.client
+        .from('meal_plan_history')
+        .select()
+        .eq('user_id', userId)
+        .gte('completed_at', startUtc.toIso8601String())
+        .lte('completed_at', endUtc.toIso8601String())
+        .order('completed_at', ascending: true);
+    final summarized = _summarize(res);
+    _weeklyCache[cacheKey] = summarized;
+    return summarized;
+  }
+
+  Future<Map<String, dynamic>> _getMonthlyData(String userId, {DateTime? monthStart}) async {
+    final base = monthStart ?? DateTime.now();
+    final startOfMonth = DateTime(base.year, base.month, 1).toUtc();
+    final endOfMonth = DateTime(base.year, base.month + 1, 0, 23, 59, 59).toUtc();
+    final cacheKey = 'm:${base.year}-${base.month}-01';
+    if (_monthlyCache.containsKey(cacheKey)) {
+      return _monthlyCache[cacheKey]!;
+    }
+    final res = await Supabase.instance.client
+        .from('meal_plan_history')
+        .select()
+        .eq('user_id', userId)
+        .gte('completed_at', startOfMonth.toIso8601String())
+        .lte('completed_at', endOfMonth.toIso8601String())
+        .order('completed_at', ascending: true);
+    final summarized = _summarize(res);
+    _monthlyCache[cacheKey] = summarized;
+    return summarized;
+  }
+
+  Map<String, dynamic> _summarize(List<dynamic> meals) {
+    double calories = 0, protein = 0, carbs = 0, fat = 0, fiber = 0, sugar = 0;
+    final dailyData = <String, Map<String, double>>{};
+    for (final m in meals) {
+      final dt = DateTime.parse(m['completed_at']).toLocal();
+      final key = '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+      double c(String k) => _toDouble(m[k]);
+      calories += c('calories');
+      protein += c('protein');
+      carbs += c('carbs');
+      fat += c('fat');
+      fiber += c('fiber');
+      sugar += c('sugar');
+      dailyData.putIfAbsent(key, () => {
+        'calories': 0,
+        'protein': 0,
+        'carbs': 0,
+        'fat': 0,
+        'fiber': 0,
+        'sugar': 0,
+      });
+      // Accumulate all nutrients for daily data
+      dailyData[key]!['calories'] = (dailyData[key]!['calories'] ?? 0) + c('calories');
+      dailyData[key]!['protein'] = (dailyData[key]!['protein'] ?? 0) + c('protein');
+      dailyData[key]!['carbs'] = (dailyData[key]!['carbs'] ?? 0) + c('carbs');
+      dailyData[key]!['fat'] = (dailyData[key]!['fat'] ?? 0) + c('fat');
+      dailyData[key]!['fiber'] = (dailyData[key]!['fiber'] ?? 0) + c('fiber');
+      dailyData[key]!['sugar'] = (dailyData[key]!['sugar'] ?? 0) + c('sugar');
+    }
+    final countMeals = meals.length;
+    final count = meals.isEmpty ? 1 : countMeals.toDouble();
+    return {
+      'totals': {
+        'calories': calories,
+        'protein': protein,
+        'carbs': carbs,
+        'fat': fat,
+        'fiber': fiber,
+        'sugar': sugar,
+      },
+      'averages': {
+        'calories': calories / count,
+        'protein': protein / count,
+        'carbs': carbs / count,
+        'fat': fat / count,
+        'fiber': fiber / count,
+        'sugar': sugar / count,
+      },
+      'count': countMeals,
+      'dailyData': dailyData,
+    };
+  }
+
+  double _toDouble(dynamic v) {
+    if (v == null) return 0;
+    if (v is double) return v;
+    if (v is int) return v.toDouble();
+    if (v is String) return double.tryParse(v) ?? 0;
+    return 0;
+  }
+
+  Widget _buildSkeletonLoader() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Period switch skeleton
+          Center(
+            child: Container(
+              width: 120,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // Top summary row skeleton
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 2,
+                child: Container(
+                  height: 100,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withValues(alpha: 0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 80,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: 120,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        width: 140,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Container(
+                  height: 100,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withValues(alpha: 0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        width: 40,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Container(
+                  height: 100,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withValues(alpha: 0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        width: 40,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 30),
+          
+          // Calorie card skeleton
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withValues(alpha: 0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 60,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Container(
+                  width: 200,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  height: 220,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 30),
+          
+          // Weekly insights card skeleton
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withValues(alpha: 0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      width: 150,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                ...List.generate(2, (index) => Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.grey[300]!,
+                      width: 2,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 200,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        width: 280,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
+              ],
+            ),
+          ),
+          const SizedBox(height: 30),
+          
+          // Charts skeleton
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withValues(alpha: 0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 150,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 30),
+          
+          // Pie chart skeleton
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withValues(alpha: 0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 150,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Center(
+                  child: Container(
+                    width: 200,
+                    height: 200,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: const Text(
-          'Statistics',
+          'NutriPlan',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 20,
-            color: Colors.black,
           ),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
+        centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.black),
-            onPressed: () {
-              // Add menu options if needed
-            },
+          RepaintBoundary(
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  PageRouteBuilder(
+                    pageBuilder: (context, animation, secondaryAnimation) => const ProfileScreen(),
+                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                      const begin = Offset(1.0, 0.0);
+                      const end = Offset.zero;
+                      const curve = Curves.ease;
+                      final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                      return SlideTransition(
+                        position: animation.drive(tween),
+                        child: child,
+                      );
+                    },
+                  ),
+                );
+              },
+              child: Container(
+                margin: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: const Color.fromARGB(255, 80, 231, 93),
+                  shape: BoxShape.circle,
+                ),
+                child: CircleAvatar(
+                  radius: 16,
+                  backgroundColor: Colors.grey[200],
+                  backgroundImage: _avatarUrl != null && _avatarUrl!.isNotEmpty
+                      ? NetworkImage(_avatarUrl!)
+                      : null,
+                  child: _avatarUrl == null || _avatarUrl!.isEmpty
+                      ? const Icon(Icons.person, color: Colors.grey, size: 20)
+                      : null,
+                ),
+              ),
+            ),
           ),
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? _buildSkeletonLoader()
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Calories Section
-                  _buildCaloriesCard(),
+                  // Period switch centered above the summary card
+                  Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                      decoration: BoxDecoration(
+                        color: Colors.green[50],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.all(4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildSegmentButton('Week', 'weekly'),
+                          _buildSegmentButton('Month', 'monthly'),
+                        ],
+                      ),
+                        ),
+                        const SizedBox(width: 8),
+                        const SizedBox(width: 8),
+                        Tooltip(
+                          message: 'Pick a date',
+                          child: IconButton(
+                            icon: const Icon(Icons.calendar_today, size: 18, color: Color(0xFF2E7D32)),
+                            onPressed: () async {
+                              final now = DateTime.now();
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: _selectedWeekStart,
+                                firstDate: DateTime(now.year - 2),
+                                lastDate: DateTime(now.year + 2),
+                              );
+                              if (picked != null) {
+                                final monday = DateTime(picked.year, picked.month, picked.day)
+                                    .subtract(Duration(days: picked.weekday - 1));
+                                setState(() => _selectedWeekStart = monday);
+                                await _refreshWeeklyData();
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Top summary row: Calories + meal counts
+                  _buildTopSummaryRow(),
+                  const SizedBox(height: 30),
+                  _buildCalorieCardWithSegmentedArea(),
+                  const SizedBox(height: 30),
+                
+                // Weekly Insights Section
+                _buildWeeklyInsightsCard(),
+                const SizedBox(height: 30),
+                
+                // Charts
+                  // Multi-line Chart for Weekly Comparison
+                  _buildWeeklyComparisonChart(),
                   const SizedBox(height: 30),
                   
-                  // Weekly Chart
-                  _buildWeeklyChart(),
-                  const SizedBox(height: 30),
+                  // Removed macro comparison per preference
                   
-                  // AI Insights Section
-                  _buildAIInsightsCard(),
+                  // Multiple Pie Charts for Week Comparison
+                  _buildWeeklyPieCharts(),
+                  const SizedBox(height: 30),
                 ],
               ),
             ),
     );
   }
 
-  Widget _buildCaloriesCard() {
+  // New card matching the provided visual: segmented control + area chart
+  Widget _buildCalorieCardWithSegmentedArea() {
+    final dailyGoal = _goals?.calorieGoal ?? 2000.0;
+    final Map<String, dynamic> dataByPeriod = {
+      'weekly': _weeklyData,
+      'monthly': _monthlyData,
+    };
+    final selectedData = dataByPeriod[_selectedPeriod] ?? {};
+    // Safely parse daily data regardless of runtime map typing
+    final Map<String, dynamic> rawDaily = (selectedData['dailyData'] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{};
+    final Map<String, Map<String, double>> daily = {
+      for (final entry in rawDaily.entries)
+        entry.key: (entry.value as Map?)
+                ?.map((k, v) => MapEntry<String, double>(k.toString(), _toDouble(v)))
+                .cast<String, double>() ??
+            <String, double>{}
+    };
+
+    // Build expected keys (for weekly ensure Mon-Sun order even when missing)
+    List<String> sortedKeys;
+    if (_selectedPeriod == 'weekly') {
+      // Use user-selected week start (Monday)
+      final startOfWeek = _selectedWeekStart;
+      sortedKeys = List.generate(7, (i) {
+        final d = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day).add(Duration(days: i));
+        return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      });
+    } else {
+      sortedKeys = daily.keys.toList()..sort();
+    }
+
+    // Build points for area line (calories per day)
+    final List<FlSpot> spots = [];
+    for (int i = 0; i < sortedKeys.length; i++) {
+      final day = sortedKeys[i];
+      final calories = daily[day]?['calories'] ?? 0;
+      spots.add(FlSpot(i.toDouble(), calories));
+    }
+
+    // Empty state detection
+    final bool noData = daily.isEmpty || daily.values.every((m) => (m['calories'] ?? 0) == 0);
+    final bool isLoading = _selectedPeriod == 'weekly' ? _isWeeklyLoading : _isMonthlyLoading;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Period header with navigation
+          if (_selectedPeriod == 'weekly')
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _formatWeekRange(_selectedWeekStart),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.black54,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left),
+                      onPressed: () {
+                        setState(() {
+                          _selectedWeekStart = _selectedWeekStart.subtract(const Duration(days: 7));
+                        });
+                        _refreshWeeklyData();
+                      },
+                      tooltip: 'Previous week',
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right),
+                      onPressed: () {
+                        // Prevent going into future weeks beyond current Monday
+                        final now = DateTime.now();
+                        final currentMonday = DateTime(now.year, now.month, now.day)
+                            .subtract(Duration(days: now.weekday - 1));
+                        final next = _selectedWeekStart.add(const Duration(days: 7));
+                        setState(() {
+                          _selectedWeekStart = next.isAfter(currentMonday) ? currentMonday : next;
+                        });
+                        _refreshWeeklyData();
+                      },
+                      tooltip: 'Next week',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          if (_selectedPeriod == 'monthly')
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${_shortMonth(_selectedMonthStart.month)} ${_selectedMonthStart.year}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.black54,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left),
+                      onPressed: () async {
+                        setState(() {
+                          _selectedMonthStart = DateTime(_selectedMonthStart.year, _selectedMonthStart.month - 1, 1);
+                        });
+                        await _refreshMonthlyData();
+                      },
+                      tooltip: 'Previous month',
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right),
+                      onPressed: () async {
+                        // Prevent going into future months beyond current month
+                        final now = DateTime.now();
+                        final currentMonth = DateTime(now.year, now.month, 1);
+                        final next = DateTime(_selectedMonthStart.year, _selectedMonthStart.month + 1, 1);
+                        setState(() {
+                          _selectedMonthStart = next.isAfter(currentMonth) ? currentMonth : next;
+                        });
+                        await _refreshMonthlyData();
+                      },
+                      tooltip: 'Next month',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          const SizedBox(height: 12),
+          const Text(
+            'Calorie Intake',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Track your calorie consumption based on your daily goal',
+            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+          ),
+          const SizedBox(height: 12),
+          if (isLoading)
+          SizedBox(
+            height: 220,
+              child: _buildChartSkeleton(),
+            )
+          else if (noData)
+            _buildNoDataBanner('No data for this ${_selectedPeriod == 'weekly' ? 'week' : 'month'}')
+          else
+            SizedBox(
+            height: 220,
+            child: _selectedPeriod == 'monthly' && sortedKeys.length > 10
+                ? SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width: sortedKeys.length * 50.0, // 50px per day
+                      height: 220,
+                      child: LineChart(_buildMonthlyChartData(spots, sortedKeys, dailyGoal)),
+                    ),
+                  )
+                : LineChart(_buildMonthlyChartData(spots, sortedKeys, dailyGoal)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSegmentButton(String label, String periodKey) {
+    final bool selected = _selectedPeriod == periodKey;
+    return GestureDetector(
+      onTap: () async {
+        if (_selectedPeriod == periodKey) return;
+        setState(() => _selectedPeriod = periodKey);
+        // Ensure data is refreshed when switching periods
+        if (periodKey == 'weekly') {
+          await _refreshWeeklyData();
+        } else {
+          await _refreshMonthlyData();
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: selected ? Colors.green[700] : Colors.green[700],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _shortMonth(int m) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return months[(m - 1).clamp(0, 11)];
+  }
+
+  Widget _buildTopSummaryRow() {
+    final weekMeals = (_weeklyData['count'] as int?) ?? 0;
+    final monthMeals = (_monthlyData['count'] as int?) ?? 0;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(flex: 2, child: _buildScaledCaloriesCard()),
+        const SizedBox(width: 12),
+        Expanded(child: _buildMealCountCard('This Week', weekMeals)),
+        const SizedBox(width: 12),
+        Expanded(child: _buildMealCountCard('This Month', monthMeals)),
+      ],
+    );
+  }
+
+  Widget _buildScaledCaloriesCard() {
     final dailyGoal = _goals?.calorieGoal ?? 2000.0;
     final currentData = _selectedPeriod == 'weekly' ? _weeklyData : _monthlyData;
     final totals = currentData['totals'] as Map<String, double>? ?? {};
     final averages = currentData['averages'] as Map<String, double>? ?? {};
     final totalCalories = totals['calories'] ?? 0.0;
     final averageCalories = averages['calories'] ?? 0.0;
-    
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -184,153 +1154,40 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
         children: [
           Row(
             children: [
-              Text(
-                'Calories - ${_selectedPeriod == 'weekly' ? 'Weekly' : 'Monthly'}',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
+              const Text(
+                'Calories',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87),
               ),
               const Spacer(),
-              // Period selector
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.green[50],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    GestureDetector(
-                      onTap: () => setState(() => _selectedPeriod = 'weekly'),
-                      child: Text(
-                        'Weekly',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: _selectedPeriod == 'weekly' ? Colors.green[700] : Colors.grey[600],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () => setState(() => _selectedPeriod = 'monthly'),
-                      child: Text(
-                        'Monthly',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: _selectedPeriod == 'monthly' ? Colors.green[700] : Colors.grey[600],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              Text(
+                _selectedPeriod == 'weekly' ? 'This Week' : 'This Month',
+                style: const TextStyle(fontSize: 11, color: Colors.black54, fontWeight: FontWeight.w600),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${totalCalories.toStringAsFixed(0)} Kcal',
-                      style: const TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Avg: ${averageCalories.toStringAsFixed(0)} Kcal/day',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Target: ${dailyGoal.toStringAsFixed(0)} Kcal/day',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Progress indicator
-              SizedBox(
-                width: 60,
-                height: 60,
-                child: Stack(
-                  children: [
-                    CircularProgressIndicator(
-                      value: (averageCalories / dailyGoal).clamp(0.0, 1.0),
-                      strokeWidth: 6,
-                      backgroundColor: Colors.grey[200],
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        averageCalories >= dailyGoal * 0.8 
-                            ? Colors.green 
-                            : Colors.orange,
-                      ),
-                    ),
-                    Center(
-                      child: Text(
-                        '${((averageCalories / dailyGoal) * 100).toStringAsFixed(0)}%',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          const SizedBox(height: 8),
+          Text(
+            '${totalCalories.toStringAsFixed(0)} Kcal',
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Avg: ${averageCalories.toStringAsFixed(0)} Kcal/day',
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Target: ${dailyGoal.toStringAsFixed(0)} Kcal/day',
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildWeeklyChart() {
-    final dailyGoal = _goals?.calorieGoal ?? 2000.0;
-    final currentData = _selectedPeriod == 'weekly' ? _weeklyData : _monthlyData;
-    final dailyData = currentData['dailyData'] as Map<String, Map<String, double>>? ?? {};
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    
-    // Get daily calories for the current period
-    final dailyCalories = <double>[];
-    if (_selectedPeriod == 'weekly') {
-      final now = DateTime.now();
-      final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-      for (int i = 0; i < 7; i++) {
-        final date = startOfWeek.add(Duration(days: i));
-        final dateKey = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-        dailyCalories.add(dailyData[dateKey]?['calories'] ?? 0.0);
-      }
-    } else {
-      // For monthly, show last 7 days
-      final now = DateTime.now();
-      for (int i = 6; i >= 0; i--) {
-        final date = now.subtract(Duration(days: i));
-        final dateKey = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-        dailyCalories.add(dailyData[dateKey]?['calories'] ?? 0.0);
-      }
-    }
-    
+  Widget _buildMealCountCard(String label, int count) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -346,106 +1203,395 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${_selectedPeriod == 'weekly' ? 'Weekly' : 'Last 7 Days'} Progress',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
+            'Planned Meals • $label',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
           ),
-          const SizedBox(height: 20),
-          
-          // Chart
-          SizedBox(
-            height: 200,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: dailyCalories.asMap().entries.map((entry) {
-                final index = entry.key;
-                final calories = entry.value;
-                final percentage = dailyGoal > 0 ? (calories / dailyGoal * 100) : 0.0;
-                final barHeight = (percentage / 100 * 120).clamp(10.0, 120.0);
-                
-                return Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    // Percentage label
-                    Text(
-                      '${percentage.toStringAsFixed(0)}%',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    
-                    // Bars container
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        // Target bar (dashed)
-                        Container(
-                          width: 8,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[300],
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        
-                        // Actual calories bar
-                        Container(
-                          width: 12,
-                          height: barHeight,
-                          decoration: BoxDecoration(
-                            color: percentage >= 80 && percentage <= 120
-                                ? Colors.green
-                                : percentage < 80
-                                    ? Colors.orange
-                                    : Colors.red,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    
-                    // Day label
-                    Text(
-                      _selectedPeriod == 'weekly' ? days[index] : '${DateTime.now().subtract(Duration(days: 6 - index)).day}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                );
-              }).toList(),
-            ),
-          ),
-          
-          const SizedBox(height: 20),
-          
-          // Legend
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _buildLegendItem(Colors.grey[300]!, 'Target'),
-              const SizedBox(width: 20),
-              _buildLegendItem(Colors.green, 'On Track'),
-              const SizedBox(width: 20),
-              _buildLegendItem(Colors.orange, 'Under Target'),
-              const SizedBox(width: 20),
-              _buildLegendItem(Colors.red, 'Over Target'),
-            ],
+          const SizedBox(height: 6),
+          Text(
+            count.toString(),
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
         ],
       ),
     );
   }
+  String _formatWeekRange(DateTime monday) {
+    final sunday = monday.add(const Duration(days: 6));
+    final start = '${_shortMonth(monday.month)} ${monday.day}';
+    final end = '${_shortMonth(sunday.month)} ${sunday.day}';
+    return '$start - $end';
+  }
+
+  // Weekly Insights Card matching the provided visual
+  Widget _buildWeeklyInsightsCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with lightbulb icon
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.yellow[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.lightbulb_outline,
+                  color: Colors.yellow[700],
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Nutritional Insights',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF2E7D32), // Dark greenish-blue
+                ),
+              ),
+              const Spacer(),
+              if (_isGeneratingWeeklyInsights)
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.green[600]!),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Insights list
+          if (_isGeneratingWeeklyInsights)
+            _buildLoadingInsights()
+          else if (_weeklyInsights.isNotEmpty)
+            ..._weeklyInsights.asMap().entries.map((entry) => 
+              _buildInsightItem(entry.key, entry.value['title']!, entry.value['description']!))
+          else
+            _buildEmptyInsights(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInsightItem(int index, String title, String description) {
+    final isExpanded = _expandedInsights.contains(index);
+    
+    // Extract preview - always truncate to ~100 chars for collapsed view
+    String previewText;
+    final firstPeriod = description.indexOf('.');
+    final firstNewline = description.indexOf('\n');
+    int cutPoint = description.length;
+    
+    // Always create a preview (truncate if longer than 80 chars)
+    if (description.length > 80) {
+      // Prefer cutting at sentence end or newline
+      if (firstPeriod > 0 && firstPeriod < 120) {
+        cutPoint = firstPeriod + 1;
+      } else if (firstNewline > 0 && firstNewline < 120) {
+        cutPoint = firstNewline;
+      } else {
+        // Find last space before 120 chars to avoid cutting words
+        cutPoint = description.lastIndexOf(' ', 120);
+        if (cutPoint == -1 || cutPoint < 60) cutPoint = 120;
+      }
+      previewText = description.substring(0, cutPoint).trim();
+      if (cutPoint < description.length) {
+        previewText += '...';
+      }
+    } else {
+      // Short description - show full but still allow expand/collapse for consistency
+      previewText = description;
+    }
+    
+    // Find recipe mentions in the description
+    final matchedRecipes = <Recipe>[];
+    final descLower = description.toLowerCase();
+    for (final r in _allRecipes) {
+      final name = r.title.trim();
+      if (name.isEmpty) continue;
+      if (descLower.contains(name.toLowerCase())) {
+        matchedRecipes.add(r);
+      }
+    }
+
+    final hasBeenSeen = _seenInsights.contains(index);
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: hasBeenSeen ? Colors.transparent : Colors.green[400]!,
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: hasBeenSeen 
+                ? Colors.grey.withValues(alpha: 0.05)
+                : Colors.green.withValues(alpha: 0.15),
+            blurRadius: hasBeenSeen ? 4 : 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Header (title + expand button) - always visible
+          InkWell(
+            onTap: () {
+              setState(() {
+                _seenInsights.add(index); // Mark as seen when tapped
+                if (isExpanded) {
+                  _expandedInsights.remove(index);
+                } else {
+                  _expandedInsights.add(index);
+                }
+              });
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+                        if (!isExpanded) ...[
+          const SizedBox(height: 8),
+          Text(
+                            previewText,
+            style: TextStyle(
+              fontSize: 14,
+                              color: Colors.grey[700],
+                              height: 1.4,
+                            ),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (description.length > 80) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'Tap to read more',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.green[600],
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(
+                      isExpanded ? Icons.expand_less : Icons.expand_more,
+              color: Colors.grey[600],
+                      size: 24,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Expandable content
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            child: isExpanded
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          description,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[700],
+              height: 1.4,
+            ),
+                        ),
+                        if (matchedRecipes.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: matchedRecipes.map((r) {
+                              return GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => RecipeInfoScreen(recipe: r),
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green[50],
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: Colors.green[200]!),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.green.withValues(alpha: 0.06),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.restaurant_menu, size: 14, color: Color(0xFF2E7D32)),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        r.title,
+                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF2E7D32)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                      ],
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingInsights() {
+    return Column(
+      children: [
+        for (int i = 0; i < 3; i++)
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withValues(alpha: 0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 16,
+                  width: 120,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  height: 14,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  height: 14,
+                  width: 200,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyInsights() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.analytics_outlined,
+            color: Colors.grey[400],
+            size: 48,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Generating personalized insights...',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'AI is analyzing your nutrition patterns to provide actionable recommendations.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[500],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  
+
 
   Widget _buildLegendItem(Color color, String label) {
     return Row(
@@ -471,7 +1617,35 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
     );
   }
 
-  Widget _buildAIInsightsCard() {
+  
+  // Multi-line Chart for Weekly Comparison
+  Widget _buildWeeklyComparisonChart() {
+    // Build current week and last week calorie series from data
+    List<double> _seriesFromWeekly(Map<String, dynamic> data, DateTime weekStart) {
+      final Map<String, dynamic> rawDaily = (data['dailyData'] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{};
+      final Map<String, Map<String, double>> daily = {
+        for (final entry in rawDaily.entries)
+          entry.key: (entry.value as Map?)
+                  ?.map((k, v) => MapEntry<String, double>(k.toString(), _toDouble(v)))
+                  .cast<String, double>() ??
+              <String, double>{}
+      };
+      final keys = List.generate(7, (i) {
+        final d = DateTime(weekStart.year, weekStart.month, weekStart.day).add(Duration(days: i));
+        return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      });
+      return [
+        for (final day in keys) (daily[day]?['calories'] ?? 0.0)
+      ];
+    }
+
+    final weekStart = _selectedWeekStart;
+    final lastWeekStart = _selectedWeekStart.subtract(const Duration(days: 7));
+    final current = _seriesFromWeekly(_weeklyData, weekStart);
+    final previous = _seriesFromWeekly(_lastWeekData, lastWeekStart);
+    final double maxY = ([...current, ...previous].fold<double>(0, (p, v) => v > p ? v : p) * 1.2).clamp(800, 4000);
+
+    final bool noData = current.every((v) => v == 0) && previous.every((v) => v == 0);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -489,100 +1663,649 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(
-                Icons.psychology,
-                color: Colors.green[600],
-                size: 24,
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                'AI Nutrition Insights',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-              ),
-              const Spacer(),
-              if (_isGeneratingInsights)
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.green[600]!),
-                  ),
-                ),
-            ],
+          Text(
+            'Weekly Comparison',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           
-          if (_isGeneratingInsights)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.green[50],
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.green[600]!),
+          if (_isWeeklyLoading)
+            SizedBox(height: 250, child: _buildChartSkeleton())
+          else if (noData)
+            _buildNoDataBanner('No data for this week')
+          else
+          SizedBox(
+            height: 250,
+            child: LineChart(
+              LineChartData(
+                lineTouchData: LineTouchData(
+                  enabled: true,
+                  getTouchedSpotIndicator: (barData, spotIndexes) {
+                    return spotIndexes.map((i) {
+                      return const TouchedSpotIndicatorData(
+                        FlLine(color: Colors.transparent),
+                        FlDotData(show: false),
+                      );
+                    }).toList();
+                  },
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipItems: (touchedSpots) {
+                      return touchedSpots.map((barSpot) {
+                        final v = barSpot.y;
+                        final goal = _goals?.calorieGoal ?? 0;
+                        final pct = goal > 0 ? (v / goal) * 100 : 0;
+                        return LineTooltipItem(
+                          '${v.toStringAsFixed(0)} kcal\n${pct.toStringAsFixed(0)}% of goal',
+                          const TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+                        );
+                      }).toList();
+                    },
+                  ),
+                  touchCallback: (FlTouchEvent event, LineTouchResponse? response) {
+                    if (event is FlTapUpEvent && response?.lineBarSpots != null && response!.lineBarSpots!.isNotEmpty) {
+                      final spot = response.lineBarSpots!.first;
+                      final dayIndex = spot.x.toInt();
+                      if (dayIndex >= 0 && dayIndex < 7) {
+                        final date = weekStart.add(Duration(days: dayIndex));
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => MealTrackerScreen(
+                              showBackButton: true,
+                              initialDate: date,
+                            ),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: true,
+                  horizontalInterval: 200,
+                  verticalInterval: 1,
+                  getDrawingHorizontalLine: (value) {
+                    return FlLine(
+                      color: Colors.grey[300]!,
+                      strokeWidth: 1,
+                    );
+                  },
+                  getDrawingVerticalLine: (value) {
+                    return FlLine(
+                      color: Colors.grey[300]!,
+                      strokeWidth: 1,
+                    );
+                  },
+                ),
+                titlesData: FlTitlesData(
+                  show: true,
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 30,
+                      interval: 1,
+                      getTitlesWidget: (double value, TitleMeta meta) {
+                        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                        const style = TextStyle(
+                          color: Colors.grey,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        );
+                        Widget text;
+                        if (value.toInt() < days.length) {
+                          text = Text(days[value.toInt()], style: style);
+                        } else {
+                          text = const Text('', style: style);
+                        }
+                        return SideTitleWidget(
+                          axisSide: meta.axisSide,
+                          child: text,
+                        );
+                      },
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'AI is analyzing your nutrition patterns...',
-                    style: TextStyle(
-                      color: Colors.green[700],
-                      fontWeight: FontWeight.w500,
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      interval: 200,
+                      getTitlesWidget: (double value, TitleMeta meta) {
+                        return Text(
+                          value.toInt().toString(),
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        );
+                      },
+                      reservedSize: 42,
                     ),
                   ),
+                ),
+                borderData: FlBorderData(
+                  show: true,
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                minX: 0,
+                maxX: 6,
+                minY: 0,
+                maxY: maxY,
+                lineBarsData: [
+                  // Current week calories (Mon-Sun)
+                  LineChartBarData(
+                    spots: [for (int i = 0; i < 7; i++) FlSpot(i.toDouble(), i < current.length ? current[i] : 0)],
+                    isCurved: true,
+                    color: Colors.green[600]!,
+                    barWidth: 3,
+                    isStrokeCapRound: true,
+                    dotData: FlDotData(
+                      show: true,
+                      getDotPainter: (spot, percent, barData, index) {
+                        return FlDotCirclePainter(
+                          radius: 4,
+                          color: Colors.green[600]!,
+                          strokeWidth: 2,
+                          strokeColor: Colors.white,
+                        );
+                      },
+                    ),
+                  ),
+                  // Previous week calories
+                  LineChartBarData(
+                    spots: [for (int i = 0; i < 7; i++) FlSpot(i.toDouble(), i < previous.length ? previous[i] : 0)],
+                    isCurved: true,
+                    color: Colors.blue[400]!,
+                    barWidth: 3,
+                    isStrokeCapRound: true,
+                    dotData: FlDotData(
+                      show: true,
+                      getDotPainter: (spot, percent, barData, index) {
+                        return FlDotCirclePainter(
+                          radius: 4,
+                          color: Colors.blue[400]!,
+                          strokeWidth: 2,
+                          strokeColor: Colors.white,
+                        );
+                      },
+                    ),
+                  ),
+                  // Daily goal reference line (dashed)
+                  if ((_goals?.calorieGoal ?? 0) > 0)
+                    LineChartBarData(
+                      spots: [
+                        FlSpot(0, _goals!.calorieGoal),
+                        FlSpot(6, _goals!.calorieGoal),
+                      ],
+                      color: Colors.orange,
+                      barWidth: 2,
+                      isCurved: false,
+                      dashArray: [6, 6],
+                      dotData: FlDotData(show: false),
+                    ),
                 ],
               ),
-            )
-          else if (_aiInsights.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[200]!),
-              ),
-              child: Text(
-                _aiInsights,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.black87,
-                  height: 1.5,
-                ),
-              ),
-            )
-          else
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[200]!),
-              ),
-              child: const Text(
-                'AI insights will appear here once your nutrition data is analyzed.',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
             ),
+          ),
+          
+          // Legend
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildLegendItem(Colors.green[600]!, 'This Week'),
+              const SizedBox(width: 20),
+              _buildLegendItem(Colors.blue[400]!, 'Last Week'),
+            ],
+          ),
         ],
       ),
+    );
+  }
+
+
+
+  
+
+  Widget _buildMacroLegendItem(String label, Color color) {
+    return Semantics(
+      label: 'Legend item: $label',
+      child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+      decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 6),
+          Text(
+          label,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+          ),
+            ),
+      ],
+      ),
+    );
+  }
+
+  // Single Pie Chart for Macro Distribution with Week/Month Navigation
+  Widget _buildWeeklyPieCharts() {
+    Map<String, double> totalsFrom(Map<String, dynamic> data) {
+      final Map<String, dynamic> rawDaily = (data['dailyData'] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{};
+      double sumKey(String key) {
+        double s = 0;
+        for (final entry in rawDaily.entries) {
+          final dayMap = (entry.value as Map?)
+                  ?.map((k, v) => MapEntry<String, double>(k.toString(), _toDouble(v)))
+                  .cast<String, double>() ??
+              <String, double>{};
+          s += dayMap[key] ?? 0;
+        }
+        return s;
+      }
+      return {
+        'protein': sumKey('protein'),
+        'carbs': sumKey('carbs'),
+        'fat': sumKey('fat'),
+        'fiber': sumKey('fiber'),
+        'sugar': sumKey('sugar'),
+      };
+    }
+
+    PieChartData pieFromTotals(Map<String, double> t) {
+      final total = (t['protein'] ?? 0) + (t['carbs'] ?? 0) + (t['fat'] ?? 0) + (t['fiber'] ?? 0) + (t['sugar'] ?? 0);
+      double pct(double v) => total <= 0 ? 0 : (v / total) * 100;
+      return PieChartData(
+        sections: [
+          PieChartSectionData(
+            color: Colors.red[400]!,
+            value: pct(t['protein'] ?? 0),
+            title: '${pct(t['protein'] ?? 0).toStringAsFixed(0)}%',
+            radius: 60,
+            titleStyle: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+                  ),
+          PieChartSectionData(
+            color: Colors.blue[400]!,
+            value: pct(t['carbs'] ?? 0),
+            title: '${pct(t['carbs'] ?? 0).toStringAsFixed(0)}%',
+            radius: 60,
+            titleStyle: const TextStyle(
+                          fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+                    ),
+          PieChartSectionData(
+            color: Colors.green[400]!,
+            value: pct(t['fat'] ?? 0),
+            title: '${pct(t['fat'] ?? 0).toStringAsFixed(0)}%',
+            radius: 60,
+            titleStyle: const TextStyle(
+                            fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              ),
+            ),
+          PieChartSectionData(
+            color: Colors.purple[400]!,
+            value: pct(t['fiber'] ?? 0),
+            title: '${pct(t['fiber'] ?? 0).toStringAsFixed(0)}%',
+            radius: 60,
+            titleStyle: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          PieChartSectionData(
+            color: Colors.orange[400]!,
+            value: pct(t['sugar'] ?? 0),
+            title: '${pct(t['sugar'] ?? 0).toStringAsFixed(0)}%',
+            radius: 60,
+            titleStyle: const TextStyle(
+            fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+          ),
+        ),
+      ],
+        centerSpaceRadius: 40,
+        sectionsSpace: 2,
+    );
+  }
+
+    final Map<String, dynamic> selectedData = _selectedPeriod == 'weekly' ? _weeklyData : _monthlyData;
+    final currentTotals = totalsFrom(selectedData);
+    final bool noData = currentTotals.values.every((v) => (v) == 0);
+    final bool isLoading = _selectedPeriod == 'weekly' ? _isWeeklyLoading : _isMonthlyLoading;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Period header with navigation
+          if (_selectedPeriod == 'weekly')
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+                  _formatWeekRange(_selectedWeekStart),
+            style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.black54,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          Row(
+            children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left),
+                      onPressed: () {
+                        setState(() {
+                          _selectedWeekStart = _selectedWeekStart.subtract(const Duration(days: 7));
+                        });
+                        _refreshWeeklyData();
+                      },
+                      tooltip: 'Previous week',
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right),
+                      onPressed: () {
+                        final now = DateTime.now();
+                        final currentMonday = DateTime(now.year, now.month, now.day)
+                            .subtract(Duration(days: now.weekday - 1));
+                        final next = _selectedWeekStart.add(const Duration(days: 7));
+                        setState(() {
+                          _selectedWeekStart = next.isAfter(currentMonday) ? currentMonday : next;
+                        });
+                        _refreshWeeklyData();
+                      },
+                      tooltip: 'Next week',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          if (_selectedPeriod == 'monthly')
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                  '${_shortMonth(_selectedMonthStart.month)} ${_selectedMonthStart.year}',
+                      style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.black54,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left),
+                      onPressed: () async {
+                        setState(() {
+                          _selectedMonthStart = DateTime(_selectedMonthStart.year, _selectedMonthStart.month - 1, 1);
+                        });
+                        await _refreshMonthlyData();
+                      },
+                      tooltip: 'Previous month',
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right),
+                      onPressed: () async {
+                        final now = DateTime.now();
+                        final currentMonth = DateTime(now.year, now.month, 1);
+                        final next = DateTime(_selectedMonthStart.year, _selectedMonthStart.month + 1, 1);
+                        setState(() {
+                          _selectedMonthStart = next.isAfter(currentMonth) ? currentMonth : next;
+                        });
+                        await _refreshMonthlyData();
+                      },
+                      tooltip: 'Next month',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          const SizedBox(height: 12),
+          const Text(
+            'Macro Distribution',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+                              ),
+                            ),
+          const SizedBox(height: 20),
+          
+          // Single pie chart
+          Center(
+            child: Column(
+              children: [
+                if (isLoading)
+                  SizedBox(height: 250, child: _buildChartSkeleton())
+                else if (noData)
+                  SizedBox(
+                    height: 250,
+                    child: _buildNoDataBanner('No data for this ${_selectedPeriod == 'weekly' ? 'week' : 'month'}'),
+                  )
+                else
+                  SizedBox(
+                    height: 250,
+                    width: 250,
+                    child: PieChart(
+                      pieFromTotals(currentTotals),
+                              ),
+                            ),
+                          ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          // Legend for pie chart
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              _buildMacroLegendItem('Protein', Colors.red[400]!),
+              _buildMacroLegendItem('Carbs', Colors.blue[400]!),
+              _buildMacroLegendItem('Fat', Colors.green[400]!),
+              _buildMacroLegendItem('Fiber', Colors.purple[400]!),
+              _buildMacroLegendItem('Sugar', Colors.orange[400]!),
+            ],
+                    ),
+                  ],
+                ),
+    );
+  }
+
+  Widget _buildNoDataBanner(String message) {
+    return Container(
+      height: 180,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+                child: Column(
+        mainAxisSize: MainAxisSize.min,
+                  children: [
+          Icon(Icons.insights_outlined, color: Colors.grey[400], size: 36),
+          const SizedBox(height: 8),
+                    Text(
+            message,
+            style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600),
+                      ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChartSkeleton() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: List.generate(6, (i) {
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ),
+            );
+          }),
+        );
+      },
+    );
+  }
+
+  LineChartData _buildMonthlyChartData(List<FlSpot> spots, List<String> sortedKeys, double dailyGoal) {
+    return LineChartData(
+      lineTouchData: LineTouchData(
+        enabled: true,
+        touchTooltipData: LineTouchTooltipData(
+          getTooltipItems: (touchedSpots) {
+            return touchedSpots.map((barSpot) {
+              final v = barSpot.y;
+              final goal = _goals?.calorieGoal ?? 0;
+              final pct = goal > 0 ? (v / goal) * 100 : 0;
+              return LineTooltipItem(
+                '${v.toStringAsFixed(0)} kcal\n${pct.toStringAsFixed(0)}% of goal',
+                const TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+              );
+            }).toList();
+          },
+        ),
+        touchCallback: (FlTouchEvent event, LineTouchResponse? response) {
+          if (event is FlTapUpEvent && response?.lineBarSpots != null && response!.lineBarSpots!.isNotEmpty) {
+            final spot = response.lineBarSpots!.first;
+            final dayIndex = spot.x.toInt();
+            if (dayIndex >= 0 && dayIndex < sortedKeys.length) {
+              final dateStr = sortedKeys[dayIndex];
+              final date = DateTime.tryParse(dateStr);
+              if (date != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => MealTrackerScreen(
+                      showBackButton: true,
+                      initialDate: date,
+                    ),
+                  ),
+                );
+              }
+            }
+          }
+        },
+      ),
+      minX: 0,
+      maxX: (spots.isEmpty ? 6 : (spots.length - 1)).toDouble(),
+      minY: 0,
+      maxY: (dailyGoal * 1.4).clamp(1000, 3000),
+      gridData: FlGridData(
+        show: true,
+        getDrawingHorizontalLine: (v) => FlLine(color: Colors.grey[300]!, strokeWidth: 1),
+        getDrawingVerticalLine: (v) => FlLine(color: Colors.grey[300]!, strokeWidth: 1),
+      ),
+      titlesData: FlTitlesData(
+        show: true,
+        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        bottomTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            reservedSize: 24,
+            interval: _selectedPeriod == 'monthly' && sortedKeys.length > 15 ? 2.0 : 1.0, // Show every other date if too many
+            getTitlesWidget: (value, meta) {
+              final idx = value.toInt();
+              if (idx < 0 || idx >= sortedKeys.length) return const SizedBox.shrink();
+              final d = DateTime.tryParse(sortedKeys[idx]);
+              final label = d != null ? '${_shortMonth(d.month)} ${d.day}' : '';
+              return Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey));
+            },
+                              ),
+                            ),
+        leftTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            interval: 600,
+            reservedSize: 36,
+            getTitlesWidget: (value, meta) => Text(value.toInt().toString(), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                    ),
+                ),
+              ),
+      borderData: FlBorderData(show: true, border: Border.all(color: Colors.grey[300]!)),
+      lineBarsData: [
+        // Filled green curved line
+        LineChartBarData(
+          spots: spots.isEmpty ? [for (int i = 0; i < 7; i++) FlSpot(i.toDouble(), 0)] : spots,
+          isCurved: true,
+          color: Colors.green[600],
+          barWidth: 3,
+          isStrokeCapRound: true,
+          belowBarData: BarAreaData(
+            show: true,
+            color: Colors.green[100]!.withOpacity(0.6),
+            gradient: LinearGradient(
+              colors: [Colors.green[200]!, Colors.green[50]!],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+          dotData: FlDotData(show: false),
+        ),
+        // Dashed orange goal line
+        LineChartBarData(
+          spots: [
+            FlSpot(0, dailyGoal),
+            FlSpot((spots.isEmpty ? 6 : (spots.length - 1)).toDouble(), dailyGoal),
+          ],
+          color: Colors.orange,
+          barWidth: 2,
+          isCurved: false,
+          dashArray: [6, 6],
+          dotData: FlDotData(show: false),
+          ),
+        ],
     );
   }
 }

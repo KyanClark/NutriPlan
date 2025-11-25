@@ -5,7 +5,14 @@ class MealSummaryPage extends StatefulWidget {
   final List<Recipe> meals;
   final void Function(List<RecipeWithTime>) onBuildMealPlan;
   final VoidCallback? onChanged;
-  const MealSummaryPage({super.key, required this.meals, required this.onBuildMealPlan, this.onChanged});
+  final bool isAdvancePlanning;
+  const MealSummaryPage({
+    super.key, 
+    required this.meals, 
+    required this.onBuildMealPlan, 
+    this.onChanged,
+    this.isAdvancePlanning = false,
+  });
 
   @override
   State<MealSummaryPage> createState() => _MealSummaryPageState();
@@ -15,7 +22,8 @@ class RecipeWithTime {
   final Recipe recipe;
   String? mealType; // 'breakfast', 'lunch', 'dinner'
   TimeOfDay? time;
-  RecipeWithTime({required this.recipe, this.mealType, this.time});
+  DateTime? scheduledDate; // For advance planning
+  RecipeWithTime({required this.recipe, this.mealType, this.time, this.scheduledDate});
 }
 
 class _MealSummaryPageState extends State<MealSummaryPage> {
@@ -29,20 +37,72 @@ class _MealSummaryPageState extends State<MealSummaryPage> {
 
   // Time restrictions for each meal type (using 12-hour format for display)
   static const Map<String, Map<String, int>> _mealTimeRestrictions = {
-    'breakfast': {'startHour': 5, 'endHour': 10}, // 5:00 AM - 10:00 AM
-    'lunch': {'startHour': 11, 'endHour': 16}, // 11:00 AM - 4:00 PM
-    'dinner': {'startHour': 17, 'endHour': 20}, // 5:00 PM - 8:00 PM
+    'breakfast': {'startHour': 5, 'endHour': 8}, // 5:00 AM - 8:00 AM
+    'lunch': {'startHour': 11, 'endHour': 13}, // 11:00 AM - 1:00 PM
+    'dinner': {'startHour': 18, 'endHour': 21}, // 6:00 PM - 9:00 PM
   };
 
   void _showMealTypeDialog(int index) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Select Meal Type'),
+        title: Text(widget.isAdvancePlanning ? 'Plan Your Meal' : 'Select Meal Type'),
         contentPadding: const EdgeInsets.all(24),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Date selection for advance planning
+            if (widget.isAdvancePlanning) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.calendar_today, color: Colors.blue, size: 24),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Select Date',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              Text(
+                                _mealsWithTime[index].scheduledDate != null 
+                                  ? _formatDate(_mealsWithTime[index].scheduledDate!)
+                                  : 'Tap to select date',
+                                style: TextStyle(
+                                  color: _mealsWithTime[index].scheduledDate != null 
+                                    ? Colors.blue 
+                                    : Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => _selectDate(index),
+                          icon: const Icon(Icons.arrow_forward_ios, color: Colors.blue),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            // Meal type selection
             _buildMealTypeOption(index, 'breakfast', 'Breakfast', Icons.wb_sunny, const Color.fromARGB(255, 157, 168, 0)),
             const SizedBox(height: 16),
             _buildMealTypeOption(index, 'lunch', 'Lunch', Icons.restaurant, const Color.fromARGB(255, 192, 115, 0)),
@@ -150,6 +210,10 @@ class _MealSummaryPageState extends State<MealSummaryPage> {
     final startHour = restrictions['startHour']!;
     final endHour = restrictions['endHour']!;
 
+    // Set initial time to the middle of the allowed range
+    final middleHour = startHour + ((endHour - startHour) ~/ 2);
+    _selectedTime = TimeOfDay(hour: middleHour, minute: 0);
+
     // Create a custom time picker dialog
     final result = await showDialog<TimeOfDay>(
       context: context,
@@ -246,9 +310,9 @@ class _MealSummaryPageState extends State<MealSummaryPage> {
   Widget _buildTimeWheel(int startHour, int endHour) {
     return Row(
       children: [
-        // Hour wheel
+        // Hour wheel (12-hour format)
         Expanded(
-          child: _buildWheel(
+          child: _buildHourWheel(
             startHour,
             endHour,
             (value) {
@@ -257,7 +321,6 @@ class _MealSummaryPageState extends State<MealSummaryPage> {
               });
             },
             _selectedTime.hour,
-            'Hour',
           ),
         ),
         const Text(':', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
@@ -351,8 +414,84 @@ class _MealSummaryPageState extends State<MealSummaryPage> {
     );
   }
 
+  Widget _buildHourWheel(int startHour, int endHour, Function(int) onChanged, int initialValue) {
+    return StatefulBuilder(
+      builder: (context, setState) {
+        // Convert 24-hour to 12-hour format for display
+        final displayHours = <int>[];
+        for (int hour = startHour; hour <= endHour; hour++) {
+          displayHours.add(hour);
+        }
+        
+        final initialDisplayIndex = displayHours.indexOf(initialValue);
+        final controller = FixedExtentScrollController(initialItem: initialDisplayIndex >= 0 ? initialDisplayIndex : 0);
+        int currentIndex = initialDisplayIndex >= 0 ? initialDisplayIndex : 0;
+        
+        return NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            if (notification is ScrollUpdateNotification) {
+              final offset = notification.metrics.pixels;
+              final itemExtent = 40.0;
+              final centerIndex = (offset / itemExtent).round();
+              final clampedIndex = centerIndex.clamp(0, displayHours.length - 1);
+              
+              if (clampedIndex != currentIndex) {
+                currentIndex = clampedIndex;
+                final newValue = displayHours[clampedIndex];
+                onChanged(newValue);
+                setState(() {
+                  _selectedTime = TimeOfDay(hour: newValue, minute: _selectedTime.minute);
+                });
+              }
+            }
+            return false;
+          },
+          child: ListWheelScrollView.useDelegate(
+            itemExtent: 40,
+            diameterRatio: 1.5,
+            physics: const FixedExtentScrollPhysics(),
+            controller: controller,
+            onSelectedItemChanged: (index) {
+              currentIndex = index;
+              final newValue = displayHours[index];
+              onChanged(newValue);
+              setState(() {
+                _selectedTime = TimeOfDay(hour: newValue, minute: _selectedTime.minute);
+              });
+            },
+            childDelegate: ListWheelChildBuilderDelegate(
+              builder: (context, index) {
+                final hour24 = displayHours[index];
+                final hour12 = hour24 == 0 ? 12 : (hour24 > 12 ? hour24 - 12 : hour24);
+                final isSelected = index == currentIndex;
+                
+                return Container(
+                  alignment: Alignment.center,
+                  child: Text(
+                    hour12.toString(),
+                    style: TextStyle(
+                      fontSize: isSelected ? 20 : 16,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isSelected ? const Color(0xFF4CAF50) : Colors.grey,
+                    ),
+                  ),
+                );
+              },
+              childCount: displayHours.length,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   bool _canBuildMealPlan() {
-    final canBuild = _mealsWithTime.every((meal) => meal.mealType != null && meal.mealType!.isNotEmpty && meal.time != null);
+    final canBuild = _mealsWithTime.every((meal) {
+      final hasMealType = meal.mealType != null && meal.mealType!.isNotEmpty;
+      final hasTime = meal.time != null;
+      final hasDate = widget.isAdvancePlanning ? meal.scheduledDate != null : true;
+      return hasMealType && hasTime && hasDate;
+    });
     print('Can build meal plan: $canBuild'); // Debug print
     for (int i = 0; i < _mealsWithTime.length; i++) {
       final meal = _mealsWithTime[i];
@@ -425,6 +564,14 @@ class _MealSummaryPageState extends State<MealSummaryPage> {
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              if (widget.isAdvancePlanning && meal.scheduledDate != null)
+                                Text(
+                                  'Date: ${_formatDate(meal.scheduledDate!)}',
+                                  style: const TextStyle(
+                                    color: Colors.blue,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               if (meal.mealType != null)
                                 Text(
                                   'Meal Type: ${meal.mealType!.capitalize()}',
@@ -502,6 +649,53 @@ class _MealSummaryPageState extends State<MealSummaryPage> {
         return Colors.indigo;
       default:
         return Colors.grey;
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final tomorrow = today.add(const Duration(days: 1));
+    final targetDate = DateTime(date.year, date.month, date.day);
+    
+    if (targetDate == today) {
+      return 'Today';
+    } else if (targetDate == tomorrow) {
+      return 'Tomorrow';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
+  }
+
+  Future<void> _selectDate(int index) async {
+    final now = DateTime.now();
+    final firstDate = now;
+    final lastDate = now.add(const Duration(days: 30)); // Allow planning up to 30 days ahead
+    
+    final selectedDate = await showDatePicker(
+      context: context,
+      initialDate: _mealsWithTime[index].scheduledDate ?? now.add(const Duration(days: 1)),
+      firstDate: firstDate,
+      lastDate: lastDate,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF4CAF50),
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    
+    if (selectedDate != null) {
+      setState(() {
+        _mealsWithTime[index].scheduledDate = selectedDate;
+      });
     }
   }
 }

@@ -19,6 +19,7 @@ class InteractiveRecipePage extends StatefulWidget {
   final double? fiber;
   final double? sodium;
   final double? cholesterol;
+  final int? initialStep;
   
   const InteractiveRecipePage({
     super.key, 
@@ -35,6 +36,7 @@ class InteractiveRecipePage extends StatefulWidget {
     this.fiber,
     this.sodium,
     this.cholesterol,
+    this.initialStep,
   });
 
   @override
@@ -42,7 +44,7 @@ class InteractiveRecipePage extends StatefulWidget {
 }
 
 class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
-  int _currentStep = 0;
+  late int _currentStep;
   Timer? _timer;
   int _remainingSeconds = 0;
   bool _timerRunning = false;
@@ -57,8 +59,18 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
   @override
   void initState() {
     super.initState();
+    // Set initial step if provided, otherwise start at 0
+    _currentStep = widget.initialStep ?? 0;
+    // Ensure initial step is within bounds
+    if (_currentStep >= widget.instructions.length) {
+      _currentStep = widget.instructions.length - 1;
+    }
+    if (_currentStep < 0) {
+      _currentStep = 0;
+    }
     _handleTimerOnStepChange();
   }
+  
 
   void _handleTimerOnStepChange() {
     final instruction = widget.instructions[_currentStep];
@@ -231,14 +243,14 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
     final hour = now.hour;
     String mealCategory;
     
-    if (hour >= 5 && hour < 11) {
-      mealCategory = 'breakfast';
-    } else if (hour >= 11 && hour < 16) {
-      mealCategory = 'lunch';
-    } else if (hour >= 16 && hour < 22) {
-      mealCategory = 'dinner';
+    if (hour >= 4 && hour < 12) {
+      mealCategory = 'breakfast';    // 4 AM - 12 PM (more flexible)
+    } else if (hour >= 12 && hour < 17) {
+      mealCategory = 'lunch';        // 12 PM - 5 PM
+    } else if (hour >= 17 && hour < 23) {
+      mealCategory = 'dinner';       // 5 PM - 11 PM
     } else {
-      mealCategory = 'snack';
+      mealCategory = 'dinner';        // 11 PM - 4 AM (use dinner for late hours)
     }
     
     // Insert into meal history with available nutrition data
@@ -438,6 +450,46 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
     return null;
   }
 
+  Widget _buildScrollableInstruction(String instruction) {
+    return Container(
+      height: 120, // Fixed height for consistent layout
+      child: Stack(
+        children: [
+          // Scrollable text
+          SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 20), // Space for fade effect
+              child: Text(
+                instruction,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w500),
+              ),
+            ),
+          ),
+          // Fade indicator at bottom
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: 20,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withOpacity(0.0),
+                    Colors.white.withOpacity(0.8),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isLastStep = _currentStep == widget.instructions.length - 1;
@@ -446,28 +498,30 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
     final showTimer = timerSeconds != null;
 
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Animated progress bar at the top
-            TweenAnimationBuilder<double>(
-              tween: Tween<double>(
-                begin: 0,
-                end: (_currentStep + 1) / widget.instructions.length,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Animated progress bar at the top
+              TweenAnimationBuilder<double>(
+                tween: Tween<double>(
+                  begin: 0,
+                  end: (_currentStep + 1) / widget.instructions.length,
+                ),
+                duration: const Duration(milliseconds: 400),
+                builder: (context, value, child) => LinearProgressIndicator(
+                  value: value,
+                  minHeight: 10,
+                  backgroundColor: Colors.grey[200],
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-              duration: const Duration(milliseconds: 400),
-              builder: (context, value, child) => LinearProgressIndicator(
-                value: value,
-                minHeight: 10,
-                backgroundColor: Colors.grey[200],
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
+            
             Center(
               child: Text(
                 'Step ${_currentStep + 1}',
@@ -490,11 +544,7 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
                       key: ValueKey(_currentStep),
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          instruction,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w500),
-                        ),
+                        _buildScrollableInstruction(instruction),
                         const SizedBox(height: 30),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -548,11 +598,7 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
                       key: ValueKey(_currentStep),
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          instruction,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w500),
-                        ),
+                        _buildScrollableInstruction(instruction),
                       ],
                     ),
               ),
@@ -601,6 +647,9 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
           ],
         ),
       ),
+    )
     );
+    
+    
   }
 } 

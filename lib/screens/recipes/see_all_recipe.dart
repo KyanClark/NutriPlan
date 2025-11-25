@@ -30,7 +30,7 @@ class _SeeAllRecipePageState extends State<SeeAllRecipePage> {
 
   Future<void> _fetchAll() async {
     setState(() => isLoading = true);
-    final recipes = await RecipeService.fetchRecipes();
+    final recipes = await RecipeService.fetchRecipes(userId: userId);
     if (!mounted) return;
     if (userId != null) {
       final favs = await RecipeService.fetchFavoriteRecipeIds(userId!);
@@ -149,7 +149,7 @@ class _SeeAllRecipePageState extends State<SeeAllRecipePage> {
                 ),
                 Expanded(
                   child: GridView.builder(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                        crossAxisCount: 2,
                        crossAxisSpacing: 16,
@@ -173,7 +173,7 @@ class _SeeAllRecipePageState extends State<SeeAllRecipePage> {
                             ),
                           );
                         },
-                        child: Container(
+                        child: SizedBox(
                           width: 200,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -183,14 +183,49 @@ class _SeeAllRecipePageState extends State<SeeAllRecipePage> {
                                 flex: 3,
                                 child: Stack(
                                   children: [
-                                    Container(
-                                      width: double.infinity,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(20),
-                                        image: DecorationImage(
-                                          image: NetworkImage(recipe.imageUrl),
-                                          fit: BoxFit.cover,
-                                        ),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(20),
+                                      child: Image.network(
+                                        recipe.imageUrl,
+                                        width: double.infinity,
+                                        height: double.infinity,
+                                        fit: BoxFit.cover,
+                                        loadingBuilder: (context, child, loadingProgress) {
+                                          if (loadingProgress == null) {
+                                            return child;
+                                          }
+                                          return Container(
+                                            width: double.infinity,
+                                            height: double.infinity,
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey[200],
+                                              borderRadius: BorderRadius.circular(20),
+                                            ),
+                                            child: Center(
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                valueColor: AlwaysStoppedAnimation<Color>(
+                                                  Colors.grey[600]!,
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Container(
+                                            width: double.infinity,
+                                            height: double.infinity,
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey[300],
+                                              borderRadius: BorderRadius.circular(20),
+                                            ),
+                                            child: const Icon(
+                                              Icons.restaurant,
+                                              color: Colors.grey,
+                                              size: 40,
+                                            ),
+                                          );
+                                        },
                                       ),
                                     ),
                                     // Heart icon

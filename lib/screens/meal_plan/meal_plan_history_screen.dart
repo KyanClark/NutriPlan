@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/recipes.dart';
-import '../recipes/recipe_info_screen.dart';
+import '../meal_plan/meal_summary_page.dart';
 
 class MealPlanHistoryScreen extends StatefulWidget {
   const MealPlanHistoryScreen({super.key});
@@ -13,6 +13,8 @@ class MealPlanHistoryScreen extends StatefulWidget {
 class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
   List<Map<String, dynamic>> _history = [];
   bool _loading = true;
+  String _sortBy = 'days'; // 'days', 'weeks', 'months'
+  // Removed bulk add plan; tapping a meal navigates directly to summary
 
   @override
   void initState() {
@@ -24,10 +26,10 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
       if (mounted) {
-        setState(() {
-          _history = [];
-          _loading = false;
-        });
+      setState(() {
+        _history = [];
+        _loading = false;
+      });
       }
       return;
     }
@@ -37,55 +39,153 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
         .eq('user_id', user.id)
         .order('completed_at', ascending: false);
     if (mounted) {
-      setState(() {
-        _history = List<Map<String, dynamic>>.from(response);
-        _loading = false;
+    setState(() {
+      _history = List<Map<String, dynamic>>.from(response);
+      _loading = false;
+        // No bulk collection needed; we map per tap
       });
     }
   }
 
-
-
-  Recipe _createRecipeFromMeal(Map<String, dynamic> meal) {
-    return Recipe(
-      id: meal['recipe_id'] ?? '',
-      title: meal['title'] ?? 'Unknown Recipe',
-      imageUrl: meal['image_url'] ?? '',
-      shortDescription: meal['description'] ?? '',
-      ingredients: List<String>.from(meal['ingredients'] ?? []),
-      instructions: List<String>.from(meal['instructions'] ?? []),
-      macros: Map<String, dynamic>.from(meal['macros'] ?? {}),
-      allergyWarning: meal['allergy_warning'] ?? '',
-      calories: meal['calories'] ?? 0,
-      dietTypes: List<String>.from(meal['diet_types'] ?? []),
-      cost: (meal['cost'] ?? 0.0).toDouble(),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Group meals by date
+  // Group meals by different time periods
+  Map<String, List<Map<String, dynamic>>> _groupMealsByPeriod() {
     Map<String, List<Map<String, dynamic>>> grouped = {};
+    
     for (final meal in _history) {
       final dt = meal['completed_at'] != null
         ? DateTime.parse(meal['completed_at']).toLocal()
         : null;
-      final dateStr = dt != null
-        ? '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}'
-        : 'Unknown';
-      grouped.putIfAbsent(dateStr, () => []).add(meal);
+      
+      if (dt == null) continue;
+      
+      String periodKey;
+      switch (_sortBy) {
+        case 'weeks':
+          // Group by week (Monday to Sunday)
+          final startOfWeek = dt.subtract(Duration(days: dt.weekday - 1));
+          periodKey = '${startOfWeek.year}-W${_getWeekNumber(startOfWeek)}';
+          break;
+        case 'months':
+          // Group by month
+          periodKey = '${dt.year}-${dt.month.toString().padLeft(2, '0')}';
+          break;
+        case 'days':
+        default:
+          // Group by day
+          periodKey = '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+          break;
+      }
+      
+      grouped.putIfAbsent(periodKey, () => []).add(meal);
     }
-    final dateKeys = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
+    
+    return grouped;
+  }
 
-    String formatDateHeader(String date) {
-      final dt = DateTime.tryParse(date);
-      if (dt == null) return date;
+  // Get week number of the year
+  int _getWeekNumber(DateTime date) {
+    final firstDayOfYear = DateTime(date.year, 1, 1);
+    final daysSinceFirstDay = date.difference(firstDayOfYear).inDays;
+    return (daysSinceFirstDay / 7).ceil();
+  }
+
+  // Format period header based on sort type
+  String _formatPeriodHeader(String periodKey) {
+    switch (_sortBy) {
+      case 'weeks':
+        final parts = periodKey.split('-W');
+        final year = int.parse(parts[0]);
+        final weekNum = int.parse(parts[1]);
+        final firstDayOfYear = DateTime(year, 1, 1);
+        final weekStart = firstDayOfYear.add(Duration(days: (weekNum - 1) * 7));
+        final weekEnd = weekStart.add(const Duration(days: 6));
+        return 'Week $weekNum, $year (${weekStart.day}/${weekStart.month} - ${weekEnd.day}/${weekEnd.month})';
+      
+      case 'months':
+        final parts = periodKey.split('-');
+        final year = int.parse(parts[0]);
+        final month = int.parse(parts[1]);
+        final months = [
+          'January', 'February', 'March', 'April', 'May', 'June',
+          'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        return '${months[month - 1]} $year';
+      
+      case 'days':
+      default:
+        final dt = DateTime.tryParse(periodKey);
+        if (dt == null) return periodKey;
       final months = [
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
       ];
       return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
     }
+  }
+
+  // Show sorting options dialog
+  void _showSortOptions() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sort Meal History'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            RadioListTile<String>(
+              title: const Text('By Days'),
+              subtitle: const Text('Group meals by individual days'),
+              value: 'days',
+              groupValue: _sortBy,
+              onChanged: (value) {
+                setState(() => _sortBy = value!);
+                Navigator.pop(context);
+              },
+            ),
+            RadioListTile<String>(
+              title: const Text('By Weeks'),
+              subtitle: const Text('Group meals by weeks (Monday-Sunday)'),
+              value: 'weeks',
+              groupValue: _sortBy,
+              onChanged: (value) {
+                setState(() => _sortBy = value!);
+                Navigator.pop(context);
+              },
+            ),
+            RadioListTile<String>(
+              title: const Text('By Months'),
+              subtitle: const Text('Group meals by months'),
+              value: 'months',
+              groupValue: _sortBy,
+              onChanged: (value) {
+                setState(() => _sortBy = value!);
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+
+  // Removed unused _createRecipeFromMeal
+
+
+  // Removed bulk add meal plan from history
+
+  @override
+  Widget build(BuildContext context) {
+    // Group meals by selected period
+    final grouped = _groupMealsByPeriod();
+    final periodKeys = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
 
     String formatTime(DateTime? dt) {
       if (dt == null) return '';
@@ -108,45 +208,60 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete_forever),
-            tooltip: 'Clear All History',
-            onPressed: () async {
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Clear Meal History'),
-                  content: const Text('Are you sure you want to clear all meal history records? This cannot be undone.'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('Cancel'),
-                    ),
-                    ElevatedButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF6961)),
-                      child: const Text('Clear All', style: TextStyle(color: Colors.white)),
-                    ),
-                  ],
-                ),
-              );
-              if (confirm == true) {
-                final user = Supabase.instance.client.auth.currentUser;
-                if (user != null) {
-                  await Supabase.instance.client
-                    .from('meal_plan_history')
-                    .delete()
-                    .eq('user_id', user.id);
-                  await _fetchHistory();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Meal history cleared.'), duration: Duration(seconds: 3)),
-                  );
-                }
-              }
-            },
+            icon: const Icon(Icons.sort),
+            tooltip: 'Sort by Period',
+            onPressed: _showSortOptions,
           ),
         ],
       ),
-      body: _loading
+      body: Column(
+        children: [
+          // Sorting indicator
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+            child: Row(
+              children: [
+                Icon(
+                  _sortBy == 'days' ? Icons.calendar_today :
+                  _sortBy == 'weeks' ? Icons.date_range :
+                  Icons.calendar_month,
+                  color: Colors.green[600],
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Sorted by ${_sortBy == 'days' ? 'Days' : _sortBy == 'weeks' ? 'Weeks' : 'Months'}',
+                  style: TextStyle(
+                    color: Colors.green[600],
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${periodKeys.length} ${_sortBy == 'days' ? 'days' : _sortBy == 'weeks' ? 'weeks' : 'months'}',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 12,
+                  ),
+          ),
+        ],
+      ),
+          ),
+          // Main content
+          Expanded(
+            child: _loading
           ? Center(
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -163,20 +278,53 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
               ),
             )
           : _history.isEmpty
-              ? const Center(child: Text('No completed meals yet.'))
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.asset(
+                          'assets/widgets/no_mea.gif',
+                          width: 200,
+                          height: 200,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          'No completed meals yet',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Complete your meal plans to see them here',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
               : ListView.builder(
         padding: const EdgeInsets.all(20),
-                  itemCount: dateKeys.length,
-                  itemBuilder: (context, dateIdx) {
-                    final date = dateKeys[dateIdx];
-                    final meals = grouped[date]!;
+                  itemCount: periodKeys.length,
+                  itemBuilder: (context, periodIdx) {
+                    final periodKey = periodKeys[periodIdx];
+                    final meals = grouped[periodKey]!;
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
         children: [
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8.0),
                           child: Text(
-                            formatDateHeader(date),
+                            _formatPeriodHeader(periodKey),
                             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
           ),
                         ),
@@ -210,17 +358,34 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
                                         Text('${meal['calories']} kcal', style: TextStyle(color: Colors.black54)),
                                     ],
                                   ),
-                                  onTap: () {
-                                    // Navigate to recipe info screen
-                                    final recipe = _createRecipeFromMeal(meal);
-                                    Navigator.push(
+                                  onTap: () async {
+                                    // Navigate directly to meal summary with this meal
+                                    final recipe = Recipe(
+                                      id: (meal['recipe_id'] ?? '').toString(),
+                                      title: meal['title'] ?? meal['recipe_name'] ?? 'Unknown Recipe',
+                                      imageUrl: meal['image_url'] ?? meal['recipe_image_url'] ?? '',
+                                      shortDescription: meal['description'] ?? meal['recipe_description'] ?? '',
+                                      calories: meal['calories'] ?? 0,
+                                      ingredients: List<String>.from(meal['ingredients'] ?? []),
+                                      instructions: List<String>.from(meal['instructions'] ?? []),
+                                      macros: {
+                                        'protein': (meal['protein'] ?? 0).toDouble(),
+                                        'carbs': (meal['carbs'] ?? 0).toDouble(),
+                                        'fat': (meal['fat'] ?? 0).toDouble(),
+                                      },
+                                      allergyWarning: meal['allergy_warning'] ?? '',
+                                      tags: List<String>.from(meal['tags'] ?? []),
+                                      cost: (meal['cost'] ?? 0.0).toDouble(),
+                                      notes: meal['notes'] ?? '',
+                                    );
+                                    await Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (context) => RecipeInfoScreen(
-                                          recipe: recipe,
-                                          addedRecipeIds: [],
-                                          showStartCooking: false,
-                                          isFromMealHistory: true,
+                                        builder: (context) => MealSummaryPage(
+                                          meals: [recipe],
+                                          onBuildMealPlan: (mealsWithTime) async {
+                                            Navigator.of(context).pop();
+                                          },
                                         ),
                                       ),
                                     );
@@ -233,6 +398,9 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
                       ],
                     );
                   },
+                ),
+          ),
+        ],
       ),
     );
   }
