@@ -62,7 +62,6 @@ class RecipeStepsSummaryPage extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
             ),
-            //
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
               child: Column(
