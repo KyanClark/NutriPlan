@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/app_logger.dart';
 
 class ProfileService extends ChangeNotifier {
   static final ProfileService _instance = ProfileService._internal();
@@ -34,7 +35,7 @@ class ProfileService extends ChangeNotifier {
       
       _avatarUrl = data?['avatar_url'] as String?;
     } catch (e) {
-      print('Error fetching user avatar: $e');
+      AppLogger.error('Error fetching user avatar', e);
     } finally {
       _isLoading = false;
       notifyListeners();

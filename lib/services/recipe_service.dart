@@ -26,6 +26,46 @@ class RecipeService {
     ]).join(' ').toLowerCase();
     return _disallowedKeywords.any((kw) => haystack.contains(kw.toLowerCase()));
   }
+  /// Helper function to safely convert a value to List<String>
+  static List<String> _safeStringList(dynamic value) {
+    if (value == null) return [];
+    
+    // If it's already a List, convert it
+    if (value is List) {
+      try {
+        return value.map((e) => e.toString()).toList();
+      } catch (_) {
+        return [];
+      }
+    }
+    
+    // If it's a String, try to parse it
+    if (value is String) {
+      if (value.isEmpty) return [];
+      try {
+        // Try to parse as JSON array
+        if (value.startsWith('[') && value.endsWith(']')) {
+          // Remove brackets and quotes, split by comma
+          final cleaned = value
+              .replaceAll('[', '')
+              .replaceAll(']', '')
+              .replaceAll('"', '')
+              .replaceAll("'", '')
+              .trim();
+          if (cleaned.isEmpty) return [];
+          return cleaned.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+        }
+        // If it's a single string value, return as single-item list
+        return [value.trim()];
+      } catch (_) {
+        // If parsing fails, return as single-item list
+        return [value.toString()];
+      }
+    }
+    
+    return [];
+  }
+
   /// Fetch user allergies from preferences
   static Future<List<String>> fetchUserAllergies(String? userId) async {
     if (userId == null) return [];
@@ -35,7 +75,22 @@ class RecipeService {
           .select('allergies')
           .eq('user_id', userId)
           .maybeSingle();
-      return List<String>.from(response?['allergies'] ?? []);
+      return _safeStringList(response?['allergies']);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Fetch user diet types from preferences
+  static Future<List<String>> fetchUserDietTypes(String? userId) async {
+    if (userId == null) return [];
+    try {
+      final response = await Supabase.instance.client
+          .from('user_preferences')
+          .select('diet_type')
+          .eq('user_id', userId)
+          .maybeSingle();
+      return _safeStringList(response?['diet_type']);
     } catch (_) {
       return [];
     }
@@ -151,6 +206,95 @@ class RecipeService {
     return result['matchingIngredients'] as List<String>;
   }
 
+  /// Check if a recipe is vegetarian (no meat as main ingredient)
+  static bool _isVegetarianRecipe(Recipe recipe) {
+    // Meat keywords to check (English and Filipino)
+    final meatKeywords = [
+      // English
+      'chicken', 'pork', 'beef', 'meat', 'poultry', 'turkey', 'duck', 'lamb', 'mutton',
+      'bacon', 'ham', 'sausage', 'hotdog', 'hot dog', 'chorizo', 'longganisa',
+      // Filipino
+      'manok', 'baboy', 'baka', 'karne', 'lechon', 'adobo', 'sinigang', 'tinola',
+      'nilaga', 'bulalo', 'kare-kare', 'kaldereta', 'menudo', 'afritada',
+      // Fish and seafood (excluded for strict vegetarian)
+      'fish', 'tilapia', 'bangus', 'salmon', 'tuna', 'mackerel', 'sardine',
+      'shrimp', 'prawn', 'crab', 'lobster', 'squid', 'octopus', 'shellfish',
+      'hipon', 'alimango', 'pusit', 'tulya', 'tahong',
+    ];
+
+    final lowerTitle = recipe.title.toLowerCase();
+    final lowerDescription = recipe.shortDescription.toLowerCase();
+    final allText = [lowerTitle, lowerDescription, ...recipe.tags.map((t) => t.toLowerCase())].join(' ');
+
+    // Check if title/description contains meat keywords
+    if (meatKeywords.any((keyword) => allText.contains(keyword))) {
+      return false;
+    }
+
+    // Check ingredients for meat (only required ingredients, not optional)
+    for (final ingredient in recipe.ingredients) {
+      final lowerIngredient = ingredient.toLowerCase();
+      final isOptional = _isOptionalIngredient(ingredient);
+      
+      // Skip optional ingredients
+      if (isOptional) continue;
+
+      // Check if ingredient contains meat keywords
+      if (meatKeywords.any((keyword) => lowerIngredient.contains(keyword))) {
+        return false;
+      }
+    }
+
+    // If recipe has Vegetarian or Vegan tag, it's vegetarian
+    if (recipe.tags.any((tag) => 
+        tag.toLowerCase() == 'vegetarian' || 
+        tag.toLowerCase() == 'vegan')) {
+      return true;
+    }
+
+    // If no meat found, consider it vegetarian
+    return true;
+  }
+
+  /// Filter recipes by diet type
+  static List<Recipe> filterRecipesByDietType(List<Recipe> recipes, List<String> dietTypes) {
+    if (dietTypes.isEmpty) return recipes;
+
+    // If user has "Vegetarian" diet type, filter to only vegetarian recipes
+    if (dietTypes.any((type) => type.toLowerCase() == 'vegetarian')) {
+      return recipes.where((recipe) => _isVegetarianRecipe(recipe)).toList();
+    }
+
+    // If user has "Vegan" diet type, filter to only vegan recipes (strict vegetarian + no dairy/eggs)
+    if (dietTypes.any((type) => type.toLowerCase() == 'vegan')) {
+      return recipes.where((recipe) {
+        if (!_isVegetarianRecipe(recipe)) return false;
+        
+        // Also exclude dairy and eggs
+        final nonVeganKeywords = [
+          'milk', 'cheese', 'butter', 'cream', 'yogurt', 'dairy', 'egg', 'eggs',
+          'mozzarella', 'cheddar', 'keso', 'gatas', 'itlog',
+        ];
+
+        // Check if any required ingredient contains non-vegan keywords
+        for (final ingredient in recipe.ingredients) {
+          final isOptional = _isOptionalIngredient(ingredient);
+          if (isOptional) continue;
+          
+          final lowerIngredient = ingredient.toLowerCase();
+          if (nonVeganKeywords.any((keyword) => lowerIngredient.contains(keyword))) {
+            return false;
+          }
+        }
+
+        return true;
+      }).toList();
+    }
+
+    // For other diet types, return all recipes (can be extended later)
+    return recipes;
+  }
+
   static Future<List<Recipe>> fetchRecipes({String? userId}) async {
     final response = await Supabase.instance.client
         .from('recipes')
@@ -159,9 +303,15 @@ class RecipeService {
 
     // If using the latest supabase_flutter, .select() returns a Future<List<Map<String, dynamic>>>
     // So we can map directly:
-    final allRecipes = (response as List)
+    var allRecipes = (response as List)
         .map((item) => Recipe.fromMap(item as Map<String, dynamic>))
         .toList();
+
+    // Filter by diet type first (if userId provided)
+    if (userId != null) {
+      final dietTypes = await fetchUserDietTypes(userId);
+      allRecipes = filterRecipesByDietType(allRecipes, dietTypes);
+    }
 
     // Filter by allergies if userId provided
     if (userId != null) {
@@ -192,6 +342,12 @@ class RecipeService {
       recipes = (response as List)
           .map((item) => Recipe.fromMap(item as Map<String, dynamic>))
           .toList();
+    }
+
+    // Filter by diet type first (if userId provided)
+    if (userId != null) {
+      final dietTypes = await fetchUserDietTypes(userId);
+      recipes = filterRecipesByDietType(recipes, dietTypes);
     }
 
     // Filter by allergies if userId provided

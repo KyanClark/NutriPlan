@@ -81,8 +81,8 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
   List<Recipe> _getFilteredRecipes(List<Recipe> recipes) {
     switch (widget.category) {
       // Original categories
-      case 'soup':
-        return _getSoupRecipes(recipes);
+      case 'pasta':
+        return _getPastaRecipes(recipes);
       case 'fish':
       case 'fish_seafood':
         return _getFishRecipes(recipes);
@@ -120,15 +120,24 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
     }
   }
 
-  List<Recipe> _getSoupRecipes(List<Recipe> recipes) {
+  List<Recipe> _getPastaRecipes(List<Recipe> recipes) {
     return recipes.where((recipe) => 
-      recipe.tags.contains('Soup') ||
-      recipe.title.toLowerCase().contains('sinigang') ||
-      recipe.title.toLowerCase().contains('tinola') ||
-      recipe.title.toLowerCase().contains('monggo') ||
-      recipe.title.toLowerCase().contains('soup') ||
-      recipe.title.toLowerCase().contains('nilaga') ||
-      recipe.title.toLowerCase().contains('bulalo')
+      recipe.tags.contains('Pasta') ||
+      recipe.tags.contains('Noodles') ||
+      recipe.title.toLowerCase().contains('pasta') ||
+      recipe.title.toLowerCase().contains('spaghetti') ||
+      recipe.title.toLowerCase().contains('pancit') ||
+      recipe.title.toLowerCase().contains('bihon') ||
+      recipe.title.toLowerCase().contains('canton') ||
+      recipe.title.toLowerCase().contains('miki') ||
+      recipe.title.toLowerCase().contains('noodles') ||
+      recipe.ingredients.any((ingredient) => 
+        ingredient.toLowerCase().contains('pasta') ||
+        ingredient.toLowerCase().contains('noodles') ||
+        ingredient.toLowerCase().contains('spaghetti') ||
+        ingredient.toLowerCase().contains('pancit') ||
+        ingredient.toLowerCase().contains('bihon')
+      )
     ).toList();
   }
 
@@ -161,45 +170,67 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
 
   // New protein-based filtering methods
   List<Recipe> _getChickenRecipes(List<Recipe> recipes) {
-    return recipes.where((recipe) => 
-      // Only include recipes that are specifically chicken-based
-      (recipe.title.toLowerCase().contains('chicken') && 
-       !recipe.title.toLowerCase().contains('pusit') &&
-       !recipe.title.toLowerCase().contains('kangkong') &&
-       !recipe.title.toLowerCase().contains('bam i') &&
-       !recipe.title.toLowerCase().contains('sotanghon') &&
-       !recipe.title.toLowerCase().contains('egg noodle') &&
-       !recipe.title.toLowerCase().contains('pancit lomi') &&
-       !recipe.title.toLowerCase().contains('afritada') &&
-       !recipe.title.toLowerCase().contains('pancit bihon') &&
-       !recipe.title.toLowerCase().contains('chop suey') &&
-       !recipe.title.toLowerCase().contains('talong') &&
-       !recipe.title.toLowerCase().contains('tofu') &&
-       !recipe.title.toLowerCase().contains('pancit canton')) ||
-      recipe.title.toLowerCase().contains('manok') ||
-      recipe.title.toLowerCase().contains('tinola') ||
-      recipe.title.toLowerCase().contains('inasal') ||
-      recipe.title.toLowerCase().contains('fried chicken') ||
-      recipe.ingredients.any((ingredient) => 
-        ingredient.toLowerCase().contains('chicken') ||
-        ingredient.toLowerCase().contains('manok')
-      )
-    ).toList();
+    return recipes.where((recipe) {
+      final title = recipe.title.toLowerCase();
+      // Exclude recipes that are clearly not chicken-based
+      if (title.contains('pusit') ||
+          title.contains('kangkong') ||
+          title.contains('bam i') ||
+          title.contains('sotanghon') ||
+          title.contains('egg noodle') ||
+          title.contains('pancit lomi') ||
+          title.contains('pancit bihon') ||
+          title.contains('chop suey') ||
+          title.contains('talong') ||
+          title.contains('tofu') ||
+          title.contains('pancit canton') ||
+          title.contains('ginisang monggo') ||
+          title.contains('ginisang munggo')) {
+        return false;
+      }
+      
+      // Include chicken-specific recipes
+      return (title.contains('chicken') && !title.contains('beef')) ||
+          title.contains('manok') ||
+          title.contains('tinola') ||
+          title.contains('inasal') ||
+          title.contains('fried chicken') ||
+          (title.contains('kare') && title.contains('chicken')) || // Chicken kare kare
+          recipe.ingredients.any((ingredient) => 
+            ingredient.toLowerCase().contains('chicken') ||
+            ingredient.toLowerCase().contains('manok')
+          );
+    }).toList();
   }
 
   List<Recipe> _getBeefRecipes(List<Recipe> recipes) {
-    return recipes.where((recipe) => 
-      recipe.title.toLowerCase().contains('beef') ||
-      recipe.title.toLowerCase().contains('baka') ||
-      recipe.title.toLowerCase().contains('tapa') ||
-      recipe.title.toLowerCase().contains('bulalo') ||
-      recipe.title.toLowerCase().contains('kare-kare') ||
-      recipe.title.toLowerCase().contains('kaldereta') ||
-      recipe.ingredients.any((ingredient) => 
-        ingredient.toLowerCase().contains('beef') ||
-        ingredient.toLowerCase().contains('baka')
-      )
-    ).toList();
+    return recipes.where((recipe) {
+      final title = recipe.title.toLowerCase();
+      
+      // Exclude chicken-based recipes that might contain beef-related keywords
+      if (title.contains('chicken') && (title.contains('kare') || title.contains('kaldereta'))) {
+        return false; // Chicken kare kare, chicken kaldereta should not be in beef
+      }
+      
+      // Exclude ginisang monggo (it's a vegetable/legume dish, not beef)
+      if (title.contains('ginisang monggo') || title.contains('ginisang munggo')) {
+        return false;
+      }
+      
+      // Include beef-specific recipes
+      return title.contains('beef') ||
+          title.contains('baka') ||
+          (title.contains('tapa') && !title.contains('chicken')) ||
+          title.contains('bulalo') ||
+          (title.contains('kare-kare') && !title.contains('chicken')) ||
+          (title.contains('kare kare') && !title.contains('chicken')) ||
+          (title.contains('kaldereta') && !title.contains('chicken')) ||
+          recipe.ingredients.any((ingredient) => 
+            (ingredient.toLowerCase().contains('beef') ||
+             ingredient.toLowerCase().contains('baka')) &&
+            !ingredient.toLowerCase().contains('chicken')
+          );
+    }).toList();
   }
 
   List<Recipe> _getVegetarianRecipes(List<Recipe> recipes) {
@@ -529,6 +560,8 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
                     );
                   }
 
+                  // Recipes are already filtered by diet type and allergies via RecipeService.fetchRecipes()
+                  // Now filter by category (e.g., pasta, chicken, etc.)
                   final allRecipes = snapshot.data ?? [];
                   final categoryRecipes = _getFilteredRecipes(allRecipes);
                   final filteredRecipes = _applySearchAndSort(categoryRecipes);

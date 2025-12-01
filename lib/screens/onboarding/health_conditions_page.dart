@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'diet_type.dart';
+import '../home/home_page.dart';
 
 class HealthConditionsPage extends StatefulWidget {
   final Map<String, double> baseNutritionGoals;
@@ -20,7 +20,7 @@ class _HealthConditionsPageState extends State<HealthConditionsPage> {
   final List<Map<String, dynamic>> healthConditions = [
     {
       'key': 'none',
-      'title': '✅ None',
+      'title': 'None',
       'desc': 'No specific health conditions',
       'icon': '✅',
       'color': Colors.green,
@@ -53,19 +53,6 @@ class _HealthConditionsPageState extends State<HealthConditionsPage> {
       },
     },
     {
-      'key': 'elderly',
-      'title': '👴 Senior (65+)',
-      'desc': 'Higher protein, calcium, vitamin D focus',
-      'icon': '👴',
-      'color': Colors.grey,
-      'adjustments': {
-        'protein_increase': 1.3, // Increase protein by 30% for muscle preservation
-        'calcium_increase': 1.2, // Increase calcium by 20%
-        'vitamin_d_focus': true,
-        'calorie_reduction': 0.95, // Slight calorie reduction for slower metabolism
-      },
-    },
-    {
       'key': 'malnutrition',
       'title': '🌾 Malnutrition / Underweight',
       'desc': 'High calories, nutrient-dense foods, frequent small meals',
@@ -85,38 +72,35 @@ class _HealthConditionsPageState extends State<HealthConditionsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Health Conditions'),
-        centerTitle: true,
-        backgroundColor: const Color(0xFF4CAF50),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 24),
-            const Text(
-              'Any health conditions?',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF388E3C),
-                letterSpacing: 1.2,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Back button
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF388E3C)),
+                onPressed: () => Navigator.of(context).pop(),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
               ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Select any health conditions that apply. We\'ll adjust your nutrition goals accordingly.',
-              style: TextStyle(fontSize: 14, color: Colors.black87),
-            ),
-            const SizedBox(height: 24),
-            
-            Expanded(
+              const SizedBox(height: 16),
+              Text(
+                'Any health conditions?',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: const Color(0xFF388E3C),
+                  fontWeight: FontWeight.w800,
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Select any health conditions that apply. We\'ll adjust your nutrition goals accordingly.',
+                style: TextStyle(fontSize: 16, color: Colors.black87, height: 1.5),
+              ),
+              const SizedBox(height: 24),
+              Expanded(
               child: ListView.separated(
                 itemCount: healthConditions.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
@@ -231,13 +215,11 @@ class _HealthConditionsPageState extends State<HealthConditionsPage> {
                   );
                 },
               ),
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // Continue Button
-            SizedBox(
-              width: double.infinity,
+              ),
+              const SizedBox(height: 24),
+              // Continue Button
+              SizedBox(
+                width: double.infinity,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4CAF50),
@@ -271,9 +253,11 @@ class _HealthConditionsPageState extends State<HealthConditionsPage> {
                       });
                   }
                   
-                  Navigator.push(
+                  // Navigate to home page - onboarding complete
+                  Navigator.pushAndRemoveUntil(
                     context,
-                    MaterialPageRoute(builder: (context) => const DietTypePage()),
+                    MaterialPageRoute(builder: (context) => const HomePage()),
+                    (route) => false,
                   );
                 } : null,
                 child: const Text('Apply Health Adjustments', style: TextStyle(fontSize: 18)),
@@ -282,6 +266,7 @@ class _HealthConditionsPageState extends State<HealthConditionsPage> {
           ],
         ),
       ),
+      )
     );
   }
   

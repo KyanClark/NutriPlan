@@ -45,10 +45,10 @@ class AllMealCategoriesPage extends StatelessWidget {
         'category': 'silog',
       },
       {
-        'name': 'Soup',
+        'name': 'Pasta',
         'asset': 'assets/widgets/soup-vid.gif',
         'assetType': 'gif',
-        'category': 'soup',
+        'category': 'pasta',
       },
       {
         'name': 'Vegetable',

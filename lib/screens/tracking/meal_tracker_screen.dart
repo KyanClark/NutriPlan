@@ -3,7 +3,9 @@ import 'package:intl/intl.dart';
 import '../../models/meal_history_entry.dart';
 import '../../models/user_nutrition_goals.dart';
 import '../../widgets/meal_log_card.dart';
+import '../../widgets/profile_avatar_widget.dart';
 import '../profile/profile_screen.dart';
+import '../profile/profile_information_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class MealTrackerScreen extends StatefulWidget {
@@ -24,8 +26,14 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
   Map<DateTime, bool> datesWithMeals = {};
   Map<DateTime, int> monthlyMealCounts = {};
   String? _avatarUrl;
+  String? _gender;
   static String? _cachedAvatarUrl;
+  static String? _cachedGender;
   static bool _hasFetchedAvatar = false;
+  
+  // Simple in-memory cache so we don't show skeleton every time the tab is opened
+  static final Map<String, List<MealHistoryEntry>> _cachedMealsByDate = {};
+  static final Map<String, UserNutritionGoals?> _cachedGoalsByDate = {};
   
   // Flag to track if widget is mounted
   bool _mounted = true;
@@ -62,9 +70,25 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
     );
   }
 
+  String _dateKey(DateTime date) =>
+      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
   Future<void> _fetchData() async {
     if (!_mounted) return;
+
+    final key = _dateKey(selectedDate);
+
+    // If we have cached data for this date, use it immediately without skeleton
+    if (_cachedMealsByDate.containsKey(key) && _cachedGoalsByDate.containsKey(key)) {
+      setState(() {
+        meals = _cachedMealsByDate[key] ?? [];
+        goals = _cachedGoalsByDate[key];
+        isLoading = false;
+      });
+    } else {
+      // First time for this date: show skeleton while loading
     setState(() => isLoading = true);
+    }
     
     try {
       final user = Supabase.instance.client.auth.currentUser;
@@ -75,6 +99,8 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
           goals = null;
           isLoading = false;
         });
+        _cachedMealsByDate.remove(key);
+        _cachedGoalsByDate.remove(key);
         return;
       }
 
@@ -110,6 +136,10 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
 
       final userGoals = prefsRes != null ? UserNutritionGoals.fromMap(prefsRes) : null;
 
+      // Update cache for this date
+      _cachedMealsByDate[key] = List<MealHistoryEntry>.from(mealList);
+      _cachedGoalsByDate[key] = userGoals;
+
       if (!_mounted) return;
       setState(() {
         meals = mealList;
@@ -124,6 +154,8 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
         goals = null;
         isLoading = false;
       });
+      _cachedMealsByDate.remove(key);
+      _cachedGoalsByDate.remove(key);
     }
   }
 
@@ -132,19 +164,30 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
     if (user == null) return;
 
     try {
-      final data = await Supabase.instance.client
+      // Fetch avatar URL
+      final profileData = await Supabase.instance.client
           .from('profiles')
           .select('avatar_url')
           .eq('id', user.id)
           .maybeSingle();
       
       // Update cached value
-      _cachedAvatarUrl = data?['avatar_url'] as String?;
+      _cachedAvatarUrl = profileData?['avatar_url'] as String?;
+      
+      // Fetch gender from user_preferences
+      final prefsData = await Supabase.instance.client
+          .from('user_preferences')
+          .select('gender')
+          .eq('user_id', user.id)
+          .maybeSingle();
+      
+      _cachedGender = prefsData?['gender'] as String?;
       _hasFetchedAvatar = true;
       
       if (!_mounted) return;
       setState(() {
         _avatarUrl = _cachedAvatarUrl;
+        _gender = _cachedGender;
       });
     } catch (e) {
       print('Error fetching user avatar: $e');
@@ -254,45 +297,6 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         children: [
-          // Header skeleton
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.only(top: 20, bottom: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 150,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  width: 280,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          // Date selector skeleton
-          Container(
-            width: 200,
-            height: 40,
-            margin: const EdgeInsets.symmetric(vertical: 16),
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(20),
-            ),
-          ),
-          
           // Calorie tracker skeleton
           Container(
             width: double.infinity,
@@ -510,100 +514,62 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
             padding: const EdgeInsets.symmetric(vertical: 16),
             child: GestureDetector(
               onTap: _showCalendar,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.calendar_today,
-                    color: Colors.grey[600],
-                    size: 20,
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.grey[300]!,
+                    width: 1.5,
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    DateFormat('EEEE, MMMM d, yyyy').format(selectedDate),
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[800],
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
-          // Big Odometer-Style Calorie Tracker (only the calorie card)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
+                  ],
                 ),
-              ],
-            ),
-            child: Center(
-              child: SizedBox(
-                width: 160,
-                height: 160,
-                child: Stack(
-                  alignment: Alignment.center,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Outer ring (dark green background)
-                    Container(
-                      width: 160,
-                      height: 160,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Color(0xFF2E7D32),
-                      ),
-                      child: CustomPaint(
-                        size: const Size(160, 160),
-                        painter: _OdometerPainter(
-                          progress: (summary.calories / (goals?.calorieGoal ?? 2000)).clamp(0.0, 1.0),
+                    Icon(
+                      Icons.calendar_today,
+                      color: const Color(0xFF4CAF50),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        DateFormat('EEEE, MMMM d, yyyy').format(selectedDate),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
                         ),
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    // Center content with white background circle
-                    Container(
-                      width: 120,
-                      height: 120,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white,
-                      ),
-                    ),
-                    // Center text with green color
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          ((goals?.calorieGoal ?? 2000) - summary.calories).toStringAsFixed(0),
-                          style: const TextStyle(
-                            color: Color(0xFF4CAF50),
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Text(
-                          'kcal left',
-                          style: TextStyle(
-                            color: Color(0xFF81C784),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+                    const SizedBox(width: 10),
+                    Icon(
+                      Icons.expand_more,
+                      color: Colors.grey[600],
+                      size: 24,
                     ),
                   ],
                 ),
               ),
             ),
+          ),
+          
+          // Calorie Tracker with Gas Tank Fill Effect
+          _CalorieCard(
+            calories: summary.calories,
+            goal: goals?.calorieGoal ?? 2000,
+            onInfoTap: _showCalorieGoalInfoDialog,
           ),
           
           const SizedBox(height: 20),
@@ -618,7 +584,7 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
             childAspectRatio: 1.2,
             children: [
               _MacroCard(
-                icon: null,
+                iconPath: 'assets/meal-tracker-icons/carbs_icon.png',
                 title: 'Carbs',
                 value: summary.carbs.toStringAsFixed(0),
                 unit: 'g',
@@ -626,44 +592,52 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                 color: Colors.orange,
               ),
               _MacroCard(
-                icon: null,
+                iconPath: 'assets/meal-tracker-icons/protein_icon.png',
                 title: 'Protein',
                 value: summary.protein.toStringAsFixed(0),
                 unit: 'g',
                 goal: goals?.proteinGoal ?? 165,
-                color: Colors.blue,
+                color: const Color.fromARGB(255, 255, 111, 111),
               ),
               _MacroCard(
-                icon: null,
+                iconPath: 'assets/meal-tracker-icons/fats_icon.png',
                 title: 'Fat',
                 value: summary.fat.toStringAsFixed(0),
                 unit: 'g',
                 goal: goals?.fatGoal ?? 75,
-                color: Colors.purple,
+                color: const Color.fromARGB(255, 253, 224, 95),
               ),
               _MacroCard(
-                icon: null,
+                iconPath: 'assets/meal-tracker-icons/fiber_icon.png',
                 title: 'Fiber',
                 value: summary.fiber.toStringAsFixed(0),
                 unit: 'g',
                 goal: goals?.fiberGoal ?? 25,
-                color: Colors.green,
+                color: const Color.fromARGB(255, 126, 248, 130),
               ),
               _MacroCard(
-                icon: null,
+                iconPath: 'assets/meal-tracker-icons/sugar-cube.png',
                 title: 'Sugar',
                 value: summary.sugar.toStringAsFixed(0),
                 unit: 'g',
                 goal: goals?.sugarGoal ?? 50,
-                color: Colors.pink,
+                color: const Color.fromARGB(255, 255, 173, 95),
               ),
               _MacroCard(
-                icon: null,
+                iconPath: 'assets/meal-tracker-icons/sodium.png',
+                title: 'Sodium',
+                value: summary.sodium.toStringAsFixed(0),
+                unit: 'mg',
+                goal: goals?.sodiumLimit ?? 2300,
+                color: const Color.fromARGB(255, 146, 233, 255),
+              ),
+              _MacroCard(
+                iconPath: 'assets/meal-tracker-icons/cholesterol.png',
                 title: 'Cholesterol',
                 value: summary.cholesterol.toStringAsFixed(0),
                 unit: 'mg',
                 goal: goals?.cholesterolGoal ?? 300,
-                color: Colors.red,
+                color: const Color.fromARGB(255, 230, 209, 24),     
               ),
             ],
           ),
@@ -785,15 +759,11 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
                   color: const Color.fromARGB(255, 80, 231, 93),
                   shape: BoxShape.circle,
                 ),
-                child: CircleAvatar(
+                child: ProfileAvatarWidget(
+                  avatarUrl: _avatarUrl ?? _cachedAvatarUrl,
+                  gender: _gender ?? _cachedGender,
                   radius: 16,
                   backgroundColor: Colors.grey[200],
-                  backgroundImage: _avatarUrl != null && _avatarUrl!.isNotEmpty
-                      ? NetworkImage(_avatarUrl!)
-                      : null,
-                  child: _avatarUrl == null || _avatarUrl!.isEmpty
-                      ? const Icon(Icons.person, color: Colors.grey, size: 20)
-                      : null,
                 ),
               ),
             ),
@@ -806,11 +776,276 @@ class _MealTrackerScreenState extends State<MealTrackerScreen> {
     );
   }
 
+  void _showCalorieGoalInfoDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            const SizedBox(width: 8),
+            const Text(
+              'About Your Calorie Goal',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          "Having trouble reaching your daily calorie goal? Don't worry! You can adjust your calorie target to something more achievable for you.\n\n"
+          "Everyone's needs are different, and it's important to set goals that work for your lifestyle. You can easily change your calorie goal in your profile settings.",
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.5,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'Maybe Later',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ProfileInformationScreen(),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4CAF50),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Go to Profile'),
+          ),
+        ],
+      ),
+    );
+  }
+
+}
+
+// Calorie Card Widget with Gas Tank Fill Effect
+class _CalorieCard extends StatefulWidget {
+  final double calories;
+  final double goal;
+  final VoidCallback onInfoTap;
+  
+  const _CalorieCard({
+    required this.calories,
+    required this.goal,
+    required this.onInfoTap,
+  });
+
+  @override
+  State<_CalorieCard> createState() => _CalorieCardState();
+}
+
+class _CalorieCardState extends State<_CalorieCard> with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _fillAnimation;
+  double _previousPercentage = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+    
+    _previousPercentage = (widget.goal > 0) ? (widget.calories / widget.goal).clamp(0.0, 1.0) : 0.0;
+    
+    _fillAnimation = Tween<double>(
+      begin: _previousPercentage,
+      end: _previousPercentage,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutCubic,
+    ));
+    
+    _animationController.value = 1.0;
+  }
+
+  @override
+  void didUpdateWidget(_CalorieCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.calories != widget.calories || oldWidget.goal != widget.goal) {
+      final newPercentage = (widget.goal > 0) ? (widget.calories / widget.goal).clamp(0.0, 1.0) : 0.0;
+      
+      _fillAnimation = Tween<double>(
+        begin: _previousPercentage,
+        end: newPercentage,
+      ).animate(CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeOutCubic,
+      ));
+      
+      _previousPercentage = newPercentage;
+      _animationController.reset();
+      _animationController.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final caloriesLeft = (widget.goal - widget.calories).clamp(0.0, double.infinity);
+    final calorieColor = const Color(0xFF4CAF50);
+    
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          // Liquid fill effect (gas tank style) - animated with precise percentage
+          AnimatedBuilder(
+            animation: _fillAnimation,
+            builder: (context, child) {
+              return Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Calculate exact fill height based on percentage
+                        final fillHeight = constraints.maxHeight * _fillAnimation.value;
+                        return SizedBox(
+                          height: fillHeight,
+                          width: constraints.maxWidth,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.bottomCenter,
+                                end: Alignment.topCenter,
+                                stops: const [0.0, 0.5, 1.0],
+                                colors: [
+                                  calorieColor.withOpacity(0.3),
+                                  calorieColor.withOpacity(0.2),
+                                  calorieColor.withOpacity(0.1),
+                                ],
+                              ),
+                            ),
+                            child: Stack(
+                              children: [
+                                Positioned.fill(
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        stops: const [0.0, 0.1],
+                                        colors: [
+                                          calorieColor.withOpacity(0.2),
+                                          Colors.transparent,
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          // Content overlay
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  caloriesLeft.toStringAsFixed(0),
+                  style: const TextStyle(
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'kcal left',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[700],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${widget.calories.toStringAsFixed(0)} / ${widget.goal.toStringAsFixed(0)}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Info icon positioned at top-right
+          Positioned(
+            top: 0,
+            right: 0,
+            child: InkWell(
+              onTap: widget.onInfoTap,
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: calorieColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.info_outline,
+                  color: calorieColor,
+                  size: 20,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // Macro Card Widget (matches the design)
-class _MacroCard extends StatelessWidget {
-  final IconData? icon;
+class _MacroCard extends StatefulWidget {
+  final String? iconPath;
   final String title;
   final String value;
   final String unit;
@@ -818,7 +1053,7 @@ class _MacroCard extends StatelessWidget {
   final Color color;
   
   const _MacroCard({
-    required this.icon,
+    this.iconPath,
     required this.title,
     required this.value,
     required this.unit,
@@ -827,76 +1062,262 @@ class _MacroCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  State<_MacroCard> createState() => _MacroCardState();
+}
+
+class _MacroCardState extends State<_MacroCard> with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _fillAnimation;
+  double _previousPercentage = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
     
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20), // more vertical padding
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 1),
-            blurRadius: 1,
-            spreadRadius: 1,
-            offset: const Offset(0, 1),
+    final currentValue = double.tryParse(widget.value) ?? 0.0;
+    _previousPercentage = (widget.goal > 0) ? (currentValue / widget.goal).clamp(0.0, 1.0) : 0.0;
+    
+    // Set initial value immediately, then animate smoothly
+    _fillAnimation = Tween<double>(
+      begin: _previousPercentage,
+      end: _previousPercentage,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutCubic,
+    ));
+    
+    _animationController.value = 1.0; // Set to completed state immediately
+  }
+
+  @override
+  void didUpdateWidget(_MacroCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value || oldWidget.goal != widget.goal) {
+      final currentValue = double.tryParse(widget.value) ?? 0.0;
+      final newPercentage = (widget.goal > 0) ? (currentValue / widget.goal).clamp(0.0, 1.0) : 0.0;
+      
+      _fillAnimation = Tween<double>(
+        begin: _previousPercentage,
+        end: newPercentage,
+      ).animate(CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeOutCubic,
+      ));
+      
+      _previousPercentage = newPercentage;
+      _animationController.reset();
+      _animationController.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  // Build icon widget with error handling
+  Widget _buildIconWidget(String iconPath, String title, Color color) {
+    try {
+      return Image.asset(
+        iconPath,
+        width: 20,
+        height: 20,
+        fit: BoxFit.contain,
+        alignment: Alignment.center,
+        errorBuilder: (context, error, stackTrace) {
+          // Fallback to colored icon if image fails to load
+          return Icon(
+            _getFallbackIcon(title),
+            size: 18,
+            color: color,
+          );
+        },
+        cacheWidth: 40, // Optimize image caching
+        cacheHeight: 40,
+        filterQuality: FilterQuality.low, // Faster rendering
+        gaplessPlayback: true, // Smooth transitions
+      );
+    } catch (e) {
+      // If there's any error, return fallback icon immediately
+      return Icon(
+        _getFallbackIcon(title),
+        size: 18,
+        color: color,
+      );
+    }
+  }
+
+  // Get fallback icon if image fails to load
+  IconData _getFallbackIcon(String title) {
+    switch (title.toLowerCase()) {
+      case 'carbs':
+        return Icons.bakery_dining;
+      case 'protein':
+        return Icons.fitness_center;
+      case 'fat':
+        return Icons.water_drop;
+      case 'fiber':
+        return Icons.eco;
+      case 'sugar':
+        return Icons.cake;
+      case 'sodium':
+        return Icons.water;
+      case 'cholesterol':
+        return Icons.bloodtype;
+      default:
+        return Icons.info;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _fillAnimation,
+      builder: (context, child) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withValues(alpha: 1),
+                blurRadius: 1,
+                spreadRadius: 1,
+                offset: const Offset(0, 1),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+          child: Stack(
             children: [
-              if (icon != null) ...[
-                Icon(icon, color: color, size: 20),
-                const SizedBox(width: 8),
-              ],
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[700],
+              // Liquid fill effect (gas tank style) - animated with precise percentage
+              Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Calculate exact fill height based on percentage
+                        final fillHeight = constraints.maxHeight * _fillAnimation.value;
+                        return SizedBox(
+                          height: fillHeight,
+                          width: constraints.maxWidth,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.bottomCenter,
+                                end: Alignment.topCenter,
+                                stops: const [0.0, 0.5, 1.0],
+                                colors: [
+                                  widget.color,
+                                  widget.color.withOpacity(0.7),
+                                  widget.color.withOpacity(0.3),
+                                ],
+                              ),
+                            ),
+                            // Add subtle wave effect at the top
+                            child: Stack(
+                              children: [
+                                Positioned.fill(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        stops: const [0.0, 0.1],
+                                        colors: [
+                                          widget.color.withOpacity(0.2),
+                                          Colors.transparent,
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+              // Content overlay
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        if (widget.iconPath != null) ...[
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: _buildIconWidget(widget.iconPath!, widget.title, widget.color),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                        Flexible(
+                          child: Text(
+                            widget.title,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey[700],
+                              height: 1.2,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              widget.value,
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
+                            ),
+                            Text(
+                              widget.unit,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          'of ${widget.goal.toStringAsFixed(0)}${widget.unit}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    value,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                  ),
-                  Text(
-                    unit,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-              Text(
-                'of ${goal.toStringAsFixed(0)}$unit',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[500],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -1199,47 +1620,4 @@ class _CalendarDialogState extends State<_CalendarDialog> {
   }
 }
 
-// Custom painter for odometer-style filled arc
-class _OdometerPainter extends CustomPainter {
-  final double progress;
-
-  _OdometerPainter({required this.progress});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF4CAF50)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 20
-      ..strokeCap = StrokeCap.round;
-
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 10; // Account for stroke width
-
-    // Convert to radians
-    const double pi = 3.1415926535897932;
-    
-    // Start from top (-90 degrees in radians)
-    final startAngle = -90 * (pi / 180);
-    
-    // Draw a fixed small arc segment regardless of progress
-    // This creates the "cut odometer" effect - always showing a small piece of the ring
-    // Typical odometer shows about 20-30 degrees of arc
-    const fixedArcDegrees = 25.0; // Fixed arc size in degrees
-    final sweepAngle = fixedArcDegrees * (pi / 180); // Convert to radians
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      startAngle,
-      sweepAngle,
-      false, // Don't draw interior
-      paint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_OdometerPainter oldDelegate) {
-    return oldDelegate.progress != progress;
-  }
-}
 

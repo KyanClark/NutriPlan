@@ -67,6 +67,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
   late Animation<double> _heartScaleAnimation;
   late AnimationController _shimmerController;
 
+
   @override
   void initState() {
     super.initState();
@@ -620,6 +621,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
   }
 
 
+
   Future<void> _showReAddConfirmation() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -1082,42 +1084,41 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                                       children: [
                                         _MacroChip(
                                           label: 'Carbs', 
-                                          value: (updatedNutrition?['carbs'] ?? recipe.macros['carbs'] ?? 0).toString(),
+                                          value: (updatedNutrition?['carbs'] ?? recipe.macros['carbs'] ?? 0).toStringAsFixed(2),
                                           unit: 'g'
                                         ),
                                         _MacroChip(
                                           label: 'Fat', 
-                                          value: (updatedNutrition?['fat'] ?? recipe.macros['fat'] ?? 0).toString(),
+                                          value: (updatedNutrition?['fat'] ?? recipe.macros['fat'] ?? 0).toStringAsFixed(2),
                                           unit: 'g'
                                         ),
                                         _MacroChip(
                                           label: 'Fiber', 
-                                          value: (updatedNutrition?['fiber'] ?? recipe.macros['fiber'] ?? 0).toString(),
+                                          value: (updatedNutrition?['fiber'] ?? recipe.macros['fiber'] ?? 0).toStringAsFixed(2),
                                           unit: 'g'
                                         ),
                                         _MacroChip(
                                           label: 'Protein', 
-                                          value: (updatedNutrition?['protein'] ?? recipe.macros['protein'] ?? 0).toString(),
+                                          value: (updatedNutrition?['protein'] ?? recipe.macros['protein'] ?? 0).toStringAsFixed(2),
                                           unit: 'g'
                                         ),
                                         _MacroChip(
                                           label: 'Sugar', 
-                                          value: (updatedNutrition?['sugar'] ?? recipe.macros['sugar'] ?? 0).toString(),
+                                          value: (updatedNutrition?['sugar'] ?? recipe.macros['sugar'] ?? 0).toStringAsFixed(2),
                                           unit: 'g'
                                         ),
-                                        // Show additional nutrients if available
-                                        if (updatedNutrition != null && updatedNutrition!['sodium'] != null)
-                                          _MacroChip(
-                                            label: 'Sodium', 
-                                            value: updatedNutrition!['sodium'].toStringAsFixed(1),
-                                            unit: 'mg'
-                                          ),
-                                        if (updatedNutrition != null && updatedNutrition!['cholesterol'] != null)
-                                          _MacroChip(
-                                            label: 'Cholesterol', 
-                                            value: updatedNutrition!['cholesterol'].toStringAsFixed(1),
-                                            unit: 'mg'
-                                          ),
+                                        // Always show sodium, even if 0
+                                        _MacroChip(
+                                          label: 'Sodium', 
+                                          value: (updatedNutrition?['sodium'] ?? recipe.macros['sodium'] ?? 0).toStringAsFixed(2),
+                                          unit: 'mg'
+                                        ),
+                                        // Always show cholesterol, even if 0
+                                        _MacroChip(
+                                          label: 'Cholesterol', 
+                                          value: (updatedNutrition?['cholesterol'] ?? recipe.macros['cholesterol'] ?? 0).toStringAsFixed(2),
+                                          unit: 'mg'
+                                        ),
                                       ],
                                     ),
                                   )
@@ -1534,11 +1535,49 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                   child: Container(
                     height: 90,
                     width: double.infinity,
-                    alignment: Alignment.center,
-                    child: SizedBox(
-                      width: MediaQuery.of(context).size.width * 0.9,
-                      height: 56,
-                      child: ElevatedButton(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Serving size display
+                        if (!widget.showStartCooking && !alreadyAdded && !widget.isFromMealHistory)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            margin: const EdgeInsets.only(right: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey[300]!),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Serving',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey[600],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '1 serving',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[800],
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        // Main Add to Meal Plan button
+                        Expanded(
+                          child: SizedBox(
+                            height: 56,
+                            child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: widget.showStartCooking ? Colors.orange : (alreadyAdded ? Colors.grey : const Color(0xFF4CAF50)),
                           foregroundColor: Colors.white,
@@ -1736,7 +1775,10 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                                     : (alreadyAdded ? 'Already Added' : 'Add to Meal Plan'),
                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
                               ),
-                      ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

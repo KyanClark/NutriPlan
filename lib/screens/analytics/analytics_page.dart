@@ -4,11 +4,12 @@ import '../../models/user_nutrition_goals.dart';
 // Removed external analytics service; using inline data fetchers
 import '../../services/ai_insights_service.dart';
 import '../../services/recipe_service.dart';
+import '../../widgets/profile_avatar_widget.dart';
 import '../profile/profile_screen.dart';
 import '../recipes/recipe_info_screen.dart';
 import '../../models/recipes.dart';
-import '../tracking/meal_tracker_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../utils/app_logger.dart';
 
 class AnalyticsPage extends StatefulWidget {
   const AnalyticsPage({super.key});
@@ -23,20 +24,33 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
   bool _isMonthlyLoading = false;
   UserNutritionGoals? _goals;
   Map<String, dynamic> _weeklyData = {};
-  Map<String, dynamic> _lastWeekData = {};
   Map<String, dynamic> _monthlyData = {};
   final Map<String, Map<String, dynamic>> _weeklyCache = {};
   final Map<String, Map<String, dynamic>> _monthlyCache = {};
   List<Recipe> _allRecipes = [];
   String _selectedPeriod = 'weekly'; // 'weekly' | 'monthly'
+  bool _showLastWeekComparison = false; // Toggle for last week comparison
+  Map<String, dynamic> _lastWeekData = {}; // Store last week's data for comparison
   List<Map<String, String>> _weeklyInsights = [];
   bool _isGeneratingWeeklyInsights = false;
   String? _avatarUrl;
+  String? _gender;
   static String? _cachedAvatarUrl;
+  static String? _cachedGender;
   static bool _hasFetchedAvatar = false;
   String? _weeklyInsightsCacheKey; // Prevent redundant AI calls when data hasn't changed
+  DateTime? _lastInsightsGeneration; // Track when insights were last generated
+  String? _lastMealsHash; // Track meals data hash
+  String? _lastPreferencesHash; // Track dietary preferences hash
+  List<Map<String, String>>? _cachedInsights; // Cache the insights themselves
   final Set<int> _expandedInsights = {}; // Track which insights are expanded
   final Set<int> _seenInsights = {}; // Track which insights have been tapped (for green glow)
+  
+  // Cache for analytics data by period to prevent skeleton on every tab switch
+  // Similar to meal tracker - cache by specific week/month periods
+  static final Map<String, UserNutritionGoals?> _cachedGoalsByPeriod = {};
+  static final Map<String, Map<String, dynamic>> _cachedWeeklyDataByPeriod = {};
+  static final Map<String, Map<String, dynamic>> _cachedMonthlyDataByPeriod = {};
   
   late TabController _tabController;
   // Week selection for Daily Calorie Intake (defaults to current week)
@@ -46,6 +60,13 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
 
   @override
   bool get wantKeepAlive => true; // Preserve state when navigating away
+
+  // Helper to create cache keys for periods
+  String _weekKey(DateTime weekStart) =>
+      'w:${weekStart.year}-${weekStart.month.toString().padLeft(2, '0')}-${weekStart.day.toString().padLeft(2, '0')}';
+  
+  String _monthKey(DateTime monthStart) =>
+      'm:${monthStart.year}-${monthStart.month.toString().padLeft(2, '0')}';
 
   @override
   void initState() {
@@ -58,22 +79,14 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
     // Initialize to current month's first day
     _selectedMonthStart = DateTime(now.year, now.month, 1);
     
-    // Only load data if we don't already have it loaded
-    if (_weeklyData.isEmpty || _goals == null) {
+    // Check cache for current periods (like meal tracker)
     _loadAnalyticsData();
+    
     // Only fetch avatar if not already cached
     if (!_hasFetchedAvatar) {
     _fetchUserAvatar();
     } else {
       _avatarUrl = _cachedAvatarUrl;
-    }
-    } else {
-      // Data already loaded, just set loading to false
-      _isLoading = false;
-      // Use cached avatar if available
-      if (_hasFetchedAvatar) {
-        _avatarUrl = _cachedAvatarUrl;
-      }
     }
   }
 
@@ -85,7 +98,27 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
 
   Future<void> _loadAnalyticsData() async {
     if (!mounted) return;
+
+    final weekKey = _weekKey(_selectedWeekStart);
+    final monthKey = _monthKey(_selectedMonthStart);
+
+    // Check if we have cached data for both current week and month
+    final hasCachedWeek = _cachedWeeklyDataByPeriod.containsKey(weekKey);
+    final hasCachedMonth = _cachedMonthlyDataByPeriod.containsKey(monthKey);
+    final hasCachedGoals = _cachedGoalsByPeriod.containsKey('goals');
+
+    // If we have cached data for current periods, use it immediately without skeleton
+    if (hasCachedWeek && hasCachedMonth && hasCachedGoals) {
+      setState(() {
+        _goals = _cachedGoalsByPeriod['goals'];
+        _weeklyData = Map<String, dynamic>.from(_cachedWeeklyDataByPeriod[weekKey] ?? {});
+        _monthlyData = Map<String, dynamic>.from(_cachedMonthlyDataByPeriod[monthKey] ?? {});
+        _isLoading = false;
+      });
+    } else {
+      // First time for these periods: show skeleton while loading
     setState(() => _isLoading = true);
+    }
     
     try {
       final user = Supabase.instance.client.auth.currentUser;
@@ -95,29 +128,54 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
           _goals = null;
           _isLoading = false;
         });
+        _cachedGoalsByPeriod.remove('goals');
+        _cachedWeeklyDataByPeriod.remove(weekKey);
+        _cachedMonthlyDataByPeriod.remove(monthKey);
         return;
       }
 
-      // Fetch user nutrition goals
+      // Fetch user nutrition goals (cache by 'goals' key since it's user-specific, not period-specific)
+      UserNutritionGoals? userGoals;
+      if (!hasCachedGoals) {
       final prefsRes = await Supabase.instance.client
           .from('user_preferences')
           .select()
           .eq('user_id', user.id)
           .maybeSingle();
+        userGoals = prefsRes != null ? UserNutritionGoals.fromMap(prefsRes) : null;
+        _cachedGoalsByPeriod['goals'] = userGoals;
+      } else {
+        userGoals = _cachedGoalsByPeriod['goals'];
+      }
 
-      final userGoals = prefsRes != null ? UserNutritionGoals.fromMap(prefsRes) : null;
+      // Fetch weekly data if not cached
+      Map<String, dynamic> weeklyData;
+      if (!hasCachedWeek) {
+        weeklyData = await _getWeeklyData(user.id, weekStart: _selectedWeekStart);
+        _cachedWeeklyDataByPeriod[weekKey] = Map<String, dynamic>.from(weeklyData);
+      } else {
+        weeklyData = Map<String, dynamic>.from(_cachedWeeklyDataByPeriod[weekKey] ?? {});
+      }
 
-      // Fetch weekly and monthly data inline (totals/averages)
-      final weeklyData = await _getWeeklyData(user.id, weekStart: _selectedWeekStart);
-      final prevWeekStart = _selectedWeekStart.subtract(const Duration(days: 7));
-      final lastWeekData = await _getWeeklyData(user.id, weekStart: prevWeekStart);
-      final monthlyData = await _getMonthlyData(user.id, monthStart: _selectedMonthStart);
+      // Fetch monthly data if not cached
+      Map<String, dynamic> monthlyData;
+      if (!hasCachedMonth) {
+        monthlyData = await _getMonthlyData(user.id, monthStart: _selectedMonthStart);
+        _cachedMonthlyDataByPeriod[monthKey] = Map<String, dynamic>.from(monthlyData);
+      } else {
+        monthlyData = Map<String, dynamic>.from(_cachedMonthlyDataByPeriod[monthKey] ?? {});
+      }
+
+      // Always refresh in background for freshness (but don't show skeleton if we had cache)
+      if (hasCachedWeek && hasCachedMonth && hasCachedGoals) {
+        // Background refresh - fetch fresh data but don't show loading
+        _refreshAnalyticsDataInBackground();
+      }
 
       if (!mounted) return;
       setState(() {
         _goals = userGoals;
         _weeklyData = weeklyData;
-        _lastWeekData = lastWeekData;
         _monthlyData = monthlyData;
         _isLoading = false;
       });
@@ -125,7 +183,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
       // Generate AI insights
       _generateWeeklyInsights();
     } catch (e) {
-      print('Error loading analytics data: $e');
+      AppLogger.error('Error loading analytics data',  e);
       if (!mounted) return;
       setState(() {
         _goals = null;
@@ -133,55 +191,127 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
         _monthlyData = {};
         _isLoading = false;
       });
+      // Clear cache on error
+      _cachedGoalsByPeriod.remove('goals');
+      _cachedWeeklyDataByPeriod.remove(weekKey);
+      _cachedMonthlyDataByPeriod.remove(monthKey);
+    }
+  }
+
+  // Background refresh without showing skeleton
+  Future<void> _refreshAnalyticsDataInBackground() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null || !mounted) return;
+
+      final weekKey = _weekKey(_selectedWeekStart);
+      final monthKey = _monthKey(_selectedMonthStart);
+
+      // Fetch fresh data in background
+      final prefsRes = await Supabase.instance.client
+          .from('user_preferences')
+          .select()
+          .eq('user_id', user.id)
+          .maybeSingle();
+      final userGoals = prefsRes != null ? UserNutritionGoals.fromMap(prefsRes) : null;
+      final weeklyData = await _getWeeklyData(user.id, weekStart: _selectedWeekStart);
+      final monthlyData = await _getMonthlyData(user.id, monthStart: _selectedMonthStart);
+
+      // Update cache with fresh data
+      _cachedGoalsByPeriod['goals'] = userGoals;
+      _cachedWeeklyDataByPeriod[weekKey] = Map<String, dynamic>.from(weeklyData);
+      _cachedMonthlyDataByPeriod[monthKey] = Map<String, dynamic>.from(monthlyData);
+
+      // Update UI if still mounted
+      if (!mounted) return;
+      setState(() {
+        _goals = userGoals;
+        _weeklyData = weeklyData;
+        _monthlyData = monthlyData;
+      });
+
+      // Regenerate insights with fresh data
+      _generateWeeklyInsights();
+    } catch (e) {
+      AppLogger.error('Error refreshing analytics data in background', e);
     }
   }
 
   Future<void> _refreshWeeklyData() async {
     if (!mounted) return;
-    try {
+    
+    final weekKey = _weekKey(_selectedWeekStart);
+    
+    // Check if we have cached data for this week
+    final hasCachedWeek = _cachedWeeklyDataByPeriod.containsKey(weekKey);
+    
+    // Only show loading if we don't have cached data
+    if (!hasCachedWeek) {
     setState(() => _isWeeklyLoading = true);
+    }
+    
+    try {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
       // Fetch weekly data for the selected week
       final weeklyData = await _getWeeklyData(user.id, weekStart: _selectedWeekStart);
-      final prevWeekStart = _selectedWeekStart.subtract(const Duration(days: 7));
-      final lastWeekData = await _getWeeklyData(user.id, weekStart: prevWeekStart);
+      
+      // Update cache
+      _cachedWeeklyDataByPeriod[weekKey] = Map<String, dynamic>.from(weeklyData);
       
       if (!mounted) return;
       setState(() {
         _weeklyData = weeklyData;
-        _lastWeekData = lastWeekData;
         _isWeeklyLoading = false;
       });
 
       // Regenerate insights for the new week
       _generateWeeklyInsights();
     } catch (e) {
-      print('Error refreshing weekly data: $e');
+      AppLogger.error('Error refreshing weekly data', e);
       if (mounted) {
         setState(() => _isWeeklyLoading = false);
       }
+      // Clear cache on error
+      _cachedWeeklyDataByPeriod.remove(weekKey);
     }
   }
 
   Future<void> _refreshMonthlyData() async {
     if (!mounted) return;
-    try {
+    
+    final monthKey = _monthKey(_selectedMonthStart);
+    
+    // Check if we have cached data for this month
+    final hasCachedMonth = _cachedMonthlyDataByPeriod.containsKey(monthKey);
+    
+    // Only show loading if we don't have cached data
+    if (!hasCachedMonth) {
       setState(() => _isMonthlyLoading = true);
+    }
+    
+    try {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) return;
+      
       final monthlyData = await _getMonthlyData(user.id, monthStart: _selectedMonthStart);
+      
+      // Update cache
+      _cachedMonthlyDataByPeriod[monthKey] = Map<String, dynamic>.from(monthlyData);
+      
       if (!mounted) return;
       setState(() {
         _monthlyData = monthlyData;
         _isMonthlyLoading = false;
       });
     } catch (e) {
-      print('Error refreshing monthly data: $e');
+      AppLogger.error('Error refreshing monthly data', e);
       if (mounted) {
         setState(() => _isMonthlyLoading = false);
       }
+      // Clear cache on error
+      _cachedMonthlyDataByPeriod.remove(monthKey);
     }
   }
 
@@ -191,30 +321,95 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
     if (user == null) return;
 
     try {
-      final data = await Supabase.instance.client
+      // Fetch avatar URL
+      final profileData = await Supabase.instance.client
           .from('profiles')
           .select('avatar_url')
           .eq('id', user.id)
           .maybeSingle();
       
       // Update cached value
-      _cachedAvatarUrl = data?['avatar_url'] as String?;
+      _cachedAvatarUrl = profileData?['avatar_url'] as String?;
+      
+      // Fetch gender from user_preferences
+      final prefsData = await Supabase.instance.client
+          .from('user_preferences')
+          .select('gender')
+          .eq('user_id', user.id)
+          .maybeSingle();
+      
+      _cachedGender = prefsData?['gender'] as String?;
       _hasFetchedAvatar = true;
       
       if (!mounted) return;
       setState(() {
         _avatarUrl = _cachedAvatarUrl;
+        _gender = _cachedGender;
       });
     } catch (e) {
-      print('Error fetching user avatar: $e');
+      AppLogger.error('Error fetching user avatar', e);
     }
   }
 
   Future<void> _generateWeeklyInsights() async {
     if (!mounted) return;
-    setState(() => _isGeneratingWeeklyInsights = true);
-
+    
     try {
+      // Check if we should use cached insights
+      final now = DateTime.now();
+      final shouldUseCache = _cachedInsights != null &&
+          _lastInsightsGeneration != null &&
+          now.difference(_lastInsightsGeneration!).inDays < 1; // Cache valid for 1 day
+      
+      if (shouldUseCache) {
+        // Check if meals or preferences have changed
+        final user = Supabase.instance.client.auth.currentUser;
+        if (user != null) {
+          // Get current meals hash (last 7 days)
+          final weekAgo = now.subtract(const Duration(days: 7));
+          final recentMeals = await Supabase.instance.client
+              .from('meal_plan_history')
+              .select('id, completed_at')
+              .eq('user_id', user.id)
+              .gte('completed_at', weekAgo.toUtc().toIso8601String())
+              .order('completed_at', ascending: false);
+          
+          final mealsHash = recentMeals.length.toString() + 
+              (recentMeals.isNotEmpty ? recentMeals.first['completed_at'].toString() : '');
+          
+          // Get current preferences hash
+          final prefs = await Supabase.instance.client
+              .from('user_preferences')
+              .select('health_conditions, diet_type, nutrition_needs, updated_at')
+              .eq('user_id', user.id)
+              .maybeSingle();
+          
+          final prefsHash = prefs != null 
+              ? (prefs['health_conditions']?.toString() ?? '') +
+                (prefs['diet_type']?.toString() ?? '') +
+                (prefs['nutrition_needs']?.toString() ?? '') +
+                (prefs['updated_at']?.toString() ?? '')
+              : '';
+          
+          // If nothing changed, use cached insights
+          if (_lastMealsHash == mealsHash && _lastPreferencesHash == prefsHash) {
+            if (mounted) {
+              setState(() {
+                _weeklyInsights = _cachedInsights!;
+                _isGeneratingWeeklyInsights = false;
+              });
+            }
+            return;
+          }
+          
+          // Update hashes
+          _lastMealsHash = mealsHash;
+          _lastPreferencesHash = prefsHash;
+        }
+      }
+      
+      setState(() => _isGeneratingWeeklyInsights = true);
+
       // Build a lightweight cache key from weekly averages and key goals
       final Map<String, double> avgs = (_weeklyData['averages'] as Map<String, double>?) ?? const {};
       final key = [
@@ -231,7 +426,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
       ].join('|');
 
       // If nothing changed, skip re-generation
-      if (_weeklyInsightsCacheKey == key && _weeklyInsights.isNotEmpty) {
+      if (_weeklyInsightsCacheKey == key && _weeklyInsights.isNotEmpty && shouldUseCache) {
         setState(() => _isGeneratingWeeklyInsights = false);
         return;
       }
@@ -246,21 +441,48 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
         });
       }
 
+      // Check if user has logged meals for today
+      bool hasMealsToday = false;
+      if (user != null) {
+        try {
+          final today = DateTime.now();
+          final startOfDay = DateTime(today.year, today.month, today.day);
+          final endOfDay = startOfDay.add(const Duration(days: 1));
+          
+          final todayMeals = await Supabase.instance.client
+              .from('meal_plan_history')
+              .select('id')
+              .eq('user_id', user.id)
+              .gte('completed_at', startOfDay.toUtc().toIso8601String())
+              .lt('completed_at', endOfDay.toUtc().toIso8601String())
+              .limit(1);
+          
+          hasMealsToday = todayMeals.isNotEmpty;
+        } catch (e) {
+          AppLogger.error('Error checking today meals', e);
+          // Default to true to avoid false positives
+          hasMealsToday = true;
+        }
+      }
+
       final insights = await AIInsightsService.generateWeeklyInsights(
         _weeklyData, 
         _monthlyData, 
         _goals,
         availableRecipes: recipeNames,
+        hasMealsToday: hasMealsToday,
       );
       if (!mounted) return;
       setState(() {
         _weeklyInsights = insights;
+        _cachedInsights = insights; // Cache the insights
+        _lastInsightsGeneration = DateTime.now(); // Update generation time
         _weeklyInsightsCacheKey = key;
         _isGeneratingWeeklyInsights = false;
         _seenInsights.clear(); // Reset seen insights when new insights are generated
       });
     } catch (e) {
-      print('Error generating weekly insights: $e');
+      AppLogger.error('Error generating weekly insights', e);
       if (!mounted) return;
       setState(() {
         _weeklyInsights = [];
@@ -373,27 +595,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
     return 0;
   }
 
-  Widget _buildSkeletonLoader() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Period switch skeleton
-          Center(
-            child: Container(
-              width: 120,
-              height: 36,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          // Top summary row skeleton
-          Row(
+  // Separate skeleton widgets for each section (like meal tracker)
+  Widget _buildSummaryRowSkeleton() {
+    return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
@@ -526,11 +730,11 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 30),
+    );
+  }
           
-          // Calorie card skeleton
-          Container(
+  Widget _buildCalorieCardSkeleton() {
+    return Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -575,11 +779,11 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 30),
+    );
+  }
           
-          // Weekly insights card skeleton
-          Container(
+  Widget _buildInsightsCardSkeleton() {
+    return Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -663,51 +867,11 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
                 )),
               ],
             ),
-          ),
-          const SizedBox(height: 30),
-          
-          // Charts skeleton
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withValues(alpha: 0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 150,
-                  height: 18,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  height: 200,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 30),
-          
-          // Pie chart skeleton
-          Container(
+    );
+  }
+
+  Widget _buildPieChartSkeleton() {
+    return Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -741,9 +905,6 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
                       shape: BoxShape.circle,
                       color: Colors.grey,
                     ),
-                  ),
-                ),
-              ],
             ),
           ),
         ],
@@ -796,29 +957,23 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
                   color: const Color.fromARGB(255, 80, 231, 93),
                   shape: BoxShape.circle,
                 ),
-                child: CircleAvatar(
+                child: ProfileAvatarWidget(
+                  avatarUrl: _avatarUrl ?? _cachedAvatarUrl,
+                  gender: _gender ?? _cachedGender,
                   radius: 16,
                   backgroundColor: Colors.grey[200],
-                  backgroundImage: _avatarUrl != null && _avatarUrl!.isNotEmpty
-                      ? NetworkImage(_avatarUrl!)
-                      : null,
-                  child: _avatarUrl == null || _avatarUrl!.isEmpty
-                      ? const Icon(Icons.person, color: Colors.grey, size: 20)
-                      : null,
                 ),
               ),
             ),
           ),
         ],
       ),
-      body: _isLoading
-          ? _buildSkeletonLoader()
-          : SingleChildScrollView(
+      body: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Period switch centered above the summary card
+                  // Period switch centered above the summary card - always visible
                   Center(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -865,24 +1020,18 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
                   ),
                   const SizedBox(height: 16),
                   // Top summary row: Calories + meal counts
-                  _buildTopSummaryRow(),
+                  _isLoading ? _buildSummaryRowSkeleton() : _buildTopSummaryRow(),
                   const SizedBox(height: 30),
-                  _buildCalorieCardWithSegmentedArea(),
+                  // Calorie card - show skeleton if loading
+                  _isLoading ? _buildCalorieCardSkeleton() : _buildCalorieCardWithSegmentedArea(),
                   const SizedBox(height: 30),
                 
-                // Weekly Insights Section
-                _buildWeeklyInsightsCard(),
+                  // Weekly Insights Section - show skeleton if loading
+                  _isLoading ? _buildInsightsCardSkeleton() : _buildWeeklyInsightsCard(),
                 const SizedBox(height: 30),
                 
-                // Charts
-                  // Multi-line Chart for Weekly Comparison
-                  _buildWeeklyComparisonChart(),
-                  const SizedBox(height: 30),
-                  
-                  // Removed macro comparison per preference
-                  
-                  // Multiple Pie Charts for Week Comparison
-                  _buildWeeklyPieCharts(),
+                  // Charts - show skeleton if loading
+                  _isLoading ? _buildPieChartSkeleton() : _buildWeeklyPieCharts(),
                   const SizedBox(height: 30),
                 ],
               ),
@@ -1070,11 +1219,44 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
                       child: LineChart(_buildMonthlyChartData(spots, sortedKeys, dailyGoal)),
                     ),
                   )
-                : LineChart(_buildMonthlyChartData(spots, sortedKeys, dailyGoal)),
+                : _buildChartWithComparison(spots, sortedKeys, dailyGoal),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildChartWithComparison(List<FlSpot> spots, List<String> sortedKeys, double dailyGoal) {
+    // Build last week's spots if comparison is enabled
+    List<FlSpot>? lastWeekSpots;
+    List<String>? lastWeekKeys;
+    
+    if (_showLastWeekComparison && _lastWeekData.isNotEmpty) {
+      final Map<String, dynamic> rawLastWeekDaily = (_lastWeekData['dailyData'] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{};
+      final Map<String, Map<String, double>> lastWeekDaily = {
+        for (final entry in rawLastWeekDaily.entries)
+          entry.key: (entry.value as Map?)
+                  ?.map((k, v) => MapEntry<String, double>(k.toString(), _toDouble(v)))
+                  .cast<String, double>() ??
+              <String, double>{}
+      };
+      
+      // Build last week's keys (same structure as current week)
+      final lastWeekStart = _selectedWeekStart.subtract(const Duration(days: 7));
+      lastWeekKeys = List.generate(7, (i) {
+        final d = DateTime(lastWeekStart.year, lastWeekStart.month, lastWeekStart.day).add(Duration(days: i));
+        return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      });
+      
+      lastWeekSpots = [];
+      for (int i = 0; i < lastWeekKeys.length; i++) {
+        final day = lastWeekKeys[i];
+        final calories = lastWeekDaily[day]?['calories'] ?? 0;
+        lastWeekSpots.add(FlSpot(i.toDouble(), calories));
+      }
+    }
+    
+    return LineChart(_buildMonthlyChartData(spots, sortedKeys, dailyGoal, lastWeekSpots: lastWeekSpots, lastWeekKeys: lastWeekKeys));
   }
 
   Widget _buildSegmentButton(String label, String periodKey) {
@@ -1593,285 +1775,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
   
 
 
-  Widget _buildLegendItem(Color color, String label) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
-        ),
-      ],
-    );
-  }
 
   
-  // Multi-line Chart for Weekly Comparison
-  Widget _buildWeeklyComparisonChart() {
-    // Build current week and last week calorie series from data
-    List<double> _seriesFromWeekly(Map<String, dynamic> data, DateTime weekStart) {
-      final Map<String, dynamic> rawDaily = (data['dailyData'] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{};
-      final Map<String, Map<String, double>> daily = {
-        for (final entry in rawDaily.entries)
-          entry.key: (entry.value as Map?)
-                  ?.map((k, v) => MapEntry<String, double>(k.toString(), _toDouble(v)))
-                  .cast<String, double>() ??
-              <String, double>{}
-      };
-      final keys = List.generate(7, (i) {
-        final d = DateTime(weekStart.year, weekStart.month, weekStart.day).add(Duration(days: i));
-        return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-      });
-      return [
-        for (final day in keys) (daily[day]?['calories'] ?? 0.0)
-      ];
-    }
-
-    final weekStart = _selectedWeekStart;
-    final lastWeekStart = _selectedWeekStart.subtract(const Duration(days: 7));
-    final current = _seriesFromWeekly(_weeklyData, weekStart);
-    final previous = _seriesFromWeekly(_lastWeekData, lastWeekStart);
-    final double maxY = ([...current, ...previous].fold<double>(0, (p, v) => v > p ? v : p) * 1.2).clamp(800, 4000);
-
-    final bool noData = current.every((v) => v == 0) && previous.every((v) => v == 0);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Weekly Comparison',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 20),
-          
-          if (_isWeeklyLoading)
-            SizedBox(height: 250, child: _buildChartSkeleton())
-          else if (noData)
-            _buildNoDataBanner('No data for this week')
-          else
-          SizedBox(
-            height: 250,
-            child: LineChart(
-              LineChartData(
-                lineTouchData: LineTouchData(
-                  enabled: true,
-                  getTouchedSpotIndicator: (barData, spotIndexes) {
-                    return spotIndexes.map((i) {
-                      return const TouchedSpotIndicatorData(
-                        FlLine(color: Colors.transparent),
-                        FlDotData(show: false),
-                      );
-                    }).toList();
-                  },
-                  touchTooltipData: LineTouchTooltipData(
-                    getTooltipItems: (touchedSpots) {
-                      return touchedSpots.map((barSpot) {
-                        final v = barSpot.y;
-                        final goal = _goals?.calorieGoal ?? 0;
-                        final pct = goal > 0 ? (v / goal) * 100 : 0;
-                        return LineTooltipItem(
-                          '${v.toStringAsFixed(0)} kcal\n${pct.toStringAsFixed(0)}% of goal',
-                          const TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
-                        );
-                      }).toList();
-                    },
-                  ),
-                  touchCallback: (FlTouchEvent event, LineTouchResponse? response) {
-                    if (event is FlTapUpEvent && response?.lineBarSpots != null && response!.lineBarSpots!.isNotEmpty) {
-                      final spot = response.lineBarSpots!.first;
-                      final dayIndex = spot.x.toInt();
-                      if (dayIndex >= 0 && dayIndex < 7) {
-                        final date = weekStart.add(Duration(days: dayIndex));
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => MealTrackerScreen(
-                              showBackButton: true,
-                              initialDate: date,
-                            ),
-                          ),
-                        );
-                      }
-                    }
-                  },
-                ),
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: true,
-                  horizontalInterval: 200,
-                  verticalInterval: 1,
-                  getDrawingHorizontalLine: (value) {
-                    return FlLine(
-                      color: Colors.grey[300]!,
-                      strokeWidth: 1,
-                    );
-                  },
-                  getDrawingVerticalLine: (value) {
-                    return FlLine(
-                      color: Colors.grey[300]!,
-                      strokeWidth: 1,
-                    );
-                  },
-                ),
-                titlesData: FlTitlesData(
-                  show: true,
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 30,
-                      interval: 1,
-                      getTitlesWidget: (double value, TitleMeta meta) {
-                        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                        const style = TextStyle(
-                          color: Colors.grey,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        );
-                        Widget text;
-                        if (value.toInt() < days.length) {
-                          text = Text(days[value.toInt()], style: style);
-                        } else {
-                          text = const Text('', style: style);
-                        }
-                        return SideTitleWidget(
-                          axisSide: meta.axisSide,
-                          child: text,
-                        );
-                      },
-                    ),
-                  ),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      interval: 200,
-                      getTitlesWidget: (double value, TitleMeta meta) {
-                        return Text(
-                          value.toInt().toString(),
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        );
-                      },
-                      reservedSize: 42,
-                    ),
-                  ),
-                ),
-                borderData: FlBorderData(
-                  show: true,
-                  border: Border.all(color: Colors.grey[300]!),
-                ),
-                minX: 0,
-                maxX: 6,
-                minY: 0,
-                maxY: maxY,
-                lineBarsData: [
-                  // Current week calories (Mon-Sun)
-                  LineChartBarData(
-                    spots: [for (int i = 0; i < 7; i++) FlSpot(i.toDouble(), i < current.length ? current[i] : 0)],
-                    isCurved: true,
-                    color: Colors.green[600]!,
-                    barWidth: 3,
-                    isStrokeCapRound: true,
-                    dotData: FlDotData(
-                      show: true,
-                      getDotPainter: (spot, percent, barData, index) {
-                        return FlDotCirclePainter(
-                          radius: 4,
-                          color: Colors.green[600]!,
-                          strokeWidth: 2,
-                          strokeColor: Colors.white,
-                        );
-                      },
-                    ),
-                  ),
-                  // Previous week calories
-                  LineChartBarData(
-                    spots: [for (int i = 0; i < 7; i++) FlSpot(i.toDouble(), i < previous.length ? previous[i] : 0)],
-                    isCurved: true,
-                    color: Colors.blue[400]!,
-                    barWidth: 3,
-                    isStrokeCapRound: true,
-                    dotData: FlDotData(
-                      show: true,
-                      getDotPainter: (spot, percent, barData, index) {
-                        return FlDotCirclePainter(
-                          radius: 4,
-                          color: Colors.blue[400]!,
-                          strokeWidth: 2,
-                          strokeColor: Colors.white,
-                        );
-                      },
-                    ),
-                  ),
-                  // Daily goal reference line (dashed)
-                  if ((_goals?.calorieGoal ?? 0) > 0)
-                    LineChartBarData(
-                      spots: [
-                        FlSpot(0, _goals!.calorieGoal),
-                        FlSpot(6, _goals!.calorieGoal),
-                      ],
-                      color: Colors.orange,
-                      barWidth: 2,
-                      isCurved: false,
-                      dashArray: [6, 6],
-                      dotData: FlDotData(show: false),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          
-          // Legend
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _buildLegendItem(Colors.green[600]!, 'This Week'),
-              const SizedBox(width: 20),
-              _buildLegendItem(Colors.blue[400]!, 'Last Week'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
 
 
@@ -2198,7 +2103,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
     );
   }
 
-  LineChartData _buildMonthlyChartData(List<FlSpot> spots, List<String> sortedKeys, double dailyGoal) {
+  LineChartData _buildMonthlyChartData(List<FlSpot> spots, List<String> sortedKeys, double dailyGoal, {List<FlSpot>? lastWeekSpots, List<String>? lastWeekKeys}) {
     return LineChartData(
       lineTouchData: LineTouchData(
         enabled: true,
@@ -2216,25 +2121,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
           },
         ),
         touchCallback: (FlTouchEvent event, LineTouchResponse? response) {
-          if (event is FlTapUpEvent && response?.lineBarSpots != null && response!.lineBarSpots!.isNotEmpty) {
-            final spot = response.lineBarSpots!.first;
-            final dayIndex = spot.x.toInt();
-            if (dayIndex >= 0 && dayIndex < sortedKeys.length) {
-              final dateStr = sortedKeys[dayIndex];
-              final date = DateTime.tryParse(dateStr);
-              if (date != null) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => MealTrackerScreen(
-                      showBackButton: true,
-                      initialDate: date,
-                    ),
-                  ),
-                );
-              }
-            }
-          }
+          // Navigation removed - chart is now informational only
         },
       ),
       minX: 0,
@@ -2268,8 +2155,29 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
           sideTitles: SideTitles(
             showTitles: true,
             interval: 600,
-            reservedSize: 36,
-            getTitlesWidget: (value, meta) => Text(value.toInt().toString(), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+            reservedSize: 50, // Increased to accommodate goal label
+            getTitlesWidget: (value, meta) {
+              final intValue = value.toInt();
+              // Show goal only on the exact goal line or closest to it
+              final goalDiff = (intValue - dailyGoal).abs();
+              if (goalDiff < 30) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      intValue.toString(),
+                      style: const TextStyle(fontSize: 10, color: Colors.orange, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      'Goal',
+                      style: TextStyle(fontSize: 8, color: Colors.orange[700], fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                );
+              }
+              return Text(intValue.toString(), style: const TextStyle(fontSize: 10, color: Colors.grey));
+            },
                     ),
                 ),
               ),

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'fnri_nutrition_service.dart';
 import 'measurement_converter.dart';
+import '../utils/app_logger.dart';
 
 class IngredientTrackingService {
   static final SupabaseClient _client = Supabase.instance.client;
@@ -30,7 +31,7 @@ class IngredientTrackingService {
       // Use AI result if it seems more accurate
       final aiLower = aiNormalized.toLowerCase();
       if (aiLower.length > 2 && aiLower != cleanName) {
-        print('AI normalized "$original" from "$cleanName" to "$aiLower"');
+        AppLogger.debug('AI normalized "$original" from "$cleanName" to "$aiLower"');
         // Prefer AI if it's shorter (more concise) or contains key words
         if (aiLower.length < cleanName.length * 1.5) {
           cleanName = aiLower;
@@ -102,7 +103,7 @@ class IngredientTrackingService {
         return content;
       }
     } catch (e) {
-      print('AI normalization error: $e');
+      AppLogger.error('AI normalization error', e);
     }
     return null;
   }
@@ -330,32 +331,32 @@ class IngredientTrackingService {
       final ingredients = (recipeData['ingredients'] as List).cast<String>();
       final title = recipeData['title'] as String;
 
-      print('🔍 Analyzing ingredients for: $title');
+      AppLogger.debug('🔍 Analyzing ingredients for: $title');
       
       final analysis = await analyzeRecipeIngredients(ingredients);
       
-      print('\n📊 Ingredient Analysis Report for "$title":');
-      print('  Total ingredients: ${analysis['total_ingredients']}');
-      print('  Valid ingredients: ${analysis['valid_ingredients']}');
-      print('  Accuracy: ${analysis['accuracy_percentage'].toStringAsFixed(1)}%');
+      AppLogger.info('\n📊 Ingredient Analysis Report for "$title":');
+      AppLogger.info('  Total ingredients: ${analysis['total_ingredients']}');
+      AppLogger.info('  Valid ingredients: ${analysis['valid_ingredients']}');
+      AppLogger.info('  Accuracy: ${analysis['accuracy_percentage'].toStringAsFixed(1)}%');
       
       if (analysis['issues'].isNotEmpty) {
-        print('\n⚠️ Issues found:');
+        AppLogger.warning('\n⚠️ Issues found:');
         for (final issue in analysis['issues']) {
-          print('  $issue');
+          AppLogger.warning('  $issue');
         }
       }
       
       if (analysis['suggestions'].isNotEmpty) {
-        print('\n💡 Suggestions:');
+        AppLogger.info('\n💡 Suggestions:');
         for (final entry in analysis['suggestions'].entries) {
-          print('  "${entry.key}" → "${entry.value}"');
+          AppLogger.info('  "${entry.key}" → "${entry.value}"');
         }
       }
       
       return analysis;
     } catch (e) {
-      print('❌ Error generating ingredient report: $e');
+      AppLogger.error('❌ Error generating ingredient report', e);
       return {'error': e.toString()};
     }
   }

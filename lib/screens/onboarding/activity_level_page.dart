@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'weight_goal_page.dart';
+import '../../utils/onboarding_transitions.dart';
 
 class ActivityLevelPage extends StatefulWidget {
   final int age;
@@ -58,39 +59,36 @@ class _ActivityLevelPageState extends State<ActivityLevelPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Activity Level'),
-        centerTitle: true,
-        backgroundColor: const Color(0xFF4CAF50),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 24),
-            const Text(
-              'Activity Level',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF388E3C),
-                letterSpacing: 1.2,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Back button
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF388E3C)),
+                onPressed: () => Navigator.of(context).pop(),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
               ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'How active are you? This helps us calculate your calorie needs.',
-              style: TextStyle(fontSize: 14, color: Colors.black87),
-            ),
-            const SizedBox(height: 32),
-            
-            // Activity Level Options
-            Expanded(
+              const SizedBox(height: 16),
+              Text(
+                'Activity Level',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: const Color(0xFF388E3C),
+                  fontWeight: FontWeight.w800,
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'How active are you? This helps us calculate your calorie needs.',
+                style: TextStyle(fontSize: 16, color: Colors.black87, height: 1.5),
+              ),
+              const SizedBox(height: 32),
+              // Activity Level Options
+              Expanded(
               child: ListView(
                 children: activityLevels.map((option) {
                   final isSelected = _selectedActivityLevel == option['value'];
@@ -171,13 +169,11 @@ class _ActivityLevelPageState extends State<ActivityLevelPage> {
                   );
                 }).toList(),
               ),
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // Continue Button
-            SizedBox(
-              width: double.infinity,
+              ),
+              const SizedBox(height: 24),
+              // Continue Button
+              SizedBox(
+                width: double.infinity,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _selectedActivityLevel != null 
@@ -192,8 +188,8 @@ class _ActivityLevelPageState extends State<ActivityLevelPage> {
                 onPressed: _selectedActivityLevel != null ? () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => WeightGoalPage(
+                    OnboardingPageRoute(
+                      page: WeightGoalPage(
                         age: widget.age,
                         gender: widget.sex,
                         heightCm: widget.heightCm,
@@ -215,6 +211,7 @@ class _ActivityLevelPageState extends State<ActivityLevelPage> {
           ],
         ),
       ),
+      )
     );
   }
 

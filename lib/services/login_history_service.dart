@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/app_logger.dart';
 
 class LoginHistoryService {
   static const String _loginHistoryKey = 'login_history';
@@ -23,7 +24,7 @@ class LoginHistoryService {
       
       await prefs.setStringList(_loginHistoryKey, history);
     } catch (e) {
-      print('Error saving email to history: $e');
+      AppLogger.error('Error saving email to history', e);
     }
   }
 
@@ -33,7 +34,7 @@ class LoginHistoryService {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getStringList(_loginHistoryKey) ?? [];
     } catch (e) {
-      print('Error getting login history: $e');
+      AppLogger.error('Error getting login history', e);
       return [];
     }
   }
@@ -50,7 +51,7 @@ class LoginHistoryService {
           .where((email) => email.toLowerCase().contains(input.toLowerCase()))
           .toList();
     } catch (e) {
-      print('Error filtering login history: $e');
+      AppLogger.error('Error filtering login history', e);
       return [];
     }
   }
@@ -61,7 +62,7 @@ class LoginHistoryService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_loginHistoryKey);
     } catch (e) {
-      print('Error clearing login history: $e');
+      AppLogger.error('Error clearing login history', e);
     }
   }
 } 

@@ -209,6 +209,66 @@ class _MealLogCardState extends State<MealLogCard> {
                     ),
                   ],
                 ),
+                
+                // Rice information if included
+                if (meal.includeRice && meal.riceServing != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange[200]!),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Text('🍚', style: TextStyle(fontSize: 18)),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Rice: ${meal.riceServing}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange[900],
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: [
+                            if (meal.riceCalories != null)
+                              _MacroChip(
+                                label: 'Rice Calories',
+                                value: meal.riceCalories!,
+                                color: Colors.orange,
+                                unit: ' kcal',
+                              ),
+                            if (meal.riceCarbs != null)
+                              _MacroChip(
+                                label: 'Rice Carbs',
+                                value: meal.riceCarbs!,
+                                color: Colors.green,
+                                unit: 'g',
+                              ),
+                            if (meal.riceProtein != null)
+                              _MacroChip(
+                                label: 'Rice Protein',
+                                value: meal.riceProtein!,
+                                color: Colors.blue,
+                                unit: 'g',
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ],
           ),

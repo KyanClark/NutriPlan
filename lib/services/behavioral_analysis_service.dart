@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/smart_suggestion_models.dart';
 import '../models/meal_history_entry.dart';
+import '../utils/app_logger.dart';
 
 class BehavioralAnalysisService {
   static final SupabaseClient _client = Supabase.instance.client;
@@ -28,7 +29,7 @@ class BehavioralAnalysisService {
 
       return _analyzeMealData(response, daysBack);
     } catch (e) {
-      print('Error analyzing user patterns: $e');
+      AppLogger.error('Error analyzing user patterns', e);
       return _getEmptyPatterns();
     }
   }
@@ -121,7 +122,7 @@ class BehavioralAnalysisService {
 
       return preferences;
     } catch (e) {
-      print('Error getting meal timing preferences: $e');
+      AppLogger.error('Error getting meal timing preferences', e);
       return {};
     }
   }
@@ -141,7 +142,7 @@ class BehavioralAnalysisService {
 
       return preferences;
     } catch (e) {
-      print('Error getting category preferences: $e');
+      AppLogger.error('Error getting category preferences', e);
       return {};
     }
   }
@@ -161,7 +162,7 @@ class BehavioralAnalysisService {
 
       return preferences;
     } catch (e) {
-      print('Error getting weekly patterns: $e');
+      AppLogger.error('Error getting weekly patterns', e);
       return {};
     }
   }
@@ -194,7 +195,7 @@ class BehavioralAnalysisService {
       final now = DateTime.now();
       return DateTime(now.year, now.month, now.day, optimalHour);
     } catch (e) {
-      print('Error predicting optimal meal time: $e');
+      AppLogger.error('Error predicting optimal meal time', e);
       return null;
     }
   }
@@ -244,7 +245,7 @@ class BehavioralAnalysisService {
 
       return (frequencyScore + timeConsistency + categoryBalance) / 3.0;
     } catch (e) {
-      print('Error calculating consistency score: $e');
+      AppLogger.error('Error calculating consistency score', e);
       return 0.0;
     }
   }
@@ -271,7 +272,7 @@ class BehavioralAnalysisService {
 
       return (recipeVariety + categoryVariety) / 2.0;
     } catch (e) {
-      print('Error calculating variety score: $e');
+      AppLogger.error('Error calculating variety score', e);
       return 0.0;
     }
   }

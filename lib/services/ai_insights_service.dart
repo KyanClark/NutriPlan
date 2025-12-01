@@ -2,6 +2,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/user_nutrition_goals.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../utils/app_logger.dart';
 import 'ai_nutritional_insights_prompt.dart';
 // Removed external cache service; using simple in-memory cache
 // Simple in-memory cache entry (top-level private)
@@ -92,11 +93,11 @@ class AIInsightsService {
           continue;
         }
 
-        print('Groq API error: ${response.statusCode} - ${response.body}');
+        AppLogger.error('Groq API error: ${response.statusCode} - ${response.body}');
         return getDefaultInsights();
       }
     } catch (e) {
-      print('Error generating AI insights: $e');
+      AppLogger.error('Error generating AI insights', e);
       return getDefaultInsights();
     }
   }
@@ -108,13 +109,20 @@ class AIInsightsService {
     Map<String, dynamic> monthlyData,
     UserNutritionGoals? goals, {
     List<String> availableRecipes = const [],
+    bool hasMealsToday = true,
   }) async {
     try {
       if (_groqApiKey.isEmpty) {
-        return _getDefaultWeeklyInsights();
+        return _getDefaultWeeklyInsights(hasMealsToday: hasMealsToday);
       }
 
-      final prompt = AINutritionPrompts.buildWeeklyInsightsPrompt(weeklyData, monthlyData, goals, availableRecipes: availableRecipes);
+      final prompt = AINutritionPrompts.buildWeeklyInsightsPrompt(
+        weeklyData, 
+        monthlyData, 
+        goals, 
+        availableRecipes: availableRecipes,
+        hasMealsToday: hasMealsToday,
+      );
       final cacheKey = prompt.hashCode;
       final now = DateTime.now();
       final existing = _memoryCache[cacheKey];
@@ -174,12 +182,12 @@ class AIInsightsService {
           continue;
         }
 
-        print('Groq API error for weekly insights: ${response.statusCode}');
-        return _getDefaultWeeklyInsights();
+        AppLogger.error('Groq API error for weekly insights: ${response.statusCode}');
+        return _getDefaultWeeklyInsights(hasMealsToday: hasMealsToday);
       }
     } catch (e) {
-      print('Error generating weekly insights: $e');
-      return _getDefaultWeeklyInsights();
+      AppLogger.error('Error generating weekly insights', e);
+      return _getDefaultWeeklyInsights(hasMealsToday: hasMealsToday);
     }
   }
 
@@ -202,7 +210,7 @@ class AIInsightsService {
         }
       }
     } catch (e) {
-      print('Error parsing weekly insights JSON: $e');
+      AppLogger.error('Error parsing weekly insights JSON', e);
     }
     
     // Fallback: try to extract insights from text format
@@ -262,7 +270,15 @@ Keep up the great work with your nutrition tracking! 🎯
   }
 
   /// Get default weekly insights when AI fails
-  static List<Map<String, String>> _getDefaultWeeklyInsights() {
+  static List<Map<String, String>> _getDefaultWeeklyInsights({bool hasMealsToday = true}) {
+    if (!hasMealsToday) {
+      return [
+        {
+          'title': 'Start Logging Meals',
+          'description': 'You haven\'t logged any meals for today yet. Start tracking your meals to get personalized nutrition insights!',
+        },
+      ];
+    }
     return [
       {
         'title': 'Consistent Tracking',

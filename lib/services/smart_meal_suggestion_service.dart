@@ -7,6 +7,7 @@ import '../models/meal_history_entry.dart';
 import '../models/user_nutrition_goals.dart';
 import '../models/recipes.dart';
 import 'recipe_service.dart';
+import '../utils/app_logger.dart';
 // Gemini integration removed
 
 class SmartMealSuggestionService {
@@ -58,7 +59,7 @@ class SmartMealSuggestionService {
             return aiSuggestions;
           }
         } catch (e) {
-          print('AI suggestions failed, falling back to rule-based: $e');
+          AppLogger.warning('AI suggestions failed, falling back to rule-based', e);
         }
       }
       
@@ -66,7 +67,7 @@ class SmartMealSuggestionService {
       return await _generateSmartSuggestions(context);
       
     } catch (e) {
-      print('Error generating smart suggestions: $e');
+      AppLogger.error('Error generating smart suggestions', e);
       return await _getFallbackSuggestions(mealCategory, userId: userId);
     }
   }
@@ -140,7 +141,7 @@ class SmartMealSuggestionService {
 
       return response != null ? UserNutritionGoals.fromMap(response) : null;
     } catch (e) {
-      print('Error fetching user goals: $e');
+      AppLogger.error('Error fetching user goals', e);
       return null;
     }
   }
@@ -210,7 +211,7 @@ class SmartMealSuggestionService {
         mealVarietyScore: _calculateMealVariety(response),
       );
     } catch (e) {
-      print('Error analyzing user patterns: $e');
+      AppLogger.error('Error analyzing user patterns',  e);
       return UserEatingPatterns(
         averageMealTimes: {},
         favoriteCategories: [],
@@ -272,6 +273,104 @@ class SmartMealSuggestionService {
     return gaps;
   }
 
+  /// Get user's last meal from history
+  static Future<Map<String, dynamic>?> _getLastMeal(String userId) async {
+    try {
+      final response = await _client
+          .from('meal_plan_history')
+          .select()
+          .eq('user_id', userId)
+          .order('completed_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+      
+      if (response == null) return null;
+      
+      return {
+        'calories': _parseDouble(response['calories']),
+        'protein': _parseDouble(response['protein']),
+        'carbs': _parseDouble(response['carbs']),
+        'fat': _parseDouble(response['fat']),
+        'fiber': _parseDouble(response['fiber']),
+        'sugar': _parseDouble(response['sugar']),
+        'sodium': _parseDouble(response['sodium']),
+        'cholesterol': _parseDouble(response['cholesterol']),
+        'title': response['title'] ?? '',
+        'completed_at': response['completed_at'],
+      };
+    } catch (e) {
+      AppLogger.error('Error fetching last meal', e);
+      return null;
+    }
+  }
+
+  /// Filter recipes based on health conditions
+  static bool _isRecipeHealthyForConditions(Recipe recipe, List<String>? healthConditions) {
+    if (healthConditions == null || healthConditions.isEmpty || healthConditions.contains('none')) {
+      return true; // No restrictions if no health conditions
+    }
+
+    final protein = (recipe.macros['protein'] ?? 0).toDouble();
+    final carbs = (recipe.macros['carbs'] ?? 0).toDouble();
+    final fiber = (recipe.macros['fiber'] ?? 0).toDouble();
+    final sugar = (recipe.macros['sugar'] ?? 0).toDouble();
+    final sodium = (recipe.macros['sodium'] ?? 0).toDouble();
+    final calories = recipe.calories.toDouble();
+
+    // Check each health condition
+    for (final condition in healthConditions) {
+      switch (condition.toLowerCase()) {
+        case 'diabetes':
+          // Low carbs, high fiber, low sugar
+          if (carbs > 60 || sugar > 15 || fiber < 3) return false;
+          break;
+        case 'hypertension':
+          // Very low sodium
+          if (sodium > 500) return false;
+          break;
+        case 'stroke_recovery':
+          // Very low sodium, low saturated fat
+          if (sodium > 400) return false;
+          break;
+        case 'malnutrition':
+          // High calories and protein
+          if (calories < 300 || protein < 15) return false;
+          break;
+        default:
+          // For unknown conditions, apply general healthy criteria
+          break;
+      }
+    }
+
+    return true;
+  }
+
+  /// Check if recipe is generally healthy
+  static bool _isRecipeHealthy(Recipe recipe) {
+    final calories = recipe.calories.toDouble();
+    final protein = (recipe.macros['protein'] ?? 0).toDouble();
+    final sugar = (recipe.macros['sugar'] ?? 0).toDouble();
+    final sodium = (recipe.macros['sodium'] ?? 0).toDouble();
+    final fiber = (recipe.macros['fiber'] ?? 0).toDouble();
+
+    // Healthy criteria:
+    // - Reasonable calories (200-800 for a meal)
+    // - Not too high in sugar (< 30g)
+    // - Not too high in sodium (< 1000mg)
+    // - Has some protein (> 5g) or fiber (> 2g)
+    if (calories < 200 || calories > 800) return false;
+    if (sugar > 30) return false;
+    if (sodium > 1000) return false;
+    if (protein < 5 && fiber < 2) return false;
+
+    // Exclude obviously unhealthy items
+    final titleLower = recipe.title.toLowerCase();
+    final unhealthyKeywords = ['deep fried', 'fried', 'crispy', 'sugar', 'syrup', 'candy', 'soda'];
+    if (unhealthyKeywords.any((kw) => titleLower.contains(kw) && sugar > 20)) return false;
+
+    return true;
+  }
+
   /// Generate smart suggestions based on context
   static Future<List<SmartMealSuggestion>> _generateSmartSuggestions(
     SuggestionContext context,
@@ -281,10 +380,23 @@ class SmartMealSuggestionService {
     // Filter out disallowed items (e.g., chicken feet, blood, intestines)
     final beforeCount = allRecipes.length;
     allRecipes = allRecipes.where((r) => !RecipeService.isRecipeDisallowed(r)).toList();
+    
+    // Get user's health conditions
+    final userGoals = await _getUserNutritionGoals(context.userId);
+    final healthConditions = userGoals?.healthConditions;
+    
+    // Filter by health conditions and ensure only healthy meals
+    allRecipes = allRecipes.where((r) {
+      return _isRecipeHealthy(r) && _isRecipeHealthyForConditions(r, healthConditions);
+    }).toList();
+    
     final filteredOut = beforeCount - allRecipes.length;
     if (filteredOut > 0) {
-      print('Smart suggestions: filtered $filteredOut disallowed recipes');
+      AppLogger.debug('Smart suggestions: filtered $filteredOut recipes (disallowed/unhealthy/health conditions)');
     }
+
+    // Get last meal to base suggestions on
+    final lastMeal = await _getLastMeal(context.userId);
 
     // Recent history to reduce repeats
     final recentIdsOrTitles = await _getRecentRecipeIdentifiers(context.userId, days: 7);
@@ -314,7 +426,60 @@ class SmartMealSuggestionService {
       return (matchesTitle * 0.6) + (matchesTag * 0.6) + isFavoriteRecipe;
     }
 
-    // Gap fit score: how much it helps with critical gaps
+    // Last meal complement score: how well it complements the last meal
+    double lastMealComplementScore(Recipe r) {
+      final meal = lastMeal;
+      if (meal == null) return 0.0; // No last meal, can't complement
+      double score = 0.0;
+      final lastProtein = meal['protein'] ?? 0.0;
+      final lastCarbs = meal['carbs'] ?? 0.0;
+      final lastFat = meal['fat'] ?? 0.0;
+      final lastFiber = meal['fiber'] ?? 0.0;
+      final lastCalories = meal['calories'] ?? 0.0;
+      
+      final rProtein = _getNutrientValue(r, 'protein');
+      final rCarbs = _getNutrientValue(r, 'carbs');
+      final rFat = _getNutrientValue(r, 'fat');
+      final rFiber = _getNutrientValue(r, 'fiber');
+      final rCalories = r.calories.toDouble();
+      
+      // If last meal was high in carbs, suggest protein/fiber rich meals
+      if (lastCarbs > 50) {
+        if (rProtein >= 20) score += 1.5;
+        if (rFiber >= 5) score += 1.0;
+        if (rCarbs < 40) score += 0.8; // Lower carb complement
+      }
+      
+      // If last meal was high in protein, suggest balanced meals with carbs/fiber
+      if (lastProtein > 30) {
+        if (rCarbs >= 30 && rCarbs <= 60) score += 1.2;
+        if (rFiber >= 5) score += 0.8;
+      }
+      
+      // If last meal was low in fiber, prioritize high-fiber meals
+      if (lastFiber < 5) {
+        if (rFiber >= 8) score += 1.5;
+      }
+      
+      // If last meal was high in calories, suggest lighter meals
+      if (lastCalories > 600) {
+        if (rCalories < 500) score += 1.0;
+      }
+      
+      // If last meal was low in calories, can suggest more substantial meals
+      if (lastCalories < 400) {
+        if (rCalories >= 400 && rCalories <= 700) score += 0.8;
+      }
+      
+      // Balance: if last meal was high in fat, suggest lower fat meals
+      if (lastFat > 30) {
+        if (rFat < 25) score += 0.7;
+      }
+      
+      return score;
+    }
+
+    // Gap fit score: how much it helps with critical gaps (secondary to last meal)
     double gapFitScore(Recipe r) {
       double score = 0.0;
       for (final gap in context.nutritionalGaps) {
@@ -322,15 +487,15 @@ class SmartMealSuggestionService {
           switch (gap.nutrient) {
             case 'protein':
               final v = _getNutrientValue(r, 'protein');
-              if (v >= 15) score += (v / (gap.gap.abs() + 1)).clamp(0.0, 1.0) * 1.2;
+              if (v >= 15) score += (v / (gap.gap.abs() + 1)).clamp(0.0, 1.0) * 0.8;
               break;
             case 'fiber':
               final v2 = _getNutrientValue(r, 'fiber');
-              if (v2 >= 5) score += (v2 / (gap.gap.abs() + 1)).clamp(0.0, 1.0);
+              if (v2 >= 5) score += (v2 / (gap.gap.abs() + 1)).clamp(0.0, 1.0) * 0.6;
               break;
             case 'calories':
               final kc = r.calories.toDouble();
-              if (kc >= 200) score += (kc / (gap.gap.abs() + 200)).clamp(0.0, 1.0);
+              if (kc >= 200) score += (kc / (gap.gap.abs() + 200)).clamp(0.0, 1.0) * 0.5;
               break;
           }
         }
@@ -344,24 +509,49 @@ class SmartMealSuggestionService {
       return recentIdsOrTitles.contains(title) ? -0.8 : 0.0;
     }
 
-    // Composite scoring
+    // Composite scoring - prioritize last meal complement over gaps
     final scored = allRecipes.map((r) {
-      final score =
-          0.45 * gapFitScore(r) +
-          0.25 * preferenceScore(r) +
-          0.2 * timingBandScore(r) +
-          0.1 * (1.0 + recencyPenalty(r));
+      final lastMealScore = lastMealComplementScore(r);
+      final gapScore = gapFitScore(r);
+      final prefScore = preferenceScore(r);
+      final timingScore = timingBandScore(r);
+      final recencyScore = 1.0 + recencyPenalty(r);
+      
+      // Weighted scoring: last meal complement is most important (50%), then gaps (20%), preferences (15%), timing (10%), recency (5%)
+      final score = 
+          (lastMeal != null ? 0.5 * lastMealScore : 0.0) +
+          0.2 * gapScore +
+          0.15 * prefScore +
+          0.1 * timingScore +
+          0.05 * recencyScore;
+      
+      // Generate reasoning based on last meal
+      String reasoning = 'Healthy meal recommendation';
+      final meal = lastMeal;
+      if (meal != null) {
+        final lastTitle = meal['title'] ?? 'your last meal';
+        if (lastMealScore > 1.0) {
+          reasoning = 'Complements $lastTitle nutritionally';
+        } else if (gapScore > 0.5) {
+          reasoning = 'Helps meet your nutrition goals';
+        } else {
+          reasoning = 'Balanced healthy option';
+        }
+      } else {
+        reasoning = 'Healthy meal based on your goals';
+      }
+      
       return SmartMealSuggestion(
         recipe: r,
         type: SuggestionType.fillGap,
-        reasoning: 'Matches your patterns and goals',
+        reasoning: reasoning,
         relevanceScore: score,
         nutritionalBenefits: {
           'protein': _getNutrientValue(r, 'protein'),
           'fiber': _getNutrientValue(r, 'fiber'),
           'calories': r.calories.toDouble(),
         },
-        tags: ['personalized'],
+        tags: ['personalized', 'healthy'],
       );
     }).toList();
 
@@ -442,6 +632,10 @@ class SmartMealSuggestionService {
     switch (nutrient) {
       case 'protein':
         return (recipe.macros['protein'] ?? 0).toDouble();
+      case 'carbs':
+        return (recipe.macros['carbs'] ?? 0).toDouble();
+      case 'fat':
+        return (recipe.macros['fat'] ?? 0).toDouble();
       case 'fiber':
         return (recipe.macros['fiber'] ?? 0).toDouble();
       case 'calories':
@@ -455,7 +649,7 @@ class SmartMealSuggestionService {
   static Future<bool> testAIIntegration() async {
     try {
       if (_groqApiKey.isEmpty) {
-        print('AI Integration Test: GROQ_API_KEY not set');
+        AppLogger.warning('AI Integration Test: GROQ_API_KEY not set');
         return false;
       }
 
@@ -476,15 +670,15 @@ class SmartMealSuggestionService {
       );
 
       final success = response.statusCode == 200;
-      print('AI Integration Test: ${success ? "SUCCESS" : "FAILED"} (${response.statusCode})');
+      AppLogger.info('AI Integration Test: ${success ? "SUCCESS" : "FAILED"} (${response.statusCode})');
       
       if (!success) {
-        print('AI Integration Test: Response body: ${response.body}');
+        AppLogger.debug('AI Integration Test: Response body: ${response.body}');
       }
       
       return success;
     } catch (e) {
-      print('AI Integration Test: ERROR - $e');
+      AppLogger.error('AI Integration Test: ERROR', e);
       return false;
     }
   }
@@ -497,7 +691,7 @@ class SmartMealSuggestionService {
       }
       
       // Build context for AI
-      final prompt = _buildAIPrompt(context);
+      final prompt = await _buildAIPrompt(context);
       
       final response = await http.post(
         Uri.parse('https://api.groq.com/openai/v1/chat/completions'),
@@ -543,11 +737,11 @@ class SmartMealSuggestionService {
         }
         return mapped;
       } else {
-        print('AI API error: ${response.statusCode} - ${response.body}');
+        AppLogger.error('AI API error: ${response.statusCode} - ${response.body}');
         return [];
       }
     } catch (e) {
-      print('AI suggestions error: $e');
+      AppLogger.error('AI suggestions error', e);
       return [];
     }
   }
@@ -573,13 +767,49 @@ class SmartMealSuggestionService {
   }
 
   /// Build prompt for AI suggestions
-  static String _buildAIPrompt(SuggestionContext context) {
+  static Future<String> _buildAIPrompt(SuggestionContext context) async {
     final mealType = context.mealCategory.name.toLowerCase();
     final timeOfDay = context.targetTime.hour < 12 ? 'morning' : 
                      context.targetTime.hour < 17 ? 'afternoon' : 'evening';
     
+    // Get last meal
+    final lastMeal = await _getLastMeal(context.userId);
+    final lastMealInfo = lastMeal != null 
+        ? '''
+Last meal consumed: ${lastMeal['title']}
+- Calories: ${lastMeal['calories']}g
+- Protein: ${lastMeal['protein']}g
+- Carbs: ${lastMeal['carbs']}g
+- Fat: ${lastMeal['fat']}g
+- Fiber: ${lastMeal['fiber']}g
+
+IMPORTANT: Suggest meals that COMPLEMENT the last meal nutritionally. If last meal was high in carbs, suggest protein/fiber-rich meals. If last meal was high in protein, suggest balanced meals with carbs.
+'''
+        : 'No previous meal logged today.';
+    
+    // Get health conditions
+    final healthConditions = context.userGoals.healthConditions ?? [];
+    final healthInfo = healthConditions.isNotEmpty && !healthConditions.contains('none')
+        ? '''
+CRITICAL HEALTH CONDITIONS (STRICTLY ENFORCE):
+${healthConditions.map((c) {
+  switch (c.toLowerCase()) {
+    case 'diabetes': return '- Diabetes: Low carbs (<60g), high fiber (>3g), low sugar (<15g)';
+    case 'hypertension': return '- Hypertension: Very low sodium (<500mg)';
+    case 'stroke_recovery': return '- Stroke Recovery: Very low sodium (<400mg)';
+    case 'malnutrition': return '- Malnutrition: High calories (>300) and protein (>15g)';
+    default: return '- $c: Apply general healthy criteria';
+  }
+}).join('\n')}
+
+ONLY suggest recipes that meet ALL health condition requirements.
+'''
+        : '';
+    
     return '''
-You are a Filipino nutrition expert. Suggest 3 healthy Filipino recipes for $mealType in the $timeOfDay.
+You are a Filipino nutrition expert. Suggest 3 HEALTHY Filipino recipes for $mealType in the $timeOfDay.
+
+$lastMealInfo
 
 Current nutrition status:
 - Protein: ${context.currentNutrition.totalProtein}g (goal: ${context.userGoals.proteinGoal}g)
@@ -587,27 +817,32 @@ Current nutrition status:
 - Fat: ${context.currentNutrition.totalFat}g (goal: ${context.userGoals.fatGoal}g)
 - Calories: ${context.currentNutrition.totalCalories} (goal: ${context.userGoals.calorieGoal})
 
+$healthInfo
+
 Nutritional gaps to address: ${context.nutritionalGaps.join(', ')}
 
-User eating patterns: ${context.userPatterns.toString()}
-
-Please suggest 3 Filipino recipes that:
-1. Are appropriate for $mealType
-2. Help fill nutritional gaps
-3. Fit Filipino dietary preferences
-4. Include cost estimates (₱50-200 range)
+REQUIREMENTS:
+1. ONLY suggest HEALTHY meals (reasonable calories 200-800, low sugar <30g, low sodium <1000mg, has protein >5g or fiber >2g)
+2. Meals must COMPLEMENT the last meal nutritionally (if last meal provided)
+3. STRICTLY follow health condition restrictions (if any)
+4. Are appropriate for $mealType
+5. Fit Filipino dietary preferences
+6. Include cost estimates (₱50-200 range)
 
 Format your response as JSON:
 {
   "suggestions": [
     {
       "title": "Recipe Name",
-      "reasoning": "Why this recipe helps with nutrition gaps",
+      "reasoning": "Why this recipe complements the last meal and meets health requirements",
       "cost": 120,
       "calories": 350,
       "protein": 25,
       "carbs": 30,
-      "fat": 15
+      "fat": 15,
+      "fiber": 5,
+      "sugar": 10,
+      "sodium": 400
     }
   ]
 }
@@ -620,7 +855,7 @@ Format your response as JSON:
       // Extract JSON from AI response
       final jsonMatch = RegExp(r'\{.*\}', multiLine: true, dotAll: true).firstMatch(aiResponse);
       if (jsonMatch == null) {
-        print('No JSON found in AI response');
+        AppLogger.warning('No JSON found in AI response');
         return [];
       }
       
@@ -663,7 +898,7 @@ Format your response as JSON:
         );
       }).toList();
     } catch (e) {
-      print('Error parsing AI response: $e');
+      AppLogger.error('Error parsing AI response', e);
       return [];
     }
   }

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:nutriplan/screens/auth/desktop_email_verification_screen.dart';
+import 'package:nutriplan/screens/auth/phone_otp_verification_screen.dart';
+import '../../services/sms_otp_service.dart';
 import 'login_screen.dart';
 import '../../widgets/animated_logo.dart';
+import '../../widgets/decorative_auth_background.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -13,12 +16,14 @@ class SignupScreen extends StatefulWidget {
 class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _usePhone = false; // Toggle between email and phone
 
   void _signupWithEmailOtp() async {
     setState(() { _isLoading = true; });
@@ -30,7 +35,28 @@ class _SignupScreenState extends State<SignupScreen> {
             email: _emailController.text,
             password: _passwordController.text,
             fullName: _fullNameController.text,
-            phoneNumber: '', // No phone needed
+            phoneNumber: '',
+          ),
+        ),
+      );
+    } catch (e) {
+      setState(() { _isLoading = false; });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+
+  void _signupWithPhoneOtp() async {
+    setState(() { _isLoading = true; });
+    try {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PhoneOtpVerificationScreen(
+            phoneNumber: _phoneController.text,
+            password: _passwordController.text,
+            fullName: _fullNameController.text,
           ),
         ),
       );
@@ -44,13 +70,18 @@ class _SignupScreenState extends State<SignupScreen> {
 
   void _signup() async {
     if (_formKey.currentState!.validate()) {
-      _signupWithEmailOtp();
+      if (_usePhone) {
+        _signupWithPhoneOtp();
+      } else {
+        _signupWithEmailOtp();
+      }
     }
   }
 
   @override
   void dispose() {
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     _fullNameController.dispose();
     _confirmPasswordController.dispose();
@@ -66,36 +97,50 @@ class _SignupScreenState extends State<SignupScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 430),
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: horizontalPadding,
-              vertical: verticalPadding,
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 80), // Move layout up
-                  const AnimatedLogo(),
-                  const SizedBox(height: 32),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Padding(
-                      padding:
-                          EdgeInsets.only(left: 20.0, top: 50, bottom: 16.0),
-                      child: Text(
-                        'Sign Up',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+      body: DecorativeAuthBackground(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 430),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: horizontalPadding,
+                vertical: verticalPadding,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 40),
+                    const AnimatedLogo(),
+                    const SizedBox(height: 32),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding:
+                            EdgeInsets.only(left: 20.0, top: 50, bottom: 16.0),
+                        child: Text(
+                          'Sign Up',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 20.0, bottom: 8.0),
+                        child: Text(
+                          'Start your journey to healthier meals. Create your account and discover personalized nutrition.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Color.fromARGB(200, 255, 255, 255),
+                          ),
+                        ),
+                      ),
+                    ),
 
                   // Signup Form
                   Form(
@@ -132,37 +177,154 @@ class _SignupScreenState extends State<SignupScreen> {
                             ),
                             const SizedBox(height: 16),
                             
-                            SizedBox(
+                            // Toggle between Email and Phone
+                            Container(
                               width: MediaQuery.of(context).size.width * 0.8,
-                              child: TextFormField(
-                                controller: _emailController,
-                                style: const TextStyle(fontSize: 14),
-                                decoration: InputDecoration(
-                                  labelText: 'Email address',
-                                  labelStyle: const TextStyle(fontSize: 13),
-                                  filled: true,
-                                  fillColor: Colors.grey[100],
-                                  prefixIcon: Padding(
-                                    padding: const EdgeInsets.all(12.0),
-                                    child: Icon(
-                                      Icons.email,
-                                      size: 20,
-                                      color: Colors.grey[600],
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          _usePhone = false;
+                                          _phoneController.clear();
+                                        });
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        decoration: BoxDecoration(
+                                          color: !_usePhone ? const Color(0xFF4CAF50) : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(30),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.email,
+                                              size: 18,
+                                              color: !_usePhone ? Colors.white : Colors.grey[600],
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              'Email',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.bold,
+                                                color: !_usePhone ? Colors.white : Colors.grey[600],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
-                                ),
-                                keyboardType: TextInputType.emailAddress,
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Please enter your email';
-                                  }
-                                  if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+').hasMatch(value)) {
-                                    return 'Please enter a valid email';
-                                  }
-                                  return null;
-                                },
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          _usePhone = true;
+                                          _emailController.clear();
+                                        });
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        decoration: BoxDecoration(
+                                          color: _usePhone ? const Color(0xFF4CAF50) : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(30),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.phone,
+                                              size: 18,
+                                              color: _usePhone ? Colors.white : Colors.grey[600],
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              'Phone',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.bold,
+                                                color: _usePhone ? Colors.white : Colors.grey[600],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            // Email or Phone input field
+                            SizedBox(
+                              width: MediaQuery.of(context).size.width * 0.8,
+                              child: _usePhone
+                                  ? TextFormField(
+                                      controller: _phoneController,
+                                      style: const TextStyle(fontSize: 14),
+                                      decoration: InputDecoration(
+                                        labelText: 'Phone Number',
+                                        labelStyle: const TextStyle(fontSize: 13),
+                                        filled: true,
+                                        fillColor: Colors.grey[100],
+                                        prefixIcon: Padding(
+                                          padding: const EdgeInsets.all(12.0),
+                                          child: Icon(
+                                            Icons.phone,
+                                            size: 20,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
+                                      ),
+                                      keyboardType: TextInputType.phone,
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return 'Please enter your phone number';
+                                        }
+                                        if (!SmsOtpService.isValidPhoneNumber(value)) {
+                                          return 'Please enter a valid phone number';
+                                        }
+                                        return null;
+                                      },
+                                    )
+                                  : TextFormField(
+                                      controller: _emailController,
+                                      style: const TextStyle(fontSize: 14),
+                                      decoration: InputDecoration(
+                                        labelText: 'Email address',
+                                        labelStyle: const TextStyle(fontSize: 13),
+                                        filled: true,
+                                        fillColor: Colors.grey[100],
+                                        prefixIcon: Padding(
+                                          padding: const EdgeInsets.all(12.0),
+                                          child: Icon(
+                                            Icons.email,
+                                            size: 20,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
+                                      ),
+                                      keyboardType: TextInputType.emailAddress,
+                                      validator: (value) {
+                                        if (value == null || value.isEmpty) {
+                                          return 'Please enter your email';
+                                        }
+                                        if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+').hasMatch(value)) {
+                                          return 'Please enter a valid email';
+                                        }
+                                        return null;
+                                      },
+                                    ),
                             ),
                             const SizedBox(height: 16),
                             
@@ -316,12 +478,14 @@ class _SignupScreenState extends State<SignupScreen> {
                                     ),
                                   ),
                                 ),
+                                const SizedBox(height: 15),
                               ],
                             ),
                           ],
                         ),
                       ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

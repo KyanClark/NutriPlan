@@ -271,6 +271,165 @@ class _RecipesPageState extends State<RecipesPage> {
 
   // Helper methods for recipe categorization
   
+  /// Get personalized recipes based on user preferences with rotation
+  Future<List<Recipe>> _getJustForYouRecipes(List<Recipe> recipes) async {
+    if (userId == null) {
+      return _getRotatedRecipes(recipes, seed: 'justforyou_guest', limit: 6);
+    }
+
+    try {
+      // Fetch user preferences
+      final prefs = await Supabase.instance.client
+          .from('user_preferences')
+          .select('like_dishes, health_conditions, diet_type')
+          .eq('user_id', userId!)
+          .maybeSingle();
+
+      final likedDishes = _parseStringList(prefs?['like_dishes']);
+      final healthConditions = _parseStringList(prefs?['health_conditions']);
+      
+      // Score recipes based on user preferences
+      final scored = recipes.map((recipe) {
+        double score = 0.0;
+        
+        // Match liked dish types
+        if (likedDishes.isNotEmpty) {
+          final recipeLower = recipe.title.toLowerCase();
+          for (final dish in likedDishes) {
+            final dishLower = dish.toLowerCase();
+            if (recipeLower.contains(dishLower.replaceAll('_', ' ')) ||
+                recipe.tags.any((tag) => tag.toLowerCase().contains(dishLower))) {
+              score += 10.0;
+            }
+          }
+        }
+        
+        // Boost favorites
+        if (favoriteRecipeIds.contains(recipe.id)) {
+          score += 15.0;
+        }
+        
+        // Health condition matching
+        if (healthConditions.isNotEmpty && !healthConditions.contains('none')) {
+          final carbs = (recipe.macros['carbs'] ?? 0).toDouble();
+          final fiber = (recipe.macros['fiber'] ?? 0).toDouble();
+          final sodium = (recipe.macros['sodium'] ?? 0).toDouble();
+          
+          if (healthConditions.any((c) => c.toLowerCase().contains('diabetes'))) {
+            if (carbs < 60 && fiber > 3) score += 5.0;
+          }
+          if (healthConditions.any((c) => c.toLowerCase().contains('hypertension'))) {
+            if (sodium < 500) score += 5.0;
+          }
+        }
+        
+        return MapEntry(recipe, score);
+      }).toList();
+
+      // Sort by score and add rotation
+      scored.sort((a, b) => b.value.compareTo(a.value));
+      final topRecipes = scored.where((e) => e.value > 0).map((e) => e.key).toList();
+      
+      if (topRecipes.isEmpty) {
+        return _getRotatedRecipes(recipes, seed: 'justforyou_$userId', limit: 6);
+      }
+      
+      // Apply rotation to show different recipes over time
+      return _applyRotation(topRecipes, seed: 'justforyou_$userId', limit: 6);
+    } catch (e) {
+      print('Error getting personalized recipes: $e');
+      return _getRotatedRecipes(recipes, seed: 'justforyou_error', limit: 6);
+    }
+  }
+
+  /// Get "Try these Meals" - recipes user hasn't tried with rotation
+  Future<List<Recipe>> _getTryTheseMealsRecipes(List<Recipe> recipes) async {
+    if (userId == null) {
+      return _getRotatedRecipes(recipes, seed: 'trythese_guest', limit: 6);
+    }
+
+    try {
+      // Get recipes user has already logged
+      final mealHistory = await Supabase.instance.client
+          .from('meal_history')
+          .select('recipe_id')
+          .eq('user_id', userId!);
+      
+      final triedRecipeIds = (mealHistory as List)
+          .map((m) => m['recipe_id']?.toString())
+          .whereType<String>()
+          .toSet();
+      
+      // Get recipes user hasn't tried
+      final untriedRecipes = recipes.where((r) => !triedRecipeIds.contains(r.id)).toList();
+      
+      if (untriedRecipes.isEmpty) {
+        // If user has tried everything, show less common recipes
+        return _getRotatedRecipes(recipes, seed: 'trythese_alltried_$userId', limit: 6);
+      }
+      
+      // Apply rotation to show different untried recipes
+      return _applyRotation(untriedRecipes, seed: 'trythese_$userId', limit: 6);
+    } catch (e) {
+      print('Error getting try these meals: $e');
+      return _getRotatedRecipes(recipes, seed: 'trythese_error', limit: 6);
+    }
+  }
+
+  /// Apply rotation to recipes based on time/date seed
+  List<Recipe> _applyRotation(List<Recipe> recipes, {required String seed, int limit = 6}) {
+    if (recipes.length <= limit) return recipes;
+    
+    // Use date-based seed for rotation (changes daily)
+    final now = DateTime.now();
+    final daySeed = '${now.year}_${now.month}_${now.day}';
+    final combinedSeed = '$seed$daySeed';
+    
+    // Create deterministic shuffle based on seed
+    final shuffled = List<Recipe>.from(recipes);
+    final hash = combinedSeed.hashCode;
+    final random = (hash % 1000) / 1000.0;
+    
+    // Shuffle based on seed
+    for (int i = shuffled.length - 1; i > 0; i--) {
+      final j = ((i + 1) * random * 1000).toInt() % (i + 1);
+      final temp = shuffled[i];
+      shuffled[i] = shuffled[j];
+      shuffled[j] = temp;
+    }
+    
+    return shuffled.take(limit).toList();
+  }
+
+  /// Get rotated recipes (fallback)
+  List<Recipe> _getRotatedRecipes(List<Recipe> recipes, {required String seed, int limit = 6}) {
+    if (recipes.length <= limit) return recipes;
+    return _applyRotation(recipes, seed: seed, limit: limit);
+  }
+
+  /// Parse string list from database
+  List<String> _parseStringList(dynamic value) {
+    if (value == null) return [];
+    if (value is List) {
+      return value.map((e) => e.toString()).toList();
+    }
+    if (value is String) {
+      if (value.isEmpty) return [];
+      if (value.startsWith('[') && value.endsWith(']')) {
+        final cleaned = value
+            .replaceAll('[', '')
+            .replaceAll(']', '')
+            .replaceAll('"', '')
+            .replaceAll("'", '')
+            .trim();
+        if (cleaned.isEmpty) return [];
+        return cleaned.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      }
+      return [value.trim()];
+    }
+    return [];
+  }
+  
   // Silog Meals (Breakfast Classics)
   List<Recipe> _getSilogRecipes(List<Recipe> recipes) {
     return recipes.where((recipe) => 
@@ -344,46 +503,30 @@ class _RecipesPageState extends State<RecipesPage> {
     ).toList();
   }
 
-  // Sabaw & Nilaga (Soups & Stews) - Updated
-  List<Recipe> _getSoupRecipes(List<Recipe> recipes) {
+  // Pasta & Noodles
+  List<Recipe> _getPastaRecipes(List<Recipe> recipes) {
     return recipes.where((recipe) => 
-      recipe.tags.contains('Soup') ||
-      recipe.title.toLowerCase().contains('sinigang') ||
-      recipe.title.toLowerCase().contains('tinola') ||
-      recipe.title.toLowerCase().contains('monggo') ||
-      recipe.title.toLowerCase().contains('nilaga') ||
-      recipe.title.toLowerCase().contains('bulalo') ||
-      recipe.title.toLowerCase().contains('soup') ||
-      recipe.title.toLowerCase().contains('sabaw') ||
-      recipe.title.toLowerCase().contains('batchoy') ||
-      recipe.title.toLowerCase().contains('mami')
+      recipe.tags.contains('Pasta') ||
+      recipe.tags.contains('Noodles') ||
+      recipe.title.toLowerCase().contains('pasta') ||
+      recipe.title.toLowerCase().contains('spaghetti') ||
+      recipe.title.toLowerCase().contains('pancit') ||
+      recipe.title.toLowerCase().contains('bihon') ||
+      recipe.title.toLowerCase().contains('canton') ||
+      recipe.title.toLowerCase().contains('miki') ||
+      recipe.title.toLowerCase().contains('noodles') ||
+      recipe.ingredients.any((ingredient) => 
+        ingredient.toLowerCase().contains('pasta') ||
+        ingredient.toLowerCase().contains('noodles') ||
+        ingredient.toLowerCase().contains('spaghetti') ||
+        ingredient.toLowerCase().contains('pancit') ||
+        ingredient.toLowerCase().contains('bihon')
+      )
     ).toList();
   }
 
 
   // New creative category methods
-  List<Recipe> _getPersonalizedRecipes(List<Recipe> recipes) {
-    // Personalized recommendations based on user preferences and favorites
-    final favoriteRecipes = recipes.where((recipe) => 
-      favoriteRecipeIds.contains(recipe.id)
-    ).toList();
-    
-    // If user has favorites, show them; otherwise show popular recipes
-    if (favoriteRecipes.isNotEmpty) {
-      return favoriteRecipes.take(6).toList();
-    } else {
-      // Show popular Filipino dishes
-    return recipes.where((recipe) => 
-        recipe.title.toLowerCase().contains('adobo') ||
-        recipe.title.toLowerCase().contains('sinigang') ||
-        recipe.title.toLowerCase().contains('kare-kare') ||
-        recipe.title.toLowerCase().contains('lechon') ||
-        recipe.title.toLowerCase().contains('sisig') ||
-        recipe.title.toLowerCase().contains('nilaga') ||
-        recipe.title.toLowerCase().contains('tinola')
-      ).take(6).toList();
-    }
-  }
 
   List<Recipe> _getComfortClassicsRecipes(List<Recipe> recipes) {
     return recipes.where((recipe) => 
@@ -895,6 +1038,8 @@ class _RecipesPageState extends State<RecipesPage> {
                   );
                 }
 
+                // Recipes are already filtered by diet type and allergies via RecipeService.fetchRecipes()
+                // Category-specific filtering (pasta, chicken, etc.) is applied in each section
                 final allRecipes = snapshot.data!;
                 final filteredRecipes = _applySearchAndSort(allRecipes);
                 
@@ -1069,11 +1214,44 @@ class _RecipesPageState extends State<RecipesPage> {
 
                       const SizedBox(height: 24),
 
-                      // Just for You (Personalized Recommendations)
-                      _buildRecipeSection(
-                        'Just for You',
-                        getUniqueRecipes(_getPersonalizedRecipes(filteredRecipes)),
-                        _getPersonalizedRecipes(filteredRecipes).length,
+                      // Just For You (Personalized Recommendations with rotation)
+                      FutureBuilder<List<Recipe>>(
+                        future: _getJustForYouRecipes(filteredRecipes),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const SizedBox.shrink();
+                          }
+                          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                            return const SizedBox.shrink();
+                          }
+                          final justForYouRecipes = getUniqueRecipes(snapshot.data!);
+                          return _buildRecipeSection(
+                            'Just For You',
+                            justForYouRecipes,
+                            justForYouRecipes.length,
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Try these Meals (Untried recipes with rotation)
+                      FutureBuilder<List<Recipe>>(
+                        future: _getTryTheseMealsRecipes(filteredRecipes),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const SizedBox.shrink();
+                          }
+                          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                            return const SizedBox.shrink();
+                          }
+                          final tryTheseRecipes = getUniqueRecipes(snapshot.data!);
+                          return _buildRecipeSection(
+                            'Try these Meals',
+                            tryTheseRecipes,
+                            tryTheseRecipes.length,
+                          );
+                        },
                       ),
 
                       const SizedBox(height: 24),
@@ -1096,11 +1274,11 @@ class _RecipesPageState extends State<RecipesPage> {
 
                       const SizedBox(height: 24),
 
-                      // Sabaw & Nilaga (Soups & Stews)
+                      // Pasta & Noodles
                       _buildRecipeSection(
-                        'Sabaw & Nilaga',
-                        getUniqueRecipes(_getSoupRecipes(filteredRecipes)),
-                        _getSoupRecipes(filteredRecipes).length,
+                        'Pasta & Noodles',
+                        getUniqueRecipes(_getPastaRecipes(filteredRecipes)),
+                        _getPastaRecipes(filteredRecipes).length,
                       ),
 
                       const SizedBox(height: 24),
@@ -1238,16 +1416,27 @@ class _RecipesPageState extends State<RecipesPage> {
                                 for (final m in mealsWithTime) {
                                   try {
                                     // Insert one row per meal (new format) with required date and time
+                                    final Map<String, dynamic> mealData = {
+                                      'user_id': userId,
+                                      'recipe_id': m.recipe.id,
+                                      'title': m.recipe.title,
+                                      'meal_type': m.mealType ?? 'dinner',
+                                      'meal_time': m.time != null ? '${m.time!.hour.toString().padLeft(2, '0')}:${m.time!.minute.toString().padLeft(2, '0')}:00' : null,
+                                      'date': (m.scheduledDate ?? DateTime.now()).toUtc().toIso8601String().split('T').first,
+                                    };
+                                    
+                                    // Add rice data if included
+                                    if (m.includeRice && m.riceServing != null) {
+                                      mealData['include_rice'] = true;
+                                      mealData['rice_serving'] = m.riceServing!.label;
+                                    } else {
+                                      mealData['include_rice'] = false;
+                                      mealData['rice_serving'] = null;
+                                    }
+                                    
                                     await Supabase.instance.client
                                         .from('meal_plans')
-                                        .insert({
-                                          'user_id': userId,
-                                          'recipe_id': m.recipe.id,
-                                          'title': m.recipe.title,
-                                          'meal_type': m.mealType ?? 'dinner',
-                                          'meal_time': m.time != null ? '${m.time!.hour.toString().padLeft(2, '0')}:${m.time!.minute.toString().padLeft(2, '0')}:00' : null,
-                                          'date': (m.scheduledDate ?? DateTime.now()).toUtc().toIso8601String().split('T').first,
-                                        });
+                                        .insert(mealData);
                                     print('Successfully saved meal to plans: ${m.recipe.title}');
                                   } catch (e) {
                                     print('Failed to save meal to plans ${m.recipe.title}: $e');

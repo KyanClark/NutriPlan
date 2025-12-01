@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:nutriplan/screens/auth/login_screen.dart';
+import 'package:nutriplan/admin/admin_web_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -44,6 +45,7 @@ class NutriPlan extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => const LoginScreen(),
+        '/admin': (context) => const AdminWebPage(),
       },
     );
   }

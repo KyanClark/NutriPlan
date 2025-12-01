@@ -21,6 +21,14 @@ class MealHistoryEntry {
   final double cholesterol;
   final DateTime completedAt;
   final MealCategory category;
+  final bool includeRice;
+  final String? riceServing;
+  final double? riceCalories;
+  final double? riceProtein;
+  final double? riceCarbs;
+  final double? riceFat;
+  final double? riceFiber;
+  final double? riceSodium;
 
   MealHistoryEntry({
     required this.id,
@@ -37,6 +45,14 @@ class MealHistoryEntry {
     required this.cholesterol,
     required this.completedAt,
     required this.category,
+    this.includeRice = false,
+    this.riceServing,
+    this.riceCalories,
+    this.riceProtein,
+    this.riceCarbs,
+    this.riceFat,
+    this.riceFiber,
+    this.riceSodium,
   });
 
   factory MealHistoryEntry.fromMap(Map<String, dynamic> map) {
@@ -63,6 +79,14 @@ class MealHistoryEntry {
       cholesterol: parseNum(map['cholesterol']),
       completedAt: DateTime.parse(map['completed_at']),
       category: _parseMealCategory(map['meal_category'] ?? 'dinner'),
+      includeRice: map['include_rice'] == true,
+      riceServing: map['rice_serving']?.toString(),
+      riceCalories: map['rice_calories'] != null ? parseNum(map['rice_calories']) : null,
+      riceProtein: map['rice_protein'] != null ? parseNum(map['rice_protein']) : null,
+      riceCarbs: map['rice_carbs'] != null ? parseNum(map['rice_carbs']) : null,
+      riceFat: map['rice_fat'] != null ? parseNum(map['rice_fat']) : null,
+      riceFiber: map['rice_fiber'] != null ? parseNum(map['rice_fiber']) : null,
+      riceSodium: map['rice_sodium'] != null ? parseNum(map['rice_sodium']) : null,
     );
   }
 

@@ -21,6 +21,47 @@ class UserNutritionGoals {
   final double? bmr;
   final double? tdee;
 
+  /// Helper function to safely convert a value to List<String>
+  /// Handles cases where the value might be a List, String (JSON), or null
+  static List<String>? _safeStringList(dynamic value) {
+    if (value == null) return null;
+    
+    // If it's already a List, convert it
+    if (value is List) {
+      try {
+        return value.map((e) => e.toString()).toList();
+      } catch (_) {
+        return null;
+      }
+    }
+    
+    // If it's a String, try to parse it as JSON
+    if (value is String) {
+      if (value.isEmpty) return null;
+      try {
+        // Simple parsing for common cases
+        if (value.startsWith('[') && value.endsWith(']')) {
+          // Remove brackets and quotes, split by comma
+          final cleaned = value
+              .replaceAll('[', '')
+              .replaceAll(']', '')
+              .replaceAll('"', '')
+              .replaceAll("'", '')
+              .trim();
+          if (cleaned.isEmpty) return null;
+          return cleaned.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+        }
+        // If it's a single string value, return as single-item list
+        return [value.trim()];
+      } catch (_) {
+        // If parsing fails, return as single-item list
+        return [value.toString()];
+      }
+    }
+    
+    return null;
+  }
+
   UserNutritionGoals({
     required this.calorieGoal,
     required this.proteinGoal,
@@ -58,15 +99,9 @@ class UserNutritionGoals {
       weightKg: map['weight_kg']?.toDouble(),
       activityLevel: map['activity_level'],
       weightGoal: map['weight_goal'],
-      dishPreferences: map['dish_preferences'] != null 
-        ? List<String>.from(map['dish_preferences']) 
-        : null,
-      allergies: map['allergies'] != null 
-        ? List<String>.from(map['allergies']) 
-        : null,
-      healthConditions: map['health_conditions'] != null 
-        ? List<String>.from(map['health_conditions']) 
-        : null,
+      dishPreferences: _safeStringList(map['dish_preferences'] ?? map['like_dishes']),
+      allergies: _safeStringList(map['allergies']),
+      healthConditions: _safeStringList(map['health_conditions']),
       sodiumLimit: map['sodium_limit']?.toDouble(),
       bmr: map['bmr']?.toDouble(),
       tdee: map['tdee']?.toDouble(),
@@ -88,7 +123,7 @@ class UserNutritionGoals {
       'weight_kg': weightKg,
       'activity_level': activityLevel,
       'weight_goal': weightGoal,
-      'dish_preferences': dishPreferences,
+      'like_dishes': dishPreferences, // Use like_dishes to match database schema
       'allergies': allergies,
       'health_conditions': healthConditions,
       'sodium_limit': sodiumLimit,

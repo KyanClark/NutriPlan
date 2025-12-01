@@ -3,9 +3,13 @@ import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../recipes/recipe_info_screen.dart';
 import '../profile/profile_screen.dart';
+import '../../widgets/profile_avatar_widget.dart';
 import '../../models/recipes.dart';
 import 'interface/meal_planner_widgets.dart';
 import 'meal_summary_page.dart';
+import 'shopping_list_page.dart';
+import '../../utils/app_logger.dart';
+import '../../services/shopping_list_service.dart';
 
 class MealPlannerScreen extends StatefulWidget {
   final bool forceRefresh;
@@ -28,8 +32,20 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
   bool _isDeleteMode = false;
   final Set<String> _selectedMealsForDeletion = {};
   String? _avatarUrl;
+  String? _gender;
   static String? _cachedAvatarUrl;
+  static String? _cachedGender;
   static bool _hasFetchedAvatar = false;
+
+  int get _shoppingListItemCount {
+    if (supabaseMealPlans.isEmpty) return 0;
+    try {
+      final data = ShoppingListService.buildFromMeals(_filteredMeals);
+      return data.totalItems;
+    } catch (_) {
+      return 0;
+    }
+  }
 
   @override
   void initState() {
@@ -42,6 +58,7 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
       _fetchUserAvatar();
     } else {
       _avatarUrl = _cachedAvatarUrl;
+      _gender = _cachedGender;
     }
     
     // Set up timer for periodic refresh
@@ -168,22 +185,33 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
     if (user == null) return;
 
     try {
-      final data = await Supabase.instance.client
+      // Fetch avatar URL
+      final profileData = await Supabase.instance.client
           .from('profiles')
           .select('avatar_url')
           .eq('id', user.id)
           .maybeSingle();
       
       // Update cached value
-      _cachedAvatarUrl = data?['avatar_url'] as String?;
+      _cachedAvatarUrl = profileData?['avatar_url'] as String?;
+      
+      // Fetch gender from user_preferences
+      final prefsData = await Supabase.instance.client
+          .from('user_preferences')
+          .select('gender')
+          .eq('user_id', user.id)
+          .maybeSingle();
+      
+      _cachedGender = prefsData?['gender'] as String?;
       _hasFetchedAvatar = true;
       
       if (!mounted) return;
       setState(() {
         _avatarUrl = _cachedAvatarUrl;
+        _gender = _cachedGender;
       });
     } catch (e) {
-      print('Error fetching user avatar: $e');
+      AppLogger.error('Error fetching user avatar', e);
     }
   }
 
@@ -245,6 +273,18 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
       final mealType = meal['meal_type']?.toString().toLowerCase();
       return mealType == _selectedFilter.toLowerCase();
     }).toList();
+  }
+
+  void _openShoppingList() {
+    final mealsForList = _filteredMeals.map((meal) => Map<String, dynamic>.from(meal)).toList();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ShoppingListPage(
+          meals: mealsForList,
+          selectedDate: selectedDate,
+        ),
+      ),
+    );
   }
 
   /// Delete selected meals
@@ -515,15 +555,11 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
                   color: const Color.fromARGB(255, 80, 231, 93),
                   shape: BoxShape.circle,
                 ),
-                child: CircleAvatar(
+                child: ProfileAvatarWidget(
+                  avatarUrl: _avatarUrl ?? _cachedAvatarUrl,
+                  gender: _gender ?? _cachedGender,
                   radius: 16,
                   backgroundColor: Colors.grey[200],
-                  backgroundImage: _avatarUrl != null && _avatarUrl!.isNotEmpty
-                      ? NetworkImage(_avatarUrl!)
-                      : null,
-                  child: _avatarUrl == null || _avatarUrl!.isEmpty
-                      ? const Icon(Icons.person, color: Colors.grey, size: 20)
-                      : null,
                 ),
               ),
             ),
@@ -531,331 +567,619 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
         ],
       ),
       body: SafeArea(
-            child: Column(
-              children: [
-            // Hero header with title, subtitle, and weekly calendar inside (made more compact)
-                          Container(
-              width: double.infinity,
-                            decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF2E7D32), Color(0xFF4CAF50)],
-                ),
-                              boxShadow: [
-                                BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                                'Meal Planner',
-                                style: TextStyle(
-                                  color: Colors.white,
-                          fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        Row(
-                          children: [
-                            // Delete button
-                            IconButton(
-                              tooltip: _isDeleteMode ? 'Cancel delete' : 'Delete meals',
-                              icon: Icon(
-                                _isDeleteMode ? Icons.close : Icons.delete,
-                                color: Colors.white,
-                                size: 24,
-                              ),
-                              onPressed: () {
-                                // Only toggle delete mode; never perform deletion here
-                                setState(() {
-                                  if (_isDeleteMode) {
-                                    _isDeleteMode = false;
-                                    _selectedMealsForDeletion.clear();
-                                  } else {
-                                    _isDeleteMode = true;
-                                  }
-                                });
-                              },
-                            ),
-                            ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Plan smarter, eat better',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      height: 48,
-                      child: Stack(
-                        children: [
-                          PageView.builder(
-                            controller: _weekPageController,
-                            onPageChanged: (_) {},
-                            itemBuilder: (context, page) {
-                              final weekStart = _startOfWeek(DateTime.now()).add(Duration(days: (page - 1000) * 7));
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 4),
-                                child: Row(
-                                  children: List.generate(7, (i) {
-                                  final date = weekStart.add(Duration(days: i));
-                                  return Expanded(
-                                      child: Center(child: _buildCalendarDay(date)),
-                                  );
-                                  }),
-                                ),
-                              );
-                            },
-                          ),
-                          // Left fade (green -> transparent)
-                          Positioned(
-                            left: 0,
-                            top: 0,
-                            bottom: 0,
-                            child: IgnorePointer(
-                              child: Container(
-                                width: 16,
-                                decoration: const BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.centerLeft,
-                                    end: Alignment.centerRight,
-                                    colors: [Color(0xFF2E7D32), Color(0x002E7D32)],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          // Right fade (green -> transparent)
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            bottom: 0,
-                            child: IgnorePointer(
-                              child: Container(
-                                width: 16,
-                                decoration: const BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.centerRight,
-                                    end: Alignment.centerLeft,
-                                    colors: [Color(0xFF4CAF50), Color(0x004CAF50)],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                return SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0.0, 0.1),
+                    end: Offset.zero,
+                  ).animate(CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeInOut,
+                  )),
+                  child: FadeTransition(
+                    opacity: animation,
+                    child: child,
                   ),
-                  ],
-                ),
-              ),
-            ),
-            // Date Display with animation and tappable indicator
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 200),
-                        transitionBuilder: (Widget child, Animation<double> animation) {
-                          return SlideTransition(
-                            position: Tween<Offset>(
-                              begin: const Offset(0.0, 0.3),
-                              end: Offset.zero,
-                            ).animate(CurvedAnimation(
-                              parent: animation,
-                              curve: Curves.easeOut,
-                            )),
-                            child: FadeTransition(
-                              opacity: animation,
-                              child: child,
-                            ),
-                          );
-                        },
-                        child: InkWell(
-                          key: ValueKey('date_${selectedDate.millisecondsSinceEpoch}'),
-                          onTap: _showCalendarDialog,
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[50],
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey[300]!, width: 1),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.grey.withValues(alpha: 0.1),
-                                  blurRadius: 2,
-                                  offset: const Offset(0, 1),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.calendar_today,
-                                  size: 16,
-                                  color: Colors.grey[600],
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _formatSelectedDate(),
-                                  textAlign: TextAlign.left,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Icon(
-                                  Icons.arrow_drop_down,
-                                  size: 16,
-                                  color: Colors.grey[600],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Shopping cart icon
-                  IconButton(
-                    icon: const Icon(
-                      Icons.shopping_cart_outlined,
-                      size: 24,
-                      color: Colors.black,
-                    ),
-                    onPressed: () {
-                      // TODO: Navigate to shopping list/grocery list page
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Shopping cart feature coming soon!'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    },
-                    tooltip: 'Shopping Cart',
-                  ),
-                ],
-              ),
-            ),
-            // Content area with loading state and animated transitions
-            Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                transitionBuilder: (Widget child, Animation<double> animation) {
-                  return SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0.0, 0.1),
-                      end: Offset.zero,
-                    ).animate(CurvedAnimation(
-                      parent: animation,
-                      curve: Curves.easeInOut,
-                    )),
-                    child: FadeTransition(
-                      opacity: animation,
-                      child: child,
-                    ),
-                  );
-                },
-                child: supabaseMealPlans.isNotEmpty
-                        ? SingleChildScrollView(
-                            key: ValueKey('content_${selectedDate.millisecondsSinceEpoch}'),
-                      physics: const BouncingScrollPhysics(),
-                      child: Padding(
-                              padding: const EdgeInsets.fromLTRB(20.0, 20.0, 20.0, 0.0),
-                    child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                            // Delete mode controls
-                        if (_isDeleteMode) ...[
+                );
+              },
+              child: supabaseMealPlans.isNotEmpty
+                      ? SingleChildScrollView(
+                          key: ValueKey('content_${selectedDate.millisecondsSinceEpoch}'),
+                          physics: const BouncingScrollPhysics(),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Hero header with title, subtitle, and weekly calendar inside (made more compact)
                               Container(
                                 width: double.infinity,
-                                padding: const EdgeInsets.all(16),
-                                      decoration: _selectedMealsForDeletion.isEmpty
-                                          ? null
-                                          : BoxDecoration(
-                                              color: const Color(0xFF4CAF50).withOpacity(0.08),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                                color: const Color(0xFF4CAF50).withOpacity(0.25),
-                                    width: 1,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [Color(0xFF2E7D32), Color(0xFF4CAF50)],
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.08),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          const Text(
+                                            'Meal Planner',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          Row(
+                                            children: [
+                                              // Delete button
+                                              IconButton(
+                                                tooltip: _isDeleteMode ? 'Cancel delete' : 'Delete meals',
+                                                icon: Icon(
+                                                  _isDeleteMode ? Icons.close : Icons.delete,
+                                                  color: Colors.white,
+                                                  size: 24,
+                                                ),
+                                                onPressed: () {
+                                                  // Only toggle delete mode; never perform deletion here
+                                                  setState(() {
+                                                    if (_isDeleteMode) {
+                                                      _isDeleteMode = false;
+                                                      _selectedMealsForDeletion.clear();
+                                                    } else {
+                                                      _isDeleteMode = true;
+                                                    }
+                                                  });
+                                                },
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Plan smarter, eat better',
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.9),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w400,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      SizedBox(
+                                        height: 48,
+                                        child: Stack(
+                                          children: [
+                                            PageView.builder(
+                                              controller: _weekPageController,
+                                              onPageChanged: (_) {},
+                                              itemBuilder: (context, page) {
+                                                final weekStart = _startOfWeek(DateTime.now()).add(Duration(days: (page - 1000) * 7));
+                                                return Padding(
+                                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                                  child: Row(
+                                                    children: List.generate(7, (i) {
+                                                      final date = weekStart.add(Duration(days: i));
+                                                      return Expanded(
+                                                        child: Center(child: _buildCalendarDay(date)),
+                                                      );
+                                                    }),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                            // Left fade (green -> transparent)
+                                            Positioned(
+                                              left: 0,
+                                              top: 0,
+                                              bottom: 0,
+                                              child: IgnorePointer(
+                                                child: Container(
+                                                  width: 16,
+                                                  decoration: const BoxDecoration(
+                                                    gradient: LinearGradient(
+                                                      begin: Alignment.centerLeft,
+                                                      end: Alignment.centerRight,
+                                                      colors: [Color(0xFF2E7D32), Color(0x002E7D32)],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            // Right fade (green -> transparent)
+                                            Positioned(
+                                              right: 0,
+                                              top: 0,
+                                              bottom: 0,
+                                              child: IgnorePointer(
+                                                child: Container(
+                                                  width: 16,
+                                                  decoration: const BoxDecoration(
+                                                    gradient: LinearGradient(
+                                                      begin: Alignment.centerRight,
+                                                      end: Alignment.centerLeft,
+                                                      colors: [Color(0xFF4CAF50), Color(0x004CAF50)],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                      child: _selectedMealsForDeletion.isEmpty
-                                          ? Text(
-                                              'No meals selected for deletion',
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                color: Color(0xFF4CAF50),
-                                                fontWeight: FontWeight.w400,
-                                              ),
-                                            )
-                                          : Row(
+                              ),
+                              // Date Display with animation and tappable indicator
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+                                child: Row(
                                   children: [
-                                    Icon(
-                                      Icons.info_outline,
-                                                  color: const Color(0xFF4CAF50),
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 12),
                                     Expanded(
-                                      child: Text(
-                                        '${_selectedMealsForDeletion.length} meal${_selectedMealsForDeletion.length != 1 ? 's' : ''} selected for deletion',
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                                      color: Color(0xFF4CAF50),
-                                          fontWeight: FontWeight.w500,
+                                      child: Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: AnimatedSwitcher(
+                                          duration: const Duration(milliseconds: 200),
+                                          transitionBuilder: (Widget child, Animation<double> animation) {
+                                            return SlideTransition(
+                                              position: Tween<Offset>(
+                                                begin: const Offset(0.0, 0.3),
+                                                end: Offset.zero,
+                                              ).animate(CurvedAnimation(
+                                                parent: animation,
+                                                curve: Curves.easeOut,
+                                              )),
+                                              child: FadeTransition(
+                                                opacity: animation,
+                                                child: child,
+                                              ),
+                                            );
+                                          },
+                                          child: InkWell(
+                                            key: ValueKey('date_${selectedDate.millisecondsSinceEpoch}'),
+                                            onTap: _showCalendarDialog,
+                                            borderRadius: BorderRadius.circular(8),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                              decoration: BoxDecoration(
+                                                color: Colors.grey[50],
+                                                borderRadius: BorderRadius.circular(8),
+                                                border: Border.all(color: Colors.grey[300]!, width: 1),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: Colors.grey.withValues(alpha: 0.1),
+                                                    blurRadius: 2,
+                                                    offset: const Offset(0, 1),
+                                                  ),
+                                                ],
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    Icons.calendar_today,
+                                                    size: 16,
+                                                    color: Colors.grey[600],
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Flexible(
+                                                    child: Text(
+                                                      _formatSelectedDate(),
+                                                      textAlign: TextAlign.left,
+                                                      overflow: TextOverflow.ellipsis,
+                                                      maxLines: 1,
+                                                      style: const TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: Colors.black,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Icon(
+                                                    Icons.arrow_drop_down,
+                                                    size: 16,
+                                                    color: Colors.grey[600],
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ),
-                      ],
-                    ),
-                  ),
-                              const SizedBox(height: 20),
+                                    // Shopping cart icon with badge
+                                    Stack(
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.shopping_cart_outlined,
+                                            size: 24,
+                                            color: Colors.black,
+                                          ),
+                                          // Allow opening even when empty so user can see the empty-state screen
+                                          onPressed: _openShoppingList,
+                                          tooltip: 'Shopping Cart',
+                                        ),
+                                        if (_shoppingListItemCount > 0)
+                                          Positioned(
+                                            left: 20,
+                                            bottom: 28,
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: Colors.redAccent,
+                                                borderRadius: BorderRadius.circular(10),
+                                              ),
+                                              constraints: const BoxConstraints(
+                                                minWidth: 18,
+                                                minHeight: 16,
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  _shoppingListItemCount > 99 ? '99+' : _shoppingListItemCount.toString(),
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Delete mode controls
+                              if (_isDeleteMode) ...[
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                                  child: Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: _selectedMealsForDeletion.isEmpty
+                                        ? null
+                                        : BoxDecoration(
+                                            color: const Color(0xFF4CAF50).withOpacity(0.08),
+                                            borderRadius: BorderRadius.circular(16),
+                                            border: Border.all(
+                                              color: const Color(0xFF4CAF50).withOpacity(0.25),
+                                              width: 1,
+                                            ),
+                                          ),
+                                    child: _selectedMealsForDeletion.isEmpty
+                                        ? Text(
+                                            'No meals selected for deletion',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Color(0xFF4CAF50),
+                                              fontWeight: FontWeight.w400,
+                                            ),
+                                          )
+                                        : Row(
+                                            children: [
+                                              Icon(
+                                                Icons.info_outline,
+                                                color: const Color(0xFF4CAF50),
+                                                size: 20,
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Text(
+                                                  '${_selectedMealsForDeletion.length} meal${_selectedMealsForDeletion.length != 1 ? 's' : ''} selected for deletion',
+                                                  style: const TextStyle(
+                                                    fontSize: 14,
+                                                    color: Color(0xFF4CAF50),
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                              ],
+                              // Meal sections (Breakfast, Lunch, Dinner)
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(20.0, 0.0, 20.0, 0.0),
+                                child: _buildMealSections(),
+                              ),
+                              // Extra bottom spacing to prevent FAB overlap/overflow
+                              SizedBox(height: _isDeleteMode ? 120 : 40),
                             ],
-                                  // Meal sections (Breakfast, Lunch, Dinner)
-                                  _buildMealSections(),
-                                  // Extra bottom spacing to prevent FAB overlap/overflow
-                                  SizedBox(height: _isDeleteMode ? 120 : 40),
+                          ),
+                        )
+                      : Column(
+                          children: [
+                            // Hero header with title, subtitle, and weekly calendar inside (made more compact)
+                            Container(
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [Color(0xFF2E7D32), Color(0xFF4CAF50)],
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.08),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text(
+                                          'Meal Planner',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        Row(
+                                          children: [
+                                            // Delete button
+                                            IconButton(
+                                              tooltip: _isDeleteMode ? 'Cancel delete' : 'Delete meals',
+                                              icon: Icon(
+                                                _isDeleteMode ? Icons.close : Icons.delete,
+                                                color: Colors.white,
+                                                size: 24,
+                                              ),
+                                              onPressed: () {
+                                                // Only toggle delete mode; never perform deletion here
+                                                setState(() {
+                                                  if (_isDeleteMode) {
+                                                    _isDeleteMode = false;
+                                                    _selectedMealsForDeletion.clear();
+                                                  } else {
+                                                    _isDeleteMode = true;
+                                                  }
+                                                });
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Plan smarter, eat better',
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.9),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    SizedBox(
+                                      height: 48,
+                                      child: Stack(
+                                        children: [
+                                          PageView.builder(
+                                            controller: _weekPageController,
+                                            onPageChanged: (_) {},
+                                            itemBuilder: (context, page) {
+                                              final weekStart = _startOfWeek(DateTime.now()).add(Duration(days: (page - 1000) * 7));
+                                              return Padding(
+                                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                                child: Row(
+                                                  children: List.generate(7, (i) {
+                                                    final date = weekStart.add(Duration(days: i));
+                                                    return Expanded(
+                                                      child: Center(child: _buildCalendarDay(date)),
+                                                    );
+                                                  }),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                          // Left fade (green -> transparent)
+                                          Positioned(
+                                            left: 0,
+                                            top: 0,
+                                            bottom: 0,
+                                            child: IgnorePointer(
+                                              child: Container(
+                                                width: 16,
+                                                decoration: const BoxDecoration(
+                                                  gradient: LinearGradient(
+                                                    begin: Alignment.centerLeft,
+                                                    end: Alignment.centerRight,
+                                                    colors: [Color(0xFF2E7D32), Color(0x002E7D32)],
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          // Right fade (green -> transparent)
+                                          Positioned(
+                                            right: 0,
+                                            top: 0,
+                                            bottom: 0,
+                                            child: IgnorePointer(
+                                              child: Container(
+                                                width: 16,
+                                                decoration: const BoxDecoration(
+                                                  gradient: LinearGradient(
+                                                    begin: Alignment.centerRight,
+                                                    end: Alignment.centerLeft,
+                                                    colors: [Color(0xFF4CAF50), Color(0x004CAF50)],
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            // Date Display with animation and tappable indicator
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: AnimatedSwitcher(
+                                        duration: const Duration(milliseconds: 200),
+                                        transitionBuilder: (Widget child, Animation<double> animation) {
+                                          return SlideTransition(
+                                            position: Tween<Offset>(
+                                              begin: const Offset(0.0, 0.3),
+                                              end: Offset.zero,
+                                            ).animate(CurvedAnimation(
+                                              parent: animation,
+                                              curve: Curves.easeOut,
+                                            )),
+                                            child: FadeTransition(
+                                              opacity: animation,
+                                              child: child,
+                                            ),
+                                          );
+                                        },
+                                        child: InkWell(
+                                          key: ValueKey('date_${selectedDate.millisecondsSinceEpoch}'),
+                                          onTap: _showCalendarDialog,
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey[50],
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: Colors.grey[300]!, width: 1),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.grey.withValues(alpha: 0.1),
+                                                  blurRadius: 2,
+                                                  offset: const Offset(0, 1),
+                                                ),
+                                              ],
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  Icons.calendar_today,
+                                                  size: 16,
+                                                  color: Colors.grey[600],
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Flexible(
+                                                  child: Text(
+                                                    _formatSelectedDate(),
+                                                    textAlign: TextAlign.left,
+                                                    overflow: TextOverflow.ellipsis,
+                                                    maxLines: 1,
+                                                    style: const TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.black,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Icon(
+                                                  Icons.arrow_drop_down,
+                                                  size: 16,
+                                                  color: Colors.grey[600],
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  // Shopping cart icon with badge
+                                  Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.shopping_cart_outlined,
+                                          size: 24,
+                                          color: Colors.black,
+                                        ),
+                                        // Allow opening even when empty so user can see the empty-state screen
+                                        onPressed: _openShoppingList,
+                                        tooltip: 'Shopping Cart',
+                                      ),
+                                      if (_shoppingListItemCount > 0)
+                                        Positioned(
+                                          left: 20,
+                                          bottom: 28,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: Colors.redAccent,
+                                              borderRadius: BorderRadius.circular(10),
+                                            ),
+                                            constraints: const BoxConstraints(
+                                              minWidth: 18,
+                                              minHeight: 16,
+                                            ),
+                                            child: Center(
+                                              child: Text(
+                                                _shoppingListItemCount > 99 ? '99+' : _shoppingListItemCount.toString(),
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
                                 ],
                               ),
                             ),
-                          )
-                        : Padding(
-                            padding: EdgeInsets.only(
-                              bottom: _isDeleteMode ? 120.0 : 40.0,
+                            // Empty state
+                            Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.only(
+                                  bottom: _isDeleteMode ? 120.0 : 40.0,
+                                ),
+                                child: const MealPlannerEmptyState(),
+                              ),
                             ),
-                            child: const MealPlannerEmptyState(),
-                          ),
-              ),
+                          ],
+                        ),
             ),
-          ],
-        ),
       ),
       floatingActionButton: _isDeleteMode
         ? FloatingActionButton.extended(
@@ -872,13 +1196,25 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
   }
 
   String _formatSelectedDate() {
+    // Use shorter format for smaller screens to prevent overflow
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 400;
+    
+    if (isSmallScreen) {
+      // Short format: "Mon, Jan 15" instead of "Monday, 15 January"
+      final weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      final weekday = weekdays[selectedDate.weekday - 1];
+      final month = months[selectedDate.month - 1];
+      return '$weekday, $month ${selectedDate.day}';
+    } else {
+      // Full format for larger screens
     final weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     final months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    
     final weekday = weekdays[selectedDate.weekday - 1];
     final month = months[selectedDate.month - 1];
-    
     return '$weekday, ${selectedDate.day} $month';
+    }
   }
 
   DateTime _startOfWeek(DateTime date) {

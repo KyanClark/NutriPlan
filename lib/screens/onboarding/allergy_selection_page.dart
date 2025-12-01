@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../meal_plan/nutrition_goals_summary_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'user_profile_page.dart';
+import '../../utils/onboarding_transitions.dart';
 
 class AllergySelectionPage extends StatefulWidget {
   const AllergySelectionPage({super.key});
@@ -48,8 +49,28 @@ class _AllergySelectionPageState extends State<AllergySelectionPage> {
       'desc': 'Shrimp, crab, squid, mussels',
     },
     {
+      'title': 'Chicken',
+      'desc': 'Chicken meat, chicken broth, chicken-based dishes',
+    },
+    {
+      'title': 'Pork',
+      'desc': 'Pork meat, pork products, lard',
+    },
+    {
+      'title': 'Beef',
+      'desc': 'Beef meat, beef broth, beef-based dishes',
+    },
+    {
       'title': 'Sesame',
       'desc': 'Sesame seeds, tahini, some breads or snacks',
+    },
+    {
+      'title': 'Corn',
+      'desc': 'Corn, cornstarch, corn syrup, corn-based products',
+    },
+    {
+      'title': 'Tomatoes',
+      'desc': 'Tomatoes, tomato sauce, ketchup',
     },
   ];
 
@@ -76,47 +97,45 @@ class _AllergySelectionPageState extends State<AllergySelectionPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Allergies'),
-        centerTitle: true,
-        backgroundColor: const Color(0xFF4CAF50),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                const Text(
-                  'Food Allergies \n& Intolerance',
-                  style: TextStyle( 
-                    fontSize: 25,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF388E3C),
-                    letterSpacing: 1.1,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Back button
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF388E3C)),
+                onPressed: () => Navigator.of(context).pop(),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Food Allergies & Intolerance',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        color: const Color(0xFF388E3C),
+                        fontWeight: FontWeight.w800,
+                        height: 1.2,
+                      ),
+                    ),
                   ),
-                  maxLines: 2,
-                ),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () => _showTooltip(context),
-                  child: const Icon(Icons.info_outline, color: Color(0xFF388E3C)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Personalize your meals by telling us what ingredients to leave out.',
-              style: TextStyle(fontSize: 14, color: Colors.black87),
-            ),
-            const SizedBox(height: 24),
-            Expanded(
+                  GestureDetector(
+                    onTap: () => _showTooltip(context),
+                    child: const Icon(Icons.info_outline, color: Color(0xFF388E3C)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Personalize your meals by telling us what ingredients to leave out.',
+                style: TextStyle(fontSize: 16, color: Colors.black87, height: 1.5),
+              ),
+              const SizedBox(height: 24),
+              Expanded(
               child: ListView.separated(
                 itemCount: allergies.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
@@ -210,10 +229,10 @@ class _AllergySelectionPageState extends State<AllergySelectionPage> {
                   );
                 },
               ),
-            ),
-            const SizedBox(height: 24),
-            Center(
-              child: SizedBox(
+              ),
+              const SizedBox(height: 24),
+              Center(
+                child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -241,36 +260,11 @@ class _AllergySelectionPageState extends State<AllergySelectionPage> {
                           'allergies': selectedAllergies,
                         });
                     }
-                    // Get nutrition goals from database
-                    Map<String, double> nutritionGoals = {};
                     
-                    if (user != null) {
-                      final response = await Supabase.instance.client
-                        .from('user_preferences')
-                        .select('calorie_goal, protein_goal, carb_goal, fat_goal, fiber_goal, sugar_goal, cholesterol_goal, sodium_limit')
-                        .eq('user_id', user.id)
-                        .single();
-                      
-                      nutritionGoals = {
-                        'calories': (response['calorie_goal'] ?? 2000).toDouble(),
-                        'protein': (response['protein_goal'] ?? 150).toDouble(),
-                        'carbs': (response['carb_goal'] ?? 250).toDouble(),
-                        'fat': (response['fat_goal'] ?? 65).toDouble(),
-                        'fiber': (response['fiber_goal'] ?? 25).toDouble(),
-                        'sugar': (response['sugar_goal'] ?? 50).toDouble(),
-                        'cholesterol': (response['cholesterol_goal'] ?? 300).toDouble(),
-                        'sodium': (response['sodium_limit'] ?? 2300).toDouble(),
-                      };
-                    }
-                    
-                    Navigator.pushAndRemoveUntil(
+                    // Navigate to user profile page (age, gender) to continue onboarding
+                    Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (context) => NutritionGoalsSummaryPage(
-                          nutritionGoals: nutritionGoals,
-                        ),
-                      ),
-                      (route) => false,
+                      OnboardingPageRoute(page: const UserProfilePage()),
                     );
                   } : null,
                   child: const Text('Confirm', style: TextStyle(fontSize: 18)),
@@ -280,6 +274,7 @@ class _AllergySelectionPageState extends State<AllergySelectionPage> {
           ],
         ),
       ),
+      )
     );
   }
 } 

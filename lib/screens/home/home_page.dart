@@ -5,6 +5,7 @@ import '../meal_plan/meal_planning_options_page.dart';
 import '../analytics/analytics_page.dart';
 import '../tracking/meal_tracker_screen.dart';
 import '../profile/profile_screen.dart';
+import '../../widgets/profile_avatar_widget.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../widgets/bottom_navigation.dart';
 import '../recipes/recipes_page.dart';
@@ -30,19 +31,23 @@ class _ProfileIconWidget extends StatefulWidget {
 }
 
 class _ProfileIconWidgetState extends State<_ProfileIconWidget> {
+  String? _avatarUrl;
+  String? _gender;
   static String? _cachedAvatarUrl;
+  static String? _cachedGender;
   static bool _hasFetchedAvatar = false;
 
   @override
   void initState() {
     super.initState();
+    // Use cached values if available
+    _avatarUrl = _cachedAvatarUrl;
+    _gender = _cachedGender;
     // Only fetch if never fetched before
     if (!_hasFetchedAvatar) {
       _fetchUserAvatar();
     }
   }
-
-  String? get _avatarUrl => _cachedAvatarUrl;
 
   void refreshAvatar() {
     _fetchUserAvatar();
@@ -53,19 +58,30 @@ class _ProfileIconWidgetState extends State<_ProfileIconWidget> {
     if (user == null) return;
 
     try {
-      final data = await Supabase.instance.client
+      // Fetch avatar URL
+      final profileData = await Supabase.instance.client
           .from('profiles')
           .select('avatar_url')
           .eq('id', user.id)
           .maybeSingle();
       
       // Update cached value
-      _cachedAvatarUrl = data?['avatar_url'] as String?;
+      _cachedAvatarUrl = profileData?['avatar_url'] as String?;
+      
+      // Fetch gender from user_preferences
+      final prefsData = await Supabase.instance.client
+          .from('user_preferences')
+          .select('gender')
+          .eq('user_id', user.id)
+          .maybeSingle();
+      
+      _cachedGender = prefsData?['gender'] as String?;
       _hasFetchedAvatar = true;
       
       if (mounted) {
         setState(() {
-          // Trigger rebuild with new cached value
+          _avatarUrl = _cachedAvatarUrl;
+          _gender = _cachedGender;
         });
       }
     } catch (e) {
@@ -106,17 +122,12 @@ class _ProfileIconWidgetState extends State<_ProfileIconWidget> {
             color: const Color.fromARGB(255, 80, 231, 93),
             shape: BoxShape.circle,
           ),
-          child: _avatarUrl != null && _avatarUrl!.isNotEmpty
-              ? CircleAvatar(
-                  radius: 16,
-                  backgroundColor: Colors.grey[200],
-                  backgroundImage: NetworkImage(_avatarUrl!),
-                )
-              : CircleAvatar(
-                  radius: 16,
-                  backgroundColor: Colors.grey[200],
-                  child: const Icon(Icons.person, color: Colors.grey, size: 20),
-                ),
+          child: ProfileAvatarWidget(
+            avatarUrl: _avatarUrl ?? _cachedAvatarUrl,
+            gender: _gender ?? _cachedGender,
+            radius: 16,
+            backgroundColor: Colors.grey[200],
+          ),
         ),
       ),
     );
@@ -563,7 +574,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       {'name': 'Fish', 'asset': 'assets/widgets/fish.png', 'category': 'fish'},
       {'name': 'Pork', 'asset': 'assets/widgets/pork.png', 'category': 'pork'},
       {'name': 'Silog Meals', 'asset': 'assets/widgets/silog-meals.jpg', 'category': 'silog'},
-      {'name': 'Soup', 'asset': 'assets/widgets/soup-vid.gif', 'category': 'soup'},
+      {'name': 'Pasta', 'asset': 'assets/widgets/soup-vid.gif', 'category': 'pasta'},
       {'name': 'Vegetable', 'asset': 'assets/widgets/vegetable_category.gif', 'category': 'vegetable'},
     ];
 
@@ -882,13 +893,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         'description':
             'Include a variety of fruits, vegetables, proteins, and whole grains in your daily meals.',
         'gradientColors': [const Color(0xFF2196F3), const Color(0xFF03DAC6)],
-      },
-      {
-        'type': 'tip',
-        'title': 'Regular Exercise 🏃‍♂️',
-        'description':
-            'Aim for at least 30 minutes of physical activity daily to boost your metabolism and mood.',
-        'gradientColors': [const Color(0xFFFF9800), const Color(0xFFFFC107)],
       },
     ];
   }

@@ -17,9 +17,51 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
   List<String> _allergies = [];
   List<String> _healthConditions = [];
   List<String> _dietTypes = [];
+  List<String> _nutritionNeeds = [];
   
   bool _loading = true;
   bool _saving = false;
+  
+  /// Helper function to safely convert a value to List<String>
+  /// Handles cases where the value might be a List, String (JSON), or null
+  List<String> _safeStringList(dynamic value) {
+    if (value == null) return [];
+    
+    // If it's already a List, convert it
+    if (value is List) {
+      try {
+        return value.map((e) => e.toString()).toList();
+      } catch (_) {
+        return [];
+      }
+    }
+    
+    // If it's a String, try to parse it
+    if (value is String) {
+      if (value.isEmpty) return [];
+      try {
+        // Try to parse as JSON array
+        if (value.startsWith('[') && value.endsWith(']')) {
+          // Remove brackets and quotes, split by comma
+          final cleaned = value
+              .replaceAll('[', '')
+              .replaceAll(']', '')
+              .replaceAll('"', '')
+              .replaceAll("'", '')
+              .trim();
+          if (cleaned.isEmpty) return [];
+          return cleaned.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+        }
+        // If it's a single string value, return as single-item list
+        return [value.trim()];
+      } catch (_) {
+        // If parsing fails, return as single-item list
+        return [value.toString()];
+      }
+    }
+    
+    return [];
+  }
   
   // Debug: Excluded recipes and warnings
   bool _loadingExcluded = false;
@@ -48,7 +90,12 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
     'Wheat / Gluten',
     'Fish',
     'Shellfish',
+    'Chicken',
+    'Pork',
+    'Beef',
     'Sesame',
+    'Corn',
+    'Tomatoes',
   ];
 
   final List<Map<String, dynamic>> _healthOptions = [
@@ -56,9 +103,14 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
     {'key': 'diabetes', 'title': '🩺 Diabetes / High Blood Sugar', 'desc': 'Lower carbs, higher fiber'},
     {'key': 'stroke_recovery', 'title': '🧠 Stroke Recovery', 'desc': 'Low sodium, heart-healthy fats'},
     {'key': 'hypertension', 'title': '🫀 High Blood Pressure', 'desc': 'Very low sodium, DASH diet'},
-    {'key': 'heart_disease', 'title': '❤️ Heart Disease', 'desc': 'Low saturated fat, omega-3 rich'},
-    {'key': 'fatty_liver', 'title': '🍺 Fatty Liver Disease', 'desc': 'Very low sugar, reduced fats'},
     {'key': 'malnutrition', 'title': '🌾 Malnutrition / Underweight', 'desc': 'High calories, nutrient-dense foods'},
+  ];
+
+  final List<Map<String, dynamic>> _nutritionNeedsOptions = [
+    {'key': 'none', 'title': '✅ None', 'desc': 'No specific nutrition needs'},
+    {'key': 'higher_protein', 'title': '💪 Higher Protein', 'desc': 'Increased protein for muscle support'},
+    {'key': 'muscle_gain', 'title': '🏋️ Muscle Gain', 'desc': 'High protein and calories for muscle building'},
+    {'key': 'weight_gain', 'title': '📈 Weight Gain', 'desc': 'Calorie-dense meals for healthy weight gain'},
   ];
 
   final List<String> _dietTypeOptions = [
@@ -95,11 +147,12 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
             .maybeSingle();
         if (data != null) {
           setState(() {
-            // Dish preferences and health data
-            _dishPreferences = List<String>.from(data['like_dishes'] ?? data['dish_preferences'] ?? []);
-            _allergies = List<String>.from(data['allergies'] ?? []);
-            _healthConditions = List<String>.from(data['health_conditions'] ?? []);
-            _dietTypes = List<String>.from(data['diet_type'] ?? []);
+            // Dish preferences and health data - safe conversion
+            _dishPreferences = _safeStringList(data['like_dishes'] ?? data['dish_preferences'] ?? []);
+            _allergies = _safeStringList(data['allergies'] ?? []);
+            _healthConditions = _safeStringList(data['health_conditions'] ?? []);
+            _dietTypes = _safeStringList(data['diet_type'] ?? []);
+            _nutritionNeeds = _safeStringList(data['nutrition_needs'] ?? []);
           });
         }
       } catch (e) {
@@ -117,35 +170,86 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
   Future<void> _saveUserPreferences() async {
     setState(() => _saving = true);
     final user = Supabase.instance.client.auth.currentUser;
-    if (user != null) {
+    if (user == null) {
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to save preferences')),
+      );
+      return;
+    }
+    
+    try {
+      // Filter out "none" from health conditions and nutrition needs
+      final healthConditionsToSave = _healthConditions.where((h) => h != 'none').toList();
+      final nutritionNeedsToSave = _nutritionNeeds.where((n) => n != 'none').toList();
+      
+      // Fetch current sodium_limit to preserve it
+      double? currentSodiumLimit;
       try {
-        await Supabase.instance.client
+        final currentData = await Supabase.instance.client
             .from('user_preferences')
-            .upsert({
-              'user_id': user.id,
-              'like_dishes': _dishPreferences,
-              'allergies': _allergies,
-              'health_conditions': _healthConditions,
-              'diet_type': _dietTypes,
-            });
-        
-        if (!mounted) return;
-        // Clear excluded recipes and warnings cache after saving
-          setState(() {
-          _excludedRecipes = [];
-          _warningRecipes = [];
-          });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Preferences updated successfully!')),
-        );
+            .select('sodium_limit')
+            .eq('user_id', user.id)
+            .maybeSingle();
+        if (currentData != null && currentData['sodium_limit'] != null) {
+          currentSodiumLimit = currentData['sodium_limit'].toDouble();
+        }
       } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update preferences: $e')),
-        );
+        print('Error fetching current sodium_limit: $e');
+      }
+      
+      // Prepare data for upsert - ensure empty lists are saved as empty arrays
+      final dataToSave = {
+        'user_id': user.id,
+        'like_dishes': _dishPreferences.isEmpty ? [] : _dishPreferences,
+        'allergies': _allergies.isEmpty ? [] : _allergies,
+        'health_conditions': healthConditionsToSave.isEmpty ? [] : healthConditionsToSave,
+        'diet_type': _dietTypes.isEmpty ? [] : _dietTypes,
+        'nutrition_needs': nutritionNeedsToSave.isEmpty ? [] : nutritionNeedsToSave,
+        if (currentSodiumLimit != null) 'sodium_limit': currentSodiumLimit,
+      };
+      
+      print('Saving preferences: $dataToSave');
+      
+      final response = await Supabase.instance.client
+          .from('user_preferences')
+          .upsert(dataToSave)
+          .select();
+      
+      print('Save response: $response');
+      
+      if (!mounted) return;
+      
+      // Update local state to reflect saved values (without "none")
+      setState(() {
+        _healthConditions = healthConditionsToSave;
+        _nutritionNeeds = nutritionNeedsToSave;
+        _excludedRecipes = [];
+        _warningRecipes = [];
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Preferences updated successfully!'),
+          backgroundColor: Color(0xFF4CAF50),
+        ),
+      );
+    } catch (e, stackTrace) {
+      print('Error saving preferences: $e');
+      print('Stack trace: $stackTrace');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update preferences: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
       }
     }
-    setState(() => _saving = false);
   }
 
   String _getDisplayText(List<String> items, List<Map<String, dynamic>> options, String keyField) {
@@ -160,30 +264,56 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text('Preferences'),
-        backgroundColor: const Color(0xFF4CAF50),
-        foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        actions: [
-          if (_saving)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-              ),
-            ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+      body: SafeArea(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  // Custom header with back button and title
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Back button
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: IconButton(
+                            icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF388E3C)),
+                            onPressed: () => Navigator.of(context).pop(),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ),
+                        // Centered title
+                        const Text(
+                          'Preferences',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF388E3C),
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        // Saving indicator on the right
+                        if (_saving)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Color(0xFF4CAF50),
+                                strokeWidth: 2,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -235,19 +365,39 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
                   ),
                   const SizedBox(height: 12),
                   
-                  // Nutrition Needs
+                  // Health Conditions
                 Card(
                   child: ListTile(
-                      title: const Text('Nutrition Needs'),
+                      title: const Text('Health Conditions'),
                       subtitle: Text(_getDisplayText(_healthConditions, _healthOptions, 'key')),
                       leading: const Icon(Icons.favorite, color: Colors.blue),
                     trailing: const Icon(Icons.edit),
                       onTap: () => _showMultiSelectDialog(
-                        'Nutrition Needs',
+                        'Health Conditions',
                         _healthOptions,
                         _healthConditions,
                         'key',
                         (selected) => setState(() => _healthConditions = selected),
+                        allowMultiple: true,
+                        hasNoneOption: true,
+                      ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                
+                // Nutrition Needs
+                Card(
+                  child: ListTile(
+                      title: const Text('Nutrition Needs'),
+                      subtitle: Text(_getDisplayText(_nutritionNeeds, _nutritionNeedsOptions, 'key')),
+                      leading: const Icon(Icons.fitness_center, color: Colors.green),
+                    trailing: const Icon(Icons.edit),
+                      onTap: () => _showMultiSelectDialog(
+                        'Nutrition Needs',
+                        _nutritionNeedsOptions,
+                        _nutritionNeeds,
+                        'key',
+                        (selected) => setState(() => _nutritionNeeds = selected),
                         allowMultiple: true,
                         hasNoneOption: true,
                       ),
@@ -555,7 +705,11 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
                   ),
                 ],
               ),
-            ),
+                    ),
+                  ),
+                ],
+              ),
+      ),
     );
   }
 

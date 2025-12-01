@@ -1,4 +1,5 @@
 import 'fnri_csv_service.dart';
+import '../utils/app_logger.dart';
 
 class FNRIIngredientNutrition {
   final String foodId;
@@ -208,7 +209,6 @@ class FNRIIngredientNutrition {
 
 class FNRINutritionService {
   static List<FNRIIngredientNutrition>? _ingredientsCache;
-  static Map<String, FNRIIngredientNutrition>? _searchCache;
 
   /// Load FNRI nutrition data from local CSV (replaces Supabase)
   static Future<List<FNRIIngredientNutrition>> loadFNRIData() async {
@@ -227,133 +227,9 @@ class FNRINutritionService {
     return await LocalFNRIService.searchIngredients(query);
   }
 
-  /// Fallback search using cached data
-  static Future<List<FNRIIngredientNutrition>> _searchIngredientsCached(String query) async {
-    if (_searchCache == null) {
-      await loadFNRIData();
-      // Populate search cache for faster lookups
-      _searchCache = {};
-      if (_ingredientsCache != null) {
-        for (final ingredient in _ingredientsCache!) {
-          _searchCache![ingredient.foodName.toLowerCase()] = ingredient;
-          // Also add alternate names to search cache
-          if (ingredient.alternateNames.isNotEmpty) {
-            final alternateNames = ingredient.alternateNames.split(',');
-            for (final name in alternateNames) {
-              final cleanName = name.trim().toLowerCase();
-              if (cleanName.isNotEmpty) {
-                _searchCache![cleanName] = ingredient;
-              }
-            }
-          }
-        }
-      }
-    }
+  // _searchIngredientsCached removed (deprecated in favor of LocalFNRIService.searchIngredients)
 
-    final queryLower = query.toLowerCase();
-    final results = <FNRIIngredientNutrition>[];
-
-    // Apply ingredient synonyms logic
-    final ingredientSynonyms = _getIngredientSynonyms();
-    String searchQuery = queryLower;
-    for (final entry in ingredientSynonyms.entries) {
-      if (entry.value.contains(queryLower)) {
-        searchQuery = entry.key;
-        break;
-      }
-    }
-
-    // Search with multiple strategies using cached data
-    if (_searchCache != null) {
-      // Strategy 1: Exact matches first
-      for (final entry in _searchCache!.entries) {
-        if (entry.key == searchQuery) {
-          results.add(entry.value);
-        }
-      }
-      
-      // Strategy 2: Contains matches
-      for (final entry in _searchCache!.entries) {
-        if (entry.key.contains(searchQuery) || searchQuery.contains(entry.key)) {
-          if (!results.contains(entry.value)) {
-            results.add(entry.value);
-          }
-        }
-      }
-      
-      // Strategy 3: Word-by-word matching for multi-word ingredients
-      final searchWords = searchQuery.split(' ');
-      if (searchWords.length > 1) {
-        for (final entry in _searchCache!.entries) {
-          final entryWords = entry.key.split(' ');
-          // Check if at least 2 words match
-          int matches = 0;
-          for (final searchWord in searchWords) {
-            if (entryWords.any((entryWord) => entryWord.contains(searchWord) || searchWord.contains(entryWord))) {
-              matches++;
-            }
-          }
-          if (matches >= 2 && !results.contains(entry.value)) {
-            results.add(entry.value);
-          }
-        }
-      }
-      
-      // Strategy 4: If still no results, try fuzzy matching - look for partial word matches
-      if (results.isEmpty && searchWords.isNotEmpty) {
-        for (final entry in _searchCache!.entries) {
-          final entryLower = entry.key.toLowerCase();
-          for (final searchWord in searchWords) {
-            if (searchWord.length >= 3 && entryLower.contains(searchWord.substring(0, (searchWord.length / 2).ceil()))) {
-              if (!results.contains(entry.value)) {
-                results.add(entry.value);
-              }
-            }
-          }
-        }
-      }
-    }
-
-    return _filterAndSortResults(results, query);
-  }
-
-  /// Filter and sort search results
-  static List<FNRIIngredientNutrition> _filterAndSortResults(
-    List<FNRIIngredientNutrition> results, 
-    String query
-  ) {
-    final queryLower = query.toLowerCase();
-    
-    // Apply ingredient synonyms logic
-    final ingredientSynonyms = _getIngredientSynonyms();
-    String searchQuery = queryLower;
-    for (final entry in ingredientSynonyms.entries) {
-      if (entry.value.contains(queryLower)) {
-        searchQuery = entry.key;
-        break;
-      }
-    }
-
-    // Sort by relevance and quality
-    results.sort((a, b) {
-      // First priority: exact matches
-      final aExact = a.foodName.toLowerCase() == searchQuery;
-      final bExact = b.foodName.toLowerCase() == searchQuery;
-      if (aExact && !bExact) return -1;
-      if (!aExact && bExact) return 1;
-      
-      // Second priority: avoid processed/snack foods when looking for raw ingredients
-      final aIsProcessed = _isProcessedFood(a.foodName);
-      final bIsProcessed = _isProcessedFood(b.foodName);
-      if (!aIsProcessed && bIsProcessed) return -1;
-      if (aIsProcessed && !bIsProcessed) return 1;
-      
-      // Third priority: alphabetical
-      return a.foodName.compareTo(b.foodName);
-    });
-
-    return results.take(10).toList(); // Limit to top 10 results
-  }
+  // _filterAndSortResults removed; LocalFNRIService handles ranking and filtering.
 
   /// Get ingredient synonyms mapping
   static Map<String, List<String>> _getIngredientSynonyms() {
@@ -548,15 +424,15 @@ class FNRINutritionService {
 
   /// Find best matching ingredient for a recipe ingredient
   static Future<FNRIIngredientNutrition?> findBestMatch(String ingredientName) async {
-    print('🔍 === SEARCHING FOR INGREDIENT ===');
-    print('  Original: "$ingredientName"');
+    AppLogger.debug('🔍 === SEARCHING FOR INGREDIENT ===');
+    AppLogger.debug('  Original: "$ingredientName"');
     
     // Extract the actual ingredient name from portions/quantities
     final cleanedName = _extractIngredientName(ingredientName);
-    print('  🧹 After cleaning: "$cleanedName"');
+    AppLogger.debug('  🧹 After cleaning: "$cleanedName"');
     
     final results = await searchIngredients(cleanedName);
-    print('  📊 Search found ${results.length} results');
+    AppLogger.debug('  📊 Search found ${results.length} results');
 
     // Special handling for ground pork - find the best pork cut substitute
     if (cleanedName.toLowerCase().contains('ground pork') || 
@@ -577,7 +453,7 @@ class FNRINutritionService {
         if (rawPorkCuts.isNotEmpty) {
           final validPorkCuts = rawPorkCuts.where((ingredient) => _isValidNutritionData(ingredient)).toList();
           if (validPorkCuts.isNotEmpty) {
-            print('    🔄 Using ${validPorkCuts.first.foodName} as substitute for ground pork');
+            AppLogger.debug('    🔄 Using ${validPorkCuts.first.foodName} as substitute for ground pork');
             return validPorkCuts.first;
           }
         }
@@ -585,7 +461,7 @@ class FNRINutritionService {
         // If no raw cuts found, use any valid pork cut
         final validPorkCuts = porkCutResults.where((ingredient) => _isValidNutritionData(ingredient)).toList();
         if (validPorkCuts.isNotEmpty) {
-          print('    🔄 Using ${validPorkCuts.first.foodName} as substitute for ground pork');
+          AppLogger.debug('    🔄 Using ${validPorkCuts.first.foodName} as substitute for ground pork');
           return validPorkCuts.first;
         }
       }
@@ -613,7 +489,7 @@ class FNRINutritionService {
         if (freshBellPeppers.isNotEmpty) {
           final validBellPeppers = freshBellPeppers.where((ingredient) => _isValidNutritionData(ingredient)).toList();
           if (validBellPeppers.isNotEmpty) {
-            print('    🔄 Using ${validBellPeppers.first.foodName} as substitute for bell peppers');
+            AppLogger.debug('    🔄 Using ${validBellPeppers.first.foodName} as substitute for bell peppers');
             return validBellPeppers.first;
           }
         }
@@ -621,7 +497,7 @@ class FNRINutritionService {
         // If no fresh bell peppers found, use any valid bell pepper
         final validBellPeppers = bellPepperResults.where((ingredient) => _isValidNutritionData(ingredient)).toList();
         if (validBellPeppers.isNotEmpty) {
-          print('    🔄 Using ${validBellPeppers.first.foodName} as substitute for bell peppers');
+          AppLogger.debug('    🔄 Using ${validBellPeppers.first.foodName} as substitute for bell peppers');
           return validBellPeppers.first;
         }
       }
@@ -637,7 +513,7 @@ class FNRINutritionService {
       if (tigerShrimpResults.isNotEmpty) {
         final validShrimp = tigerShrimpResults.where((ingredient) => _isValidNutritionData(ingredient)).toList();
         if (validShrimp.isNotEmpty) {
-          print('    🔄 Using ${validShrimp.first.foodName} as substitute for shrimp');
+          AppLogger.debug('    🔄 Using ${validShrimp.first.foodName} as substitute for shrimp');
           return validShrimp.first;
         }
       }
@@ -647,7 +523,7 @@ class FNRINutritionService {
       if (bananaShrimp.isNotEmpty) {
         final validShrimp = bananaShrimp.where((ingredient) => _isValidNutritionData(ingredient)).toList();
         if (validShrimp.isNotEmpty) {
-          print('    🔄 Using ${validShrimp.first.foodName} as substitute for shrimp');
+          AppLogger.debug('    🔄 Using ${validShrimp.first.foodName} as substitute for shrimp');
           return validShrimp.first;
         }
       }
@@ -661,7 +537,7 @@ class FNRINutritionService {
           !ingredient.foodName.toLowerCase().contains('chips')
         ).toList();
         if (validShrimp.isNotEmpty) {
-          print('    🔄 Using ${validShrimp.first.foodName} as substitute for shrimp');
+          AppLogger.debug('    🔄 Using ${validShrimp.first.foodName} as substitute for shrimp');
           return validShrimp.first;
         }
       }
@@ -688,7 +564,7 @@ class FNRINutritionService {
         if (wholeEggs.isNotEmpty) {
           final validEggs = wholeEggs.where((ingredient) => _isValidNutritionData(ingredient)).toList();
           if (validEggs.isNotEmpty) {
-            print('    🔄 Using ${validEggs.first.foodName} as substitute for eggs');
+            AppLogger.debug('    🔄 Using ${validEggs.first.foodName} as substitute for eggs');
             return validEggs.first;
           }
         }
@@ -696,7 +572,7 @@ class FNRINutritionService {
         // If no whole eggs found, use any valid egg
         final validEggs = eggResults.where((ingredient) => _isValidNutritionData(ingredient)).toList();
         if (validEggs.isNotEmpty) {
-          print('    🔄 Using ${validEggs.first.foodName} as substitute for eggs');
+          AppLogger.debug('    🔄 Using ${validEggs.first.foodName} as substitute for eggs');
           return validEggs.first;
         }
       }
@@ -715,7 +591,7 @@ class FNRINutritionService {
       if (cornOilResults.isNotEmpty) {
         final validOil = cornOilResults.where((ingredient) => _isValidNutritionData(ingredient)).toList();
         if (validOil.isNotEmpty) {
-          print('    🔄 Using ${validOil.first.foodName} as substitute for cooking oil');
+          AppLogger.debug('    🔄 Using ${validOil.first.foodName} as substitute for cooking oil');
           return validOil.first;
         }
       }
@@ -725,7 +601,7 @@ class FNRINutritionService {
       if (coconutOilResults.isNotEmpty) {
         final validOil = coconutOilResults.where((ingredient) => _isValidNutritionData(ingredient)).toList();
         if (validOil.isNotEmpty) {
-          print('    🔄 Using ${validOil.first.foodName} as substitute for cooking oil');
+          AppLogger.debug('    🔄 Using ${validOil.first.foodName} as substitute for cooking oil');
           return validOil.first;
         }
       }
@@ -738,27 +614,27 @@ class FNRINutritionService {
     final validResults = results.where((ingredient) => _isValidNutritionData(ingredient)).toList();
     
     if (validResults.isEmpty) {
-      print('❌ === INGREDIENT NOT FOUND ===');
-      print('  ❌ All matches for "$cleanedName" had invalid nutrition data');
+      AppLogger.warning('❌ === INGREDIENT NOT FOUND ===');
+      AppLogger.warning('  ❌ All matches for "$cleanedName" had invalid nutrition data');
       if (results.isNotEmpty) {
-        print('  📋 Top match found but rejected: "${results.first.foodName}"');
-        print('  📋 Alternate names tried: ${results.map((r) => r.foodName).take(5).join(", ")}');
+        AppLogger.warning('  📋 Top match found but rejected: "${results.first.foodName}"');
+        AppLogger.warning('  📋 Alternate names tried: ${results.map((r) => r.foodName).take(5).join(", ")}');
       } else {
-        print('  🔍 No results found in Supabase for: "$cleanedName"');
-        print('  💡 Search strategies attempted:');
-        print('    1. Main column search (Food_name_and_Description)');
-        print('    2. Alternate names search');
-        print('    3. Word-by-word search');
+        AppLogger.warning('  🔍 No results found in Supabase for: "$cleanedName"');
+        AppLogger.warning('  💡 Search strategies attempted:');
+        AppLogger.warning('    1. Main column search (Food_name_and_Description)');
+        AppLogger.warning('    2. Alternate names search');
+        AppLogger.warning('    3. Word-by-word search');
       }
-      print('=== END SEARCH ===\n');
+      AppLogger.warning('=== END SEARCH ===\n');
       return null;
     }
 
     // Return the best match (usually the first one)
-    print('✅ === INGREDIENT FOUND ===');
-    print('  ✅ Match: "${validResults.first.foodName}"');
-    print('  📊 Nutrition: ${validResults.first.protein}g protein, ${validResults.first.totalFat}g fat, ${validResults.first.totalCarbohydrate}g carbs, ${validResults.first.energyKcal}kcal');
-    print('=== END SEARCH ===\n');
+    AppLogger.debug('✅ === INGREDIENT FOUND ===');
+    AppLogger.debug('  ✅ Match: "${validResults.first.foodName}"');
+    AppLogger.debug('  📊 Nutrition: ${validResults.first.protein}g protein, ${validResults.first.totalFat}g fat, ${validResults.first.totalCarbohydrate}g carbs, ${validResults.first.energyKcal}kcal');
+    AppLogger.debug('=== END SEARCH ===\n');
     return validResults.first;
   }
 
@@ -774,37 +650,37 @@ class FNRINutritionService {
     
     // Protein: 0-100g per 100g is realistic (some high-protein foods like meat, fish, tofu, shrimp paste)
     if (ingredient.protein < 0 || ingredient.protein > 100) {
-      print('    ❌ Invalid protein: ${ingredient.protein}g per 100g for ${ingredient.foodName}');
+      AppLogger.warning('    ❌ Invalid protein: ${ingredient.protein}g per 100g for ${ingredient.foodName}');
       return false;
     }
     
     // Fat: 0-100g per 100g is realistic (oils, nuts, fatty meats)
     if (ingredient.totalFat < 0 || ingredient.totalFat > 100) {
-      print('    ❌ Invalid fat: ${ingredient.totalFat}g per 100g for ${ingredient.foodName}');
+      AppLogger.warning('    ❌ Invalid fat: ${ingredient.totalFat}g per 100g for ${ingredient.foodName}');
       return false;
     }
     
     // Carbs: 0-90g per 100g is realistic (grains, fruits, some vegetables)
     if (ingredient.totalCarbohydrate < 0 || ingredient.totalCarbohydrate > 90) {
-      print('    ❌ Invalid carbs: ${ingredient.totalCarbohydrate}g per 100g for ${ingredient.foodName}');
+      AppLogger.warning('    ❌ Invalid carbs: ${ingredient.totalCarbohydrate}g per 100g for ${ingredient.foodName}');
       return false;
     }
     
     // Calories: 0-900 kcal per 100g is realistic (oils are highest)
     if (ingredient.energyKcal < 0 || ingredient.energyKcal > 900) {
-      print('    ❌ Invalid calories: ${ingredient.energyKcal} kcal per 100g for ${ingredient.foodName}');
+      AppLogger.warning('    ❌ Invalid calories: ${ingredient.energyKcal} kcal per 100g for ${ingredient.foodName}');
       return false;
     }
     
     // Sodium: 0-10000mg per 100g is realistic (fish sauce, soy sauce can be very high)
     if (ingredient.sodium < 0 || ingredient.sodium > 10000) {
-      print('    ❌ Invalid sodium: ${ingredient.sodium}mg per 100g for ${ingredient.foodName}');
+      AppLogger.warning('    ❌ Invalid sodium: ${ingredient.sodium}mg per 100g for ${ingredient.foodName}');
       return false;
     }
     
     // Cholesterol: 0-1500mg per 100g is realistic (egg yolks can be ~1100mg, organ meats higher)
     if (ingredient.cholesterol < 0 || ingredient.cholesterol > 1500) {
-      print('    ❌ Invalid cholesterol: ${ingredient.cholesterol}mg per 100g for ${ingredient.foodName}');
+      AppLogger.warning('    ❌ Invalid cholesterol: ${ingredient.cholesterol}mg per 100g for ${ingredient.foodName}');
       return false;
     }
     
@@ -828,14 +704,14 @@ class FNRINutritionService {
     final results = <String, dynamic>{};
     final missingIngredients = <String>[];
     
-    print('🍽️ Calculating nutrition for ${ingredients.length} ingredients...');
-    print('🔍 Going directly to ingredient-level tracking for accuracy...');
+    AppLogger.debug('🍽️ Calculating nutrition for ${ingredients.length} ingredients...');
+    AppLogger.debug('🔍 Going directly to ingredient-level tracking for accuracy...');
     
     // Go directly to individual ingredient calculation for more accurate results
     for (final ingredient in ingredients) {
       final quantity = quantities[ingredient] ?? 100.0; // Default to 100g if not specified
       
-      print('  🔍 Searching for: $ingredient (${quantity}g)');
+      AppLogger.debug('  🔍 Searching for: $ingredient (${quantity}g)');
       
       final nutrition = await findBestMatch(ingredient);
       
@@ -852,8 +728,8 @@ class FNRINutritionService {
         totalCholesterol += nutrition.cholesterol * multiplier;
         totalCalories += (nutrition.energyKcal * multiplier).round();
         
-        print('    ✅ Found: ${nutrition.foodName}');
-        print('      📊 Added: ${(nutrition.protein * multiplier).toStringAsFixed(1)}g protein, ${(nutrition.totalFat * multiplier).toStringAsFixed(1)}g fat, ${(nutrition.totalCarbohydrate * multiplier).toStringAsFixed(1)}g carbs, ${(nutrition.energyKcal * multiplier).round()} kcal');
+        AppLogger.debug('    ✅ Found: ${nutrition.foodName}');
+        AppLogger.debug('      📊 Added: ${(nutrition.protein * multiplier).toStringAsFixed(1)}g protein, ${(nutrition.totalFat * multiplier).toStringAsFixed(1)}g fat, ${(nutrition.totalCarbohydrate * multiplier).toStringAsFixed(1)}g carbs, ${(nutrition.energyKcal * multiplier).round()} kcal');
         
         results[ingredient] = {
           'found': true,
@@ -862,13 +738,13 @@ class FNRINutritionService {
           'quantity': quantity,
         };
       } else {
-        print('    ❌ === MISSING INGREDIENT DETECTED ===');
-        print('    ❌ Ingredient: "$ingredient"');
-        print('    ❌ Quantity requested: ${quantity}g');
-        print('    ⚠️ REASON: No match found in FNRI database');
-        print('    📋 This ingredient will be skipped in nutrition calculation');
-        print('    💡 SUGGESTION: Check if ingredient exists in FNRI data with alternate name');
-        print('    ❌ =======================================');
+        AppLogger.warning('    ❌ === MISSING INGREDIENT DETECTED ===');
+        AppLogger.warning('    ❌ Ingredient: "$ingredient"');
+        AppLogger.warning('    ❌ Quantity requested: ${quantity}g');
+        AppLogger.warning('    ⚠️ REASON: No match found in FNRI database');
+        AppLogger.warning('    📋 This ingredient will be skipped in nutrition calculation');
+        AppLogger.warning('    💡 SUGGESTION: Check if ingredient exists in FNRI data with alternate name');
+        AppLogger.warning('    ❌ =======================================');
         missingIngredients.add(ingredient);
         
         results[ingredient] = {
@@ -880,7 +756,7 @@ class FNRINutritionService {
     
     // Calculate per serving (typical Filipino dishes serve 4-6 people)
     final estimatedServings = _estimateServings(ingredients, quantities);
-    print('🍽️ Estimated servings: $estimatedServings');
+    AppLogger.debug('🍽️ Estimated servings: $estimatedServings');
     
     final perServingProtein = totalProtein / estimatedServings;
     final perServingFat = totalFat / estimatedServings;
@@ -906,26 +782,26 @@ class FNRINutritionService {
     // Validate nutrition values for realism
     final validatedSummary = _validateNutritionValues(roundedSummary);
     
-    print('\n🎯 Recipe Nutrition Summary (per serving):');
-    print('  Protein: ${validatedSummary['protein']}g');
-    print('  Fat: ${validatedSummary['fat']}g');
-    print('  Carbs: ${validatedSummary['carbs']}g');
-    print('  Fiber: ${validatedSummary['fiber']}g');
-    print('  Sugar: ${validatedSummary['sugar']}g');
-    print('  Sodium: ${validatedSummary['sodium']}mg');
-    print('  Cholesterol: ${validatedSummary['cholesterol']}mg');
-    print('  Calories: ${validatedSummary['calories']}');
+    AppLogger.info('\n🎯 Recipe Nutrition Summary (per serving):');
+    AppLogger.info('  Protein: ${validatedSummary['protein']}g');
+    AppLogger.info('  Fat: ${validatedSummary['fat']}g');
+    AppLogger.info('  Carbs: ${validatedSummary['carbs']}g');
+    AppLogger.info('  Fiber: ${validatedSummary['fiber']}g');
+    AppLogger.info('  Sugar: ${validatedSummary['sugar']}g');
+    AppLogger.info('  Sodium: ${validatedSummary['sodium']}mg');
+    AppLogger.info('  Cholesterol: ${validatedSummary['cholesterol']}mg');
+    AppLogger.info('  Calories: ${validatedSummary['calories']}');
     
     if (missingIngredients.isNotEmpty) {
-      print('\n⚠️ === MISSING INGREDIENTS SUMMARY ===');
-      print('⚠️ Total missing: ${missingIngredients.length} out of ${ingredients.length} ingredients');
-      print('⚠️ Missing ingredients: ${missingIngredients.join(', ')}');
-      print('📋 IMPACT: Nutrition calculation may be incomplete due to missing data');
-      print('💡 ACTION REQUIRED: Check debug logs above for each missing ingredient to see:');
-      print('   1. What the cleaned search term was');
-      print('   2. Why it failed (no results or invalid nutrition data)');
-      print('   3. What alternate names were tried');
-      print('⚠️ ========================================');
+      AppLogger.warning('\n⚠️ === MISSING INGREDIENTS SUMMARY ===');
+      AppLogger.warning('⚠️ Total missing: ${missingIngredients.length} out of ${ingredients.length} ingredients');
+      AppLogger.warning('⚠️ Missing ingredients: ${missingIngredients.join(', ')}');
+      AppLogger.warning('📋 IMPACT: Nutrition calculation may be incomplete due to missing data');
+      AppLogger.warning('💡 ACTION REQUIRED: Check debug logs above for each missing ingredient to see:');
+      AppLogger.warning('   1. What the cleaned search term was');
+      AppLogger.warning('   2. Why it failed (no results or invalid nutrition data)');
+      AppLogger.warning('   3. What alternate names were tried');
+      AppLogger.warning('⚠️ ========================================');
     }
     
     return {
@@ -996,49 +872,49 @@ class FNRINutritionService {
     // More realistic ranges for Filipino dishes (per serving ~250-300g)
     // Protein validation (typical range: 8-45g per serving for Filipino dishes)
     if (validated['protein'] > 45.0) {
-      print('⚠️ Protein value ${validated['protein']}g seems too high for a single serving, capping at 45g');
+      AppLogger.warning('⚠️ Protein value ${validated['protein']}g seems too high for a single serving, capping at 45g');
       validated['protein'] = 45.0;
     }
     
     // Fat validation (typical range: 3-35g per serving for Filipino dishes)
     if (validated['fat'] > 35.0) {
-      print('⚠️ Fat value ${validated['fat']}g seems too high for a single serving, capping at 35g');
+      AppLogger.warning('⚠️ Fat value ${validated['fat']}g seems too high for a single serving, capping at 35g');
       validated['fat'] = 35.0;
     }
     
     // Calories validation (typical range: 150-800 per serving for Filipino dishes)
     if (validated['calories'] > 800) {
-      print('⚠️ Calories value ${validated['calories']} seems too high for a single serving, capping at 800');
+      AppLogger.warning('⚠️ Calories value ${validated['calories']} seems too high for a single serving, capping at 800');
       validated['calories'] = 800;
     }
     
     // Sodium validation (typical range: 100-2000mg per serving for Filipino dishes)
     if (validated['sodium'] > 2000.0) {
-      print('⚠️ Sodium value ${validated['sodium']}mg seems too high for a single serving, capping at 2000mg');
+      AppLogger.warning('⚠️ Sodium value ${validated['sodium']}mg seems too high for a single serving, capping at 2000mg');
       validated['sodium'] = 2000.0;
     }
     
     // Cholesterol validation (typical range: 0-200mg per serving)
     if (validated['cholesterol'] > 200.0) {
-      print('⚠️ Cholesterol value ${validated['cholesterol']}mg seems too high for a single serving, capping at 200mg');
+      AppLogger.warning('⚠️ Cholesterol value ${validated['cholesterol']}mg seems too high for a single serving, capping at 200mg');
       validated['cholesterol'] = 200.0;
     }
     
     // Carbs validation (typical range: 8-100g per serving)
     if (validated['carbs'] > 100.0) {
-      print('⚠️ Carbs value ${validated['carbs']}g seems too high for a single serving, capping at 100g');
+      AppLogger.warning('⚠️ Carbs value ${validated['carbs']}g seems too high for a single serving, capping at 100g');
       validated['carbs'] = 100.0;
     }
     
     // Fiber validation (typical range: 0-20g per serving)
     if (validated['fiber'] > 20.0) {
-      print('⚠️ Fiber value ${validated['fiber']}g seems too high for a single serving, capping at 20g');
+      AppLogger.warning('⚠️ Fiber value ${validated['fiber']}g seems too high for a single serving, capping at 20g');
       validated['fiber'] = 20.0;
     }
     
     // Sugar validation (typical range: 0-40g per serving)
     if (validated['sugar'] > 40.0) {
-      print('⚠️ Sugar value ${validated['sugar']}g seems too high for a single serving, capping at 40g');
+      AppLogger.warning('⚠️ Sugar value ${validated['sugar']}g seems too high for a single serving, capping at 40g');
       validated['sugar'] = 40.0;
     }
     

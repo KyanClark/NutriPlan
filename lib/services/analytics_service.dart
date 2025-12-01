@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/app_logger.dart';
 import '../models/meal_history_entry.dart';
 
 class AnalyticsService {
@@ -26,13 +27,13 @@ class AnalyticsService {
           final meal = MealHistoryEntry.fromMap(mealData);
           meals.add(meal);
         } catch (e) {
-          print('Error parsing meal data: $e');
+          AppLogger.error('Error parsing meal data', e);
         }
       }
 
       return _calculateNutritionData(meals, startOfWeek, endOfWeek);
     } catch (e) {
-      print('Error fetching weekly data: $e');
+      AppLogger.error('Error fetching weekly data', e);
       return _getEmptyData();
     }
   }
@@ -61,13 +62,13 @@ class AnalyticsService {
           final meal = MealHistoryEntry.fromMap(mealData);
           meals.add(meal);
     } catch (e) {
-          print('Error parsing meal data: $e');
+          AppLogger.error('Error parsing meal data', e);
         }
       }
 
       return _calculateNutritionData(meals, startOfMonth, endOfMonth);
     } catch (e) {
-      print('Error fetching monthly data: $e');
+      AppLogger.error('Error fetching monthly data', e);
       return _getEmptyData();
     }
   }

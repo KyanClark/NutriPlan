@@ -48,7 +48,7 @@ class NutritionGoalsSummaryPage extends StatelessWidget {
             // Calories Card
             _buildMainGoalCard(
               title: 'Daily Calories',
-              value: '${nutritionGoals['calories']!.toInt()}',
+              value: '${(nutritionGoals['calories'] ?? 2000).toInt()}',
               unit: 'kcal',
               icon: '🔥',
               color: Colors.orange,
@@ -73,7 +73,7 @@ class NutritionGoalsSummaryPage extends StatelessWidget {
                 Expanded(
                   child: _buildMacroCard(
                     title: 'Protein',
-                    value: '${nutritionGoals['protein']!.toInt()}g',
+                    value: '${(nutritionGoals['protein'] ?? 150).toInt()}g',
                     icon: '🥩',
                     color: Colors.red,
                     percentage: _calculateMacroPercentage('protein'),
@@ -83,7 +83,7 @@ class NutritionGoalsSummaryPage extends StatelessWidget {
                 Expanded(
                   child: _buildMacroCard(
                     title: 'Carbs',
-                    value: '${nutritionGoals['carbs']!.toInt()}g',
+                    value: '${(nutritionGoals['carbs'] ?? 250).toInt()}g',
                     icon: '🍚',
                     color: Colors.blue,
                     percentage: _calculateMacroPercentage('carbs'),
@@ -93,7 +93,7 @@ class NutritionGoalsSummaryPage extends StatelessWidget {
                 Expanded(
                   child: _buildMacroCard(
                     title: 'Fat',
-                    value: '${nutritionGoals['fat']!.toInt()}g',
+                    value: '${(nutritionGoals['fat'] ?? 65).toInt()}g',
                     icon: '🥑',
                     color: Colors.green,
                     percentage: _calculateMacroPercentage('fat'),
@@ -117,21 +117,21 @@ class NutritionGoalsSummaryPage extends StatelessWidget {
             
             _buildNutrientRow(
               title: 'Fiber',
-              value: '${nutritionGoals['fiber']!.toInt()}g',
+              value: '${(nutritionGoals['fiber'] ?? 25).toInt()}g',
               icon: '🌾',
               subtitle: 'For digestive health',
             ),
             
             _buildNutrientRow(
               title: 'Sugar',
-              value: '< ${nutritionGoals['sugar']!.toInt()}g',
+              value: '< ${(nutritionGoals['sugar'] ?? 50).toInt()}g',
               icon: '🍯',
               subtitle: 'Daily limit for added sugars',
             ),
             
             _buildNutrientRow(
               title: 'Cholesterol',
-              value: '< ${nutritionGoals['cholesterol']!.toInt()}mg',
+              value: '< ${(nutritionGoals['cholesterol'] ?? 300).toInt()}mg',
               icon: '🧈',
               subtitle: 'Daily cholesterol limit',
             ),
@@ -165,7 +165,7 @@ class NutritionGoalsSummaryPage extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'BMR: ${nutritionGoals['bmr']!.toInt()} kcal',
+                              'BMR: ${(nutritionGoals['bmr'] ?? 0).toInt()} kcal',
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
@@ -186,7 +186,7 @@ class NutritionGoalsSummaryPage extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'TDEE: ${nutritionGoals['tdee']!.toInt()} kcal',
+                              'TDEE: ${(nutritionGoals['tdee'] ?? 0).toInt()} kcal',
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
@@ -431,8 +431,8 @@ class NutritionGoalsSummaryPage extends StatelessWidget {
   }
   
   int _calculateMacroPercentage(String macro) {
-    final calories = nutritionGoals['calories']!;
-    final macroValue = nutritionGoals[macro]!;
+    final calories = nutritionGoals['calories'] ?? 2000.0;
+    final macroValue = nutritionGoals[macro] ?? 0.0;
     
     double macroCalories;
     if (macro == 'fat') {

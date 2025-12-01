@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/feedback_service.dart';
+import '../../services/rice_nutrition_service.dart';
 import '../feedback/feedback_thank_you_page.dart';
 import '../home/home_page.dart'; // Added import for HomePage
 
@@ -227,6 +228,29 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
     
+    // Ensure profile exists before inserting into meal_plan_history
+    // (required by foreign key constraint)
+    try {
+      final profileExists = await Supabase.instance.client
+          .from('profiles')
+          .select('id')
+          .eq('id', user.id)
+          .maybeSingle();
+      
+      if (profileExists == null) {
+        // Create profile if it doesn't exist
+        await Supabase.instance.client
+            .from('profiles')
+            .insert({
+              'id': user.id,
+              'username': user.email?.split('@').first ?? 'User',
+            });
+      }
+    } catch (e) {
+      print('Error ensuring profile exists: $e');
+      // Continue anyway - might already exist or constraint might be different
+    }
+    
     // Determine meal category based on current time
     final now = DateTime.now();
     final hour = now.hour;
@@ -242,24 +266,106 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
       mealCategory = 'dinner';        // 11 PM - 4 AM (use dinner for late hours)
     }
     
-    // Insert into meal history with available nutrition data
-    await Supabase.instance.client.from('meal_plan_history').insert({
-      'user_id': user.id,
-      'recipe_id': widget.recipeId,
-      'title': widget.title,
-      'image_url': widget.imageUrl,
-      'calories': widget.calories,
-      'cost': widget.cost,
-      'protein': widget.protein,
-      'carbs': widget.carbs,
-      'fat': widget.fat,
-      'sugar': widget.sugar,
-      'fiber': widget.fiber,
-      'sodium': widget.sodium ?? 0.0,
-      'cholesterol': widget.cholesterol ?? 0.0,
-      'meal_category': mealCategory,
-      'completed_at': DateTime.now().toUtc().toIso8601String(),
-    });
+    // Check if this meal was planned with rice
+    Map<String, dynamic> riceNutrition = {};
+    if (widget.recipeId != null) {
+      try {
+        final today = DateTime.now();
+        final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+        
+        final mealPlan = await Supabase.instance.client
+            .from('meal_plans')
+            .select('include_rice, rice_serving')
+            .eq('user_id', user.id)
+            .eq('recipe_id', widget.recipeId ?? '')
+            .eq('date', todayStr)
+            .maybeSingle();
+        
+        if (mealPlan != null && mealPlan['include_rice'] == true && mealPlan['rice_serving'] != null) {
+          // Get rice serving and calculate nutrition
+          final riceServingLabel = mealPlan['rice_serving'] as String;
+          final availableServings = RiceNutritionService.getAvailableServings();
+          final riceServing = availableServings.firstWhere(
+            (s) => s.label == riceServingLabel,
+            orElse: () => RiceNutritionService.getDefaultServing(),
+          );
+          
+          final riceNutritionData = RiceNutritionService.calculateNutrition(riceServing);
+          
+          // Add rice nutrition to meal nutrition
+          riceNutrition = {
+            'rice_serving': riceServingLabel,
+            'rice_calories': riceNutritionData.calories,
+            'rice_protein': riceNutritionData.protein,
+            'rice_carbs': riceNutritionData.carbs,
+            'rice_fat': riceNutritionData.fat,
+            'rice_fiber': riceNutritionData.fiber,
+            'rice_sodium': riceNutritionData.sodium,
+          };
+        }
+      } catch (e) {
+        print('Error fetching rice data: $e');
+        // Continue without rice if there's an error
+      }
+    }
+    
+    // Calculate total nutrition (recipe + rice)
+    final totalCalories = (widget.calories ?? 0) + (riceNutrition['rice_calories'] ?? 0.0);
+    final totalProtein = (widget.protein ?? 0.0) + (riceNutrition['rice_protein'] ?? 0.0);
+    final totalCarbs = (widget.carbs ?? 0.0) + (riceNutrition['rice_carbs'] ?? 0.0);
+    final totalFat = (widget.fat ?? 0.0) + (riceNutrition['rice_fat'] ?? 0.0);
+    final totalFiber = (widget.fiber ?? 0.0) + (riceNutrition['rice_fiber'] ?? 0.0);
+    final totalSodium = (widget.sodium ?? 0.0) + (riceNutrition['rice_sodium'] ?? 0.0);
+    
+    // Insert into meal history with available nutrition data (including rice)
+    try {
+      final mealHistoryData = {
+        'user_id': user.id,
+        'recipe_id': widget.recipeId,
+        'title': widget.title,
+        'image_url': widget.imageUrl,
+        'calories': totalCalories,
+        'cost': widget.cost,
+        'protein': totalProtein,
+        'carbs': totalCarbs,
+        'fat': totalFat,
+        'sugar': widget.sugar,
+        'fiber': totalFiber,
+        'sodium': totalSodium,
+        'cholesterol': widget.cholesterol ?? 0.0,
+        'meal_category': mealCategory,
+        'completed_at': DateTime.now().toUtc().toIso8601String(),
+      };
+      
+      // Add rice data if included
+      if (riceNutrition.isNotEmpty) {
+        mealHistoryData['include_rice'] = true;
+        mealHistoryData['rice_serving'] = riceNutrition['rice_serving'];
+        mealHistoryData['rice_calories'] = riceNutrition['rice_calories'];
+        mealHistoryData['rice_protein'] = riceNutrition['rice_protein'];
+        mealHistoryData['rice_carbs'] = riceNutrition['rice_carbs'];
+        mealHistoryData['rice_fat'] = riceNutrition['rice_fat'];
+        mealHistoryData['rice_fiber'] = riceNutrition['rice_fiber'];
+        mealHistoryData['rice_sodium'] = riceNutrition['rice_sodium'];
+      } else {
+        mealHistoryData['include_rice'] = false;
+        mealHistoryData['rice_serving'] = null;
+      }
+      
+      await Supabase.instance.client.from('meal_plan_history').insert(mealHistoryData);
+    } catch (e) {
+      print('Error inserting meal history: $e');
+      // Show error to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save meal history: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      rethrow;
+    }
     
     // Remove the completed meal from meal_plans (handle both old and new formats)
     final mealPlans = await Supabase.instance.client

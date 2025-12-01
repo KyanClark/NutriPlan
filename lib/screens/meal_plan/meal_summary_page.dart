@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/recipes.dart';
+import '../../services/rice_nutrition_service.dart';
 
 class MealSummaryPage extends StatefulWidget {
   final List<Recipe> meals;
@@ -23,7 +24,16 @@ class RecipeWithTime {
   String? mealType; // 'breakfast', 'lunch', 'dinner'
   TimeOfDay? time;
   DateTime? scheduledDate; // For advance planning
-  RecipeWithTime({required this.recipe, this.mealType, this.time, this.scheduledDate});
+  bool includeRice; // Whether to include rice with this meal
+  RiceServing? riceServing; // Selected rice serving (null if no rice)
+  RecipeWithTime({
+    required this.recipe, 
+    this.mealType, 
+    this.time, 
+    this.scheduledDate,
+    this.includeRice = false,
+    this.riceServing,
+  });
 }
 
 class _MealSummaryPageState extends State<MealSummaryPage> {
@@ -32,7 +42,11 @@ class _MealSummaryPageState extends State<MealSummaryPage> {
   @override
   void initState() {
     super.initState();
-    _mealsWithTime = widget.meals.map((r) => RecipeWithTime(recipe: r)).toList();
+    _mealsWithTime = widget.meals.map((r) => RecipeWithTime(
+      recipe: r,
+      includeRice: false,
+      riceServing: null,
+    )).toList();
   }
 
   // Time restrictions for each meal type (using 12-hour format for display)
@@ -128,7 +142,7 @@ class _MealSummaryPageState extends State<MealSummaryPage> {
           print('  Meal $i: ${_mealsWithTime[i].mealType}');
         }
         Navigator.pop(context);
-        _showTimePicker(index);
+        _showRiceSelectionDialog(index); // Show rice selection before time
       },
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -200,6 +214,94 @@ class _MealSummaryPageState extends State<MealSummaryPage> {
     }
     
     return '$startTime - $endTime';
+  }
+
+  void _showRiceSelectionDialog(int index) async {
+    final serving = await showDialog<RiceServing?>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Text('🍚', style: TextStyle(fontSize: 24)),
+            SizedBox(width: 8),
+            Expanded(child: Text('Select Rice Serving')),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // "No Rice" option
+              ListTile(
+                selected: !_mealsWithTime[index].includeRice && _mealsWithTime[index].riceServing == null,
+                leading: (!_mealsWithTime[index].includeRice && _mealsWithTime[index].riceServing == null)
+                    ? Icon(Icons.check_circle, color: Colors.green[700])
+                    : const Icon(Icons.circle_outlined),
+                title: const Text(
+                  'No Rice',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: const Text('Skip rice for this meal'),
+                onTap: () => Navigator.of(context).pop(RiceServing(label: 'none', cookedGrams: 0, description: 'No rice')), // Use a special marker
+              ),
+              const Divider(),
+              // Rice serving options
+              ...RiceNutritionService.getAvailableServings().map((serving) {
+                final nutrition = RiceNutritionService.calculateNutrition(serving);
+                final isSelected = _mealsWithTime[index].riceServing?.label == serving.label;
+                return ListTile(
+                  selected: isSelected,
+                  leading: isSelected 
+                      ? Icon(Icons.check_circle, color: Colors.green[700])
+                      : const Icon(Icons.circle_outlined),
+                  title: Text(
+                    serving.label,
+                    style: TextStyle(
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${nutrition.calories.round()} kcal • ${nutrition.carbs.toStringAsFixed(1)}g carbs\n${serving.description}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  onTap: () => Navigator.of(context).pop(serving),
+                );
+              }).toList(),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted) return;
+    
+    if (serving == null) {
+      // User cancelled - don't proceed to time selection
+      return;
+    }
+    
+    // Check if user selected "No Rice" (special marker)
+    if (serving.label == 'none') {
+      setState(() {
+        _mealsWithTime[index].includeRice = false;
+        _mealsWithTime[index].riceServing = null;
+      });
+    } else {
+      // User selected a rice serving
+      setState(() {
+        _mealsWithTime[index].includeRice = true;
+        _mealsWithTime[index].riceServing = serving;
+      });
+    }
+    
+    // Proceed to time selection after rice selection (or "No Rice")
+    _showTimePicker(index);
   }
 
   void _showTimePicker(int index) async {
@@ -490,7 +592,9 @@ class _MealSummaryPageState extends State<MealSummaryPage> {
       final hasMealType = meal.mealType != null && meal.mealType!.isNotEmpty;
       final hasTime = meal.time != null;
       final hasDate = widget.isAdvancePlanning ? meal.scheduledDate != null : true;
-      return hasMealType && hasTime && hasDate;
+      // Rice selection is optional, but if includeRice is true, riceServing must be set
+      final hasValidRice = !meal.includeRice || meal.riceServing != null;
+      return hasMealType && hasTime && hasDate && hasValidRice;
     });
     print('Can build meal plan: $canBuild'); // Debug print
     for (int i = 0; i < _mealsWithTime.length; i++) {

@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'fnri_nutrition_service.dart';
+import '../utils/app_logger.dart';
 
 /// Local CSV-based FNRI nutrition service for faster debugging
 class LocalFNRIService {
@@ -58,11 +59,11 @@ class LocalFNRIService {
       }
 
       _cachedData = ingredients;
-      print('✅ Loaded ${ingredients.length} FNRI ingredients from CSV');
+      AppLogger.info('✅ Loaded ${ingredients.length} FNRI ingredients from CSV');
       _isLoading = false;
       return ingredients;
     } catch (e) {
-      print('❌ Error loading FNRI CSV: $e');
+      AppLogger.error('❌ Error loading FNRI CSV', e);
       _isLoading = false;
       return [];
     }
@@ -176,7 +177,7 @@ class LocalFNRIService {
     if (validResults.isEmpty) return null;
     
     final best = validResults.first;
-    print('🎯 Best match for "$ingredientName": "${best.foodName}"');
+    AppLogger.debug('🎯 Best match for "$ingredientName": "${best.foodName}"');
     return best;
   }
 }

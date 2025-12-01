@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'fnri_nutrition_service.dart';
+import '../utils/app_logger.dart';
 
 class RecipeNutritionUpdaterService {
   static final SupabaseClient _client = Supabase.instance.client;
@@ -18,7 +19,7 @@ class RecipeNutritionUpdaterService {
       final ingredients = recipeData['ingredients'] as List;
       final title = recipeData['title'] as String;
 
-      print('Updating nutrition for: $title');
+      AppLogger.info('Updating nutrition for: $title');
 
       // Convert ingredients to nutrition calculator format
       final ingredientList = _parseIngredients(ingredients);
@@ -38,12 +39,12 @@ class RecipeNutritionUpdaterService {
           })
           .eq('id', recipeId);
 
-      print('✅ Updated nutrition for $title:');
-      print(nutrition.toString());
+      AppLogger.info('✅ Updated nutrition for $title:');
+      AppLogger.debug(nutrition.toString());
       
       return true;
     } catch (e) {
-      print('❌ Error updating recipe nutrition: $e');
+      AppLogger.error('❌ Error updating recipe nutrition', e);
       return false;
     }
   }
@@ -51,7 +52,7 @@ class RecipeNutritionUpdaterService {
   /// Update nutrition for all recipes in database
   static Future<Map<String, bool>> updateAllRecipesNutrition() async {
     try {
-      print('🔄 Starting nutrition update for all recipes...');
+      AppLogger.info('🔄 Starting nutrition update for all recipes...');
       
       // Get all recipe IDs
       final recipes = await _client
@@ -65,7 +66,7 @@ class RecipeNutritionUpdaterService {
         final id = recipe['id'] as String;
         final title = recipe['title'] as String;
         
-        print('\n📝 Processing: $title');
+        AppLogger.debug('\n📝 Processing: $title');
         final success = await updateRecipeNutrition(id);
         results[title] = success;
         
@@ -77,14 +78,14 @@ class RecipeNutritionUpdaterService {
       final successful = results.values.where((success) => success).length;
       final total = results.length;
       
-      print('\n🎯 Nutrition Update Summary:');
-      print('✅ Successful: $successful');
-      print('❌ Failed: ${total - successful}');
-      print('📊 Total: $total');
+      AppLogger.info('\n🎯 Nutrition Update Summary:');
+      AppLogger.info('✅ Successful: $successful');
+      AppLogger.info('❌ Failed: ${total - successful}');
+      AppLogger.info('📊 Total: $total');
       
       return results;
     } catch (e) {
-      print('❌ Error updating all recipes: $e');
+      AppLogger.error('❌ Error updating all recipes', e);
       return {};
     }
   }
@@ -110,7 +111,7 @@ class RecipeNutritionUpdaterService {
         'quantity': estimatedQuantity,
       });
       
-      print('  📏 $ingredient: ${extractedQuantity > 0 ? 'extracted' : 'estimated'} ${estimatedQuantity}g');
+      AppLogger.debug('  📏 $ingredient: ${extractedQuantity > 0 ? 'extracted' : 'estimated'} ${estimatedQuantity}g');
     }
     
     return parsedIngredients;
@@ -333,7 +334,7 @@ class RecipeNutritionUpdaterService {
       
       return missingNutrition;
     } catch (e) {
-      print('Error getting recipes with missing nutrition: $e');
+      AppLogger.error('Error getting recipes with missing nutrition', e);
       return [];
     }
   }
@@ -367,10 +368,10 @@ class RecipeNutritionUpdaterService {
           })
           .eq('id', recipeId);
 
-      print('✅ Updated $nutrient to $value for recipe $recipeId');
+      AppLogger.info('✅ Updated $nutrient to $value for recipe $recipeId');
       return true;
     } catch (e) {
-      print('❌ Error updating nutrient: $e');
+      AppLogger.error('❌ Error updating nutrient', e);
       return false;
     }
   }

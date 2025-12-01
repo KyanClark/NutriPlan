@@ -45,7 +45,7 @@ class _AnimatedLogoState extends State<AnimatedLogo> with SingleTickerProviderSt
           style: TextStyle(
             fontSize: 48,
             fontWeight: FontWeight.bold,
-            color: Colors.black87,
+            color: const Color.fromARGB(221, 255, 255, 255),
             letterSpacing: 2,
           ),
         ),

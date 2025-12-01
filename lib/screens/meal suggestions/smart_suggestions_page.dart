@@ -4,6 +4,7 @@ import '../../models/smart_suggestion_models.dart';
 import '../../models/meal_history_entry.dart';
 import '../../models/recipes.dart';
 import '../../services/smart_meal_suggestion_service.dart';
+import '../../services/health_condition_suggestions_service.dart';
 import '../../widgets/smart_suggestions_loading_animation.dart';
 import '../recipes/recipe_info_screen.dart';
 import '../meal_plan/meal_summary_page.dart';
@@ -18,9 +19,11 @@ class SmartSuggestionsPage extends StatefulWidget {
 
 class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
   List<SmartMealSuggestion> _smartSuggestions = [];
+  List<SmartMealSuggestion> _healthConditionSuggestions = [];
   bool _loadingSuggestions = false;
   bool _aiWorking = false;
   List<Recipe> _selectedRecipes = [];
+  List<String> _userHealthConditions = [];
 
   @override
   void initState() {
@@ -83,9 +86,22 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
         useAI: _aiWorking,
       );
 
+      // Fetch health condition suggestions if user has health conditions
+      final healthConditions = await HealthConditionSuggestionsService.getUserHealthConditions(user.id);
+      List<SmartMealSuggestion> healthConditionSuggestions = [];
+      if (healthConditions.isNotEmpty && !healthConditions.contains('none')) {
+        healthConditionSuggestions = await HealthConditionSuggestionsService.getHealthConditionSuggestions(
+          userId: user.id,
+          healthConditions: healthConditions,
+          limit: 6,
+        );
+      }
+
       if (!mounted) return;
       setState(() {
         _smartSuggestions = suggestions;
+        _healthConditionSuggestions = healthConditionSuggestions;
+        _userHealthConditions = healthConditions;
         _loadingSuggestions = false;
       });
     } catch (e) {
@@ -269,74 +285,249 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
       );
     }
 
-    // Separate recipes from unique AI suggestions
-    final recipesSuggestions = _smartSuggestions.where((s) => 
-      s.recipe.title.isNotEmpty && 
-      s.recipe.imageUrl.isNotEmpty &&
-      s.tags.contains('recipe')
-    ).toList();
-    
-    final uniqueSuggestions = _smartSuggestions.where((s) => 
-      !recipesSuggestions.contains(s)
-    ).toList();
+    // Group suggestions by type (excluding healthBoost if we have health condition section)
+    final groupedSuggestions = <SuggestionType, List<SmartMealSuggestion>>{};
+    for (final suggestion in _smartSuggestions) {
+      // Skip healthBoost type if we have a separate health condition section
+      if (_healthConditionSuggestions.isNotEmpty && suggestion.type == SuggestionType.healthBoost) {
+        continue;
+      }
+      if (!groupedSuggestions.containsKey(suggestion.type)) {
+        groupedSuggestions[suggestion.type] = [];
+      }
+      groupedSuggestions[suggestion.type]!.add(suggestion);
+    }
 
+    // Calculate total sections: regular groups + health condition section (if exists)
+    final hasHealthSection = _healthConditionSuggestions.isNotEmpty;
+    final regularGroupCount = groupedSuggestions.length;
+    final totalSections = regularGroupCount + (hasHealthSection ? 1 : 0);
+
+    // Build sections for each group
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: 2 + recipesSuggestions.length + uniqueSuggestions.length,
+      itemCount: totalSections * 2, // Header + Grid for each section
       itemBuilder: (context, index) {
-        // Recipes Section Header
-        if (index == 0) {
-          return _buildSectionHeader('📋 Recipes from Database', recipesSuggestions.length);
+        final sectionIndex = index ~/ 2;
+        final isHeader = index % 2 == 0;
+        
+        // Check if this is the health condition section (always last)
+        if (hasHealthSection && sectionIndex == totalSections - 1) {
+          if (isHeader) {
+            return _buildHealthConditionSectionHeader();
+          } else {
+            return _buildRecipeGrid(_healthConditionSuggestions);
+          }
         }
         
-        // Recipes
-        if (index <= recipesSuggestions.length) {
-          final suggestion = recipesSuggestions[index - 1];
-          return _buildSuggestionCard(suggestion);
+        // Regular suggestion groups
+        final groups = groupedSuggestions.entries.toList();
+        if (sectionIndex >= groups.length) {
+          return const SizedBox.shrink();
         }
         
-        // Unique Suggestions Section Header
-        if (index == recipesSuggestions.length + 1) {
-          return _buildSectionHeader(' Unique Meal Suggestions for you', uniqueSuggestions.length);
-        }
+        final group = groups[sectionIndex];
+        final suggestions = group.value;
         
-        // Unique Suggestions
-        final uniqueIndex = index - recipesSuggestions.length - 2;
-        final suggestion = uniqueSuggestions[uniqueIndex];
-        return _buildSuggestionCard(suggestion);
+        if (isHeader) {
+          // Section header with friendly message
+          return _buildSectionWithMessage(
+            type: group.key,
+            suggestions: suggestions,
+          );
+        } else {
+          // 2-column grid of recipes
+          return _buildRecipeGrid(suggestions);
+        }
       },
     );
   }
   
-  Widget _buildSectionHeader(String title, int count) {
-    if (count == 0) return const SizedBox.shrink();
+  Widget _buildSectionWithMessage({
+    required SuggestionType type,
+    required List<SmartMealSuggestion> suggestions,
+  }) {
+    if (suggestions.isEmpty) return const SizedBox.shrink();
+    
+    final message = _getFriendlyMessage(type, suggestions);
     
     return Padding(
-      padding: const EdgeInsets.only(top: 16, bottom: 8),
-      child: Row(
+      padding: const EdgeInsets.only(top: 20, bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: _getTypeColor(type).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _getTypeColor(type).withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  _getTypeIcon(type),
+                  color: _getTypeColor(type),
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[700],
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: 8),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecipeGrid(List<SmartMealSuggestion> suggestions) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 0.75,
+      ),
+      itemCount: suggestions.length,
+      itemBuilder: (context, index) {
+        return _buildSuggestionCard(suggestions[index]);
+      },
+    );
+  }
+
+  String _getFriendlyMessage(SuggestionType type, List<SmartMealSuggestion> suggestions) {
+    switch (type) {
+      case SuggestionType.fillGap:
+        return "These meals are perfect for filling your nutritional gaps today. They're rich in nutrients you still need to reach your daily goals.";
+      case SuggestionType.perfectTiming:
+        return "Great timing! These recipes are ideal for your current meal time and will help you maintain a balanced eating schedule.";
+      case SuggestionType.userFavorites:
+        return "We noticed you enjoy similar dishes! These recipes match your taste preferences and eating patterns.";
+      case SuggestionType.trySomethingNew:
+        return "Ready to explore? These meals offer variety while still aligning with your nutritional goals and preferences.";
+      case SuggestionType.healthBoost:
+        return "These recipes are specially chosen to support your health conditions. They're nutritious and tailored to your needs.";
+      case SuggestionType.budgetFriendly:
+        return "Smart choices that won't break the bank! These affordable meals still meet your nutritional requirements.";
+      case SuggestionType.quickPrep:
+        return "Short on time? These quick and easy recipes fit perfectly into your busy schedule without compromising nutrition.";
+    }
+  }
+
+  Color _getTypeColor(SuggestionType type) {
+    switch (type) {
+      case SuggestionType.fillGap:
+        return Colors.blue;
+      case SuggestionType.perfectTiming:
+        return Colors.green;
+      case SuggestionType.userFavorites:
+        return Colors.purple;
+      case SuggestionType.trySomethingNew:
+        return Colors.orange;
+      case SuggestionType.healthBoost:
+        return Colors.red;
+      case SuggestionType.budgetFriendly:
+        return Colors.teal;
+      case SuggestionType.quickPrep:
+        return Colors.indigo;
+    }
+  }
+
+  IconData _getTypeIcon(SuggestionType type) {
+    switch (type) {
+      case SuggestionType.fillGap:
+        return Icons.insights;
+      case SuggestionType.perfectTiming:
+        return Icons.access_time;
+      case SuggestionType.userFavorites:
+        return Icons.favorite;
+      case SuggestionType.trySomethingNew:
+        return Icons.explore;
+      case SuggestionType.healthBoost:
+        return Icons.health_and_safety;
+      case SuggestionType.budgetFriendly:
+        return Icons.account_balance_wallet;
+      case SuggestionType.quickPrep:
+        return Icons.timer;
+    }
+  }
+
+  Widget _buildHealthConditionSectionHeader() {
+    if (_healthConditionSuggestions.isEmpty) return const SizedBox.shrink();
+    
+    final conditionNames = _userHealthConditions.map((c) {
+      switch (c.toLowerCase()) {
+        case 'diabetes':
+          return 'diabetes';
+        case 'hypertension':
+        case 'high_blood_pressure':
+          return 'high blood pressure';
+        case 'stroke_recovery':
+          return 'stroke recovery';
+        case 'malnutrition':
+          return 'malnutrition';
+        case 'kidney_disease':
+          return 'kidney health';
+        case 'heart_disease':
+          return 'heart health';
+        default:
+          return c.replaceAll('_', ' ');
+      }
+    }).join(', ');
+    
+    final message = "These recipes are carefully selected to support your health conditions ($conditionNames). "
+        "They're tailored to meet your specific nutritional needs and dietary requirements.";
+    
+    return Padding(
+      padding: const EdgeInsets.only(top: 20, bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.green,
+              color: Colors.red.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              count.toString(),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+              border: Border.all(
+                color: Colors.red.withOpacity(0.3),
+                width: 1,
               ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.health_and_safety,
+                  color: Colors.red,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[700],
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -346,17 +537,16 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
 
   Widget _buildSuggestionCard(SmartMealSuggestion suggestion) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: _selectedRecipes.any((r) => r.id == suggestion.recipe.id)
             ? Border.all(color: Colors.green, width: 2)
-            : null,
+            : Border.all(color: Colors.grey[200]!),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
@@ -390,21 +580,27 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
               setState(() {});
             });
           },
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                // Recipe image
-                Container(
-                  width: 80,
-                  height: 80,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Recipe image
+              AspectRatio(
+                aspectRatio: 1.0,
+                child: Container(
+                  width: double.infinity,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      topRight: Radius.circular(16),
+                    ),
                     color: Colors.grey[200],
                   ),
                   child: suggestion.recipe.imageUrl.isNotEmpty
                       ? ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(16),
+                            topRight: Radius.circular(16),
+                          ),
                           child: Image.network(
                             suggestion.recipe.imageUrl,
                             fit: BoxFit.cover,
@@ -412,7 +608,7 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
                               return Icon(
                                 Icons.restaurant,
                                 color: Colors.grey[400],
-                                size: 32,
+                                size: 40,
                               );
                             },
                           ),
@@ -420,41 +616,31 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
                       : Icon(
                           Icons.restaurant,
                           color: Colors.grey[400],
-                          size: 32,
+                          size: 40,
                         ),
                 ),
-                const SizedBox(width: 16),
-                
-                // Recipe details
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        suggestion.recipe.title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+              ),
+              
+              // Recipe details
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      suggestion.recipe.title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        suggestion.reasoning,
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 13,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          _buildSuggestionTypeChip(suggestion.type),
-                          const SizedBox(width: 8),
-                          Text(
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
                             '₱${suggestion.recipe.cost.toStringAsFixed(2)}',
                             style: TextStyle(
                               color: Colors.green[600],
@@ -462,84 +648,32 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
                               fontSize: 12,
                             ),
                           ),
-                        ],
-                      ),
-                    ],
-                  ),
+                        ),
+                        // Selection indicator
+                        if (_selectedRecipes.any((r) => r.id == suggestion.recipe.id))
+                          const Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                            size: 20,
+                          )
+                        else
+                          Icon(
+                            Icons.circle_outlined,
+                            color: Colors.grey[300],
+                            size: 20,
+                          ),
+                      ],
+                    ),
+                  ],
                 ),
-                
-                // Selection indicator
-                if (_selectedRecipes.any((r) => r.id == suggestion.recipe.id))
-                  const Icon(
-                    Icons.check_circle,
-                    color: Colors.green,
-                    size: 24,
-                  )
-                else
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    color: Colors.grey[400],
-                    size: 16,
-                  ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildSuggestionTypeChip(SuggestionType type) {
-    Color chipColor;
-    String chipText;
-    
-    switch (type) {
-      case SuggestionType.fillGap:
-        chipColor = Colors.blue;
-        chipText = 'Fill Gap';
-        break;
-      case SuggestionType.perfectTiming:
-        chipColor = Colors.green;
-        chipText = 'Perfect Timing';
-        break;
-      case SuggestionType.userFavorites:
-        chipColor = Colors.purple;
-        chipText = 'Your Favorites';
-        break;
-      case SuggestionType.trySomethingNew:
-        chipColor = Colors.orange;
-        chipText = 'Try New';
-        break;
-      case SuggestionType.healthBoost:
-        chipColor = Colors.red;
-        chipText = 'Health Boost';
-        break;
-      case SuggestionType.budgetFriendly:
-        chipColor = Colors.teal;
-        chipText = 'Budget Friendly';
-        break;
-      case SuggestionType.quickPrep:
-        chipColor = Colors.indigo;
-        chipText = 'Quick Prep';
-        break;
-    }
-    
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: chipColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        chipText,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w500,
-          color: chipColor.computeLuminance() > 0.5 ? Colors.black87 : Colors.white,
-        ),
-      ),
-    );
-  }
 
   Future<void> _buildMealPlan() async {
     if (_selectedRecipes.isEmpty) return;
@@ -555,16 +689,27 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
               for (final m in mealsWithTime) {
                 try {
                   // Insert one row per meal with required date and time
+                  final Map<String, dynamic> mealData = {
+                    'user_id': userId,
+                    'recipe_id': m.recipe.id,
+                    'title': m.recipe.title,
+                    'meal_type': m.mealType ?? 'dinner',
+                    'meal_time': m.time != null ? '${m.time!.hour.toString().padLeft(2, '0')}:${m.time!.minute.toString().padLeft(2, '0')}:00' : null,
+                    'date': (m.scheduledDate ?? DateTime.now()).toUtc().toIso8601String().split('T').first,
+                  };
+                  
+                  // Add rice data if included
+                  if (m.includeRice && m.riceServing != null) {
+                    mealData['include_rice'] = true;
+                    mealData['rice_serving'] = m.riceServing!.label;
+                  } else {
+                    mealData['include_rice'] = false;
+                    mealData['rice_serving'] = null;
+                  }
+                  
                   await Supabase.instance.client
                       .from('meal_plans')
-                      .insert({
-                        'user_id': userId,
-                        'recipe_id': m.recipe.id,
-                        'title': m.recipe.title,
-                        'meal_type': m.mealType ?? 'dinner',
-                        'meal_time': m.time != null ? '${m.time!.hour.toString().padLeft(2, '0')}:${m.time!.minute.toString().padLeft(2, '0')}:00' : null,
-                        'date': (m.scheduledDate ?? DateTime.now()).toUtc().toIso8601String().split('T').first,
-                      });
+                      .insert(mealData);
                   print('Successfully saved meal to plans: ${m.recipe.title}');
                 } catch (e) {
                   print('Error saving meal plan: $e');

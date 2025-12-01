@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'allergy_selection_page.dart';
+import 'welcome_experience_page.dart';
+import '../../utils/onboarding_transitions.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DietTypePage extends StatefulWidget {
@@ -11,6 +13,12 @@ class DietTypePage extends StatefulWidget {
 
 class _DietTypePreferencePageState extends State<DietTypePage> {
   final List<Map<String, dynamic>> dishPreferences = [
+    {
+      'title': '✅ All of them',
+      'desc': 'I enjoy all types of dishes',
+      'icon': '✅',
+      'key': 'all',
+    },
     {
       'title': '🐟 Fish & Seafood',
       'desc': 'Bangus, tilapia, shrimp, crab, squid',
@@ -68,60 +76,48 @@ class _DietTypePreferencePageState extends State<DietTypePage> {
   ];
 
   final Set<int> selectedIndexes = {};
-  final ScrollController _scrollController = ScrollController();
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _scrollToIndex(int index) {
-    // Each card has a fixed height + separator (16+12)
-    final double cardHeight = 16 + 12 + 72; // padding + separator + estimated card height
-    _scrollController.animateTo(
-      index * cardHeight,
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeInOut,
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Welcome!'),
-        centerTitle: true,
-        backgroundColor: const Color(0xFF4CAF50),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 24),
-            const Text(
-              'What dishes do you enjoy?',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF388E3C),
-                letterSpacing: 1.2,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Back button - navigate to welcome experience last slide
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF388E3C)),
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    OnboardingPageRoute(
+                      page: const WelcomeExperiencePage(),
+                      slideFromRight: false, // Slide from left when going back
+                    ),
+                  );
+                },
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
               ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Select your favorite types of dishes. This helps us recommend recipes you\'ll love!',
-              style: TextStyle(fontSize: 14, color: Colors.black87),
-            ),
-            const SizedBox(height: 24),
-            Expanded(
-              child: ListView.separated(
-                controller: _scrollController,
+              const SizedBox(height: 16),
+              Text(
+                'What dishes do you usually like?',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: const Color(0xFF388E3C),
+                  fontWeight: FontWeight.w800,
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Choose the dishes you usually eat. This helps us recommend recipes you\'ll love!',
+                style: TextStyle(fontSize: 16, color: Colors.black87, height: 1.5),
+              ),
+              const SizedBox(height: 24),
+              Expanded(
+                child: ListView.separated(
                 physics: const BouncingScrollPhysics(),
                 itemCount: dishPreferences.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
@@ -130,13 +126,24 @@ class _DietTypePreferencePageState extends State<DietTypePage> {
                   return GestureDetector(
                     onTap: () {
                       setState(() {
-                        if (isSelected) {
-                          selectedIndexes.remove(index);
+                        if (index == 0) {
+                          // "All of them" selected
+                          if (isSelected) {
+                            selectedIndexes.remove(index);
+                          } else {
+                            selectedIndexes.clear();
+                            selectedIndexes.add(0);
+                          }
                         } else {
-                          selectedIndexes.add(index);
+                          // Regular dish selected
+                          if (isSelected) {
+                            selectedIndexes.remove(index);
+                          } else {
+                            selectedIndexes.remove(0); // Remove "all" if it was selected
+                            selectedIndexes.add(index);
+                          }
                         }
                       });
-                      _scrollToIndex(index);
                     },
                     child: Card(
                       color: isSelected ? const Color(0xFF4CAF50) : Colors.white,
@@ -156,10 +163,22 @@ class _DietTypePreferencePageState extends State<DietTypePage> {
                               value: isSelected,
                               onChanged: (val) {
                                 setState(() {
-                                  if (isSelected) {
-                                    selectedIndexes.remove(index);
+                                  if (index == 0) {
+                                    // "All of them" selected
+                                    if (isSelected) {
+                                      selectedIndexes.remove(index);
+                                    } else {
+                                      selectedIndexes.clear();
+                                      selectedIndexes.add(0);
+                                    }
                                   } else {
-                                    selectedIndexes.add(index);
+                                    // Regular dish selected
+                                    if (isSelected) {
+                                      selectedIndexes.remove(index);
+                                    } else {
+                                      selectedIndexes.remove(0); // Remove "all" if it was selected
+                                      selectedIndexes.add(index);
+                                    }
                                   }
                                 });
                               },
@@ -195,10 +214,10 @@ class _DietTypePreferencePageState extends State<DietTypePage> {
                     ),
                   );
                 },
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
-            Center(
+              const SizedBox(height: 24),
+              Center(
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -213,24 +232,34 @@ class _DietTypePreferencePageState extends State<DietTypePage> {
                   onPressed: selectedIndexes.isNotEmpty ? () async {
                     final user = Supabase.instance.client.auth.currentUser;
                     if (user != null) {
-                      final selectedDishes = selectedIndexes.map((i) => dishPreferences[i]['key']).toList();
+                      List<String> selectedDishes;
+                      if (selectedIndexes.contains(0)) {
+                        // If "all" is selected, select all dish keys except "all"
+                        selectedDishes = dishPreferences
+                            .where((dish) => dish['key'] != 'all')
+                            .map((dish) => dish['key'] as String)
+                            .toList();
+                      } else {
+                        selectedDishes = selectedIndexes.map((i) => dishPreferences[i]['key'] as String).toList();
+                      }
                       await Supabase.instance.client
                         .from('user_preferences')
                         .upsert({
                           'user_id': user.id,
-                          'dish_preferences': selectedDishes,
+                          'like_dishes': selectedDishes,
                         });
                     }
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const AllergySelectionPage()),
+                      OnboardingPageRoute(page: const AllergySelectionPage()),
                     );
                   } : null,
                   child: const Text('Confirm', style: TextStyle(fontSize: 18)),
                 ),
               ),
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );

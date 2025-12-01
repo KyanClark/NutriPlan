@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/nutrition_calculator_service.dart';
 
@@ -23,6 +24,7 @@ class _ProfileInformationScreenState extends State<ProfileInformationScreen> {
   
   bool _loading = true;
   bool _saving = false;
+  bool _caloriesManuallyEditedThisSession = false; // Track if calories were manually edited in this session
 
   @override
   void initState() {
@@ -31,6 +33,7 @@ class _ProfileInformationScreenState extends State<ProfileInformationScreen> {
   }
 
   Future<void> _fetchUserProfile() async {
+    if (!mounted) return;
     setState(() => _loading = true);
     final user = Supabase.instance.client.auth.currentUser;
     if (user != null) {
@@ -40,6 +43,7 @@ class _ProfileInformationScreenState extends State<ProfileInformationScreen> {
             .select()
             .eq('user_id', user.id)
             .maybeSingle();
+        if (!mounted) return;
         if (data != null) {
           setState(() {
             // User profile data
@@ -77,10 +81,12 @@ class _ProfileInformationScreenState extends State<ProfileInformationScreen> {
         }
       }
     }
+    if (!mounted) return;
     setState(() => _loading = false);
   }
 
   Future<void> _saveUserProfile() async {
+    if (!mounted) return;
     setState(() => _saving = true);
     final user = Supabase.instance.client.auth.currentUser;
     if (user != null) {
@@ -97,6 +103,23 @@ class _ProfileInformationScreenState extends State<ProfileInformationScreen> {
             activityLevel: _activityLevel!,
             weightGoal: _weightGoal!,
           );
+          
+          // Only preserve manually set calorie goal if it was edited in this session
+          // Otherwise, recalculate calories when profile data changes
+          if (_nutritionGoals != null && _nutritionGoals!['calories'] != null) {
+            final currentCalories = _nutritionGoals!['calories']!;
+            final calculatedCalories = updatedGoals['calories']!;
+            
+            // Only preserve calories if they were manually edited in this session
+            if (_caloriesManuallyEditedThisSession) {
+              updatedGoals['calories'] = currentCalories;
+              print('Preserving manually set calorie goal from this session: $currentCalories (calculated: $calculatedCalories)');
+            } else {
+              // Use calculated calories when profile data changes
+              updatedGoals['calories'] = calculatedCalories;
+              print('Recalculating calorie goal based on new profile data: $calculatedCalories');
+            }
+          }
         }
 
         await Supabase.instance.client
@@ -123,9 +146,11 @@ class _ProfileInformationScreenState extends State<ProfileInformationScreen> {
               },
             });
         
+        if (!mounted) return;
         if (updatedGoals != null) {
           setState(() {
             _nutritionGoals = updatedGoals;
+            _caloriesManuallyEditedThisSession = false; // Reset flag after saving
           });
         }
         
@@ -140,6 +165,7 @@ class _ProfileInformationScreenState extends State<ProfileInformationScreen> {
         );
       }
     }
+    if (!mounted) return;
     setState(() => _saving = false);
   }
 
@@ -147,37 +173,63 @@ class _ProfileInformationScreenState extends State<ProfileInformationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text('Profile Information'),
-        backgroundColor: const Color(0xFF4CAF50),
-        foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        actions: [
-          if (_saving)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-              ),
-            ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+      body: SafeArea(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  // Custom header with back button and title
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Back button
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: IconButton(
+                            icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF388E3C)),
+                            onPressed: () => Navigator.of(context).pop(),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ),
+                        // Centered title
+                        const Text(
+                          'Profile Information',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF388E3C),
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        // Saving indicator on the right
+                        if (_saving)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Color(0xFF4CAF50),
+                                strokeWidth: 2,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Nutrition Goals Summary Card
                   if (_nutritionGoals != null) ...[
                     Card(
-                      color: const Color(0xFF4CAF50).withOpacity(0.1),
+                      color: const Color(0xFF2E7D32),
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(
@@ -185,40 +237,78 @@ class _ProfileInformationScreenState extends State<ProfileInformationScreen> {
                           children: [
                             const Text(
                               '📊 Your Current Goals',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF388E3C)),
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 16),
+                            // Calorie goal - separate row
+                            InkWell(
+                              onTap: () => _showCaloriePicker(),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      '🔥 ${_nutritionGoals!['calories']!.toInt()} kcal',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                        fontSize: 20,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Icon(Icons.edit, size: 16, color: Colors.white70),
+                                    const SizedBox(width: 4),
+                                    const Text(
+                                      'Calories',
+                                      style: TextStyle(fontSize: 14, color: Colors.white70),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            // Macros - separate row (protein, carbs, fat)
                             Row(
                               children: [
                                 Expanded(
                                   child: Column(
                                     children: [
-                                      Text('🔥 ${_nutritionGoals!['calories']!.toInt()} kcal', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                      const Text('Calories', style: TextStyle(fontSize: 12)),
+                                      Text(
+                                        '🥩 ${_nutritionGoals!['protein']!.toInt()}g',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      const Text('Protein', style: TextStyle(fontSize: 12, color: Colors.white70)),
                                     ],
                                   ),
                                 ),
                                 Expanded(
                                   child: Column(
                                     children: [
-                                      Text('🥩 ${_nutritionGoals!['protein']!.toInt()}g', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                      const Text('Protein', style: TextStyle(fontSize: 12)),
+                                      Text(
+                                        '🍚 ${_nutritionGoals!['carbs']!.toInt()}g',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      const Text('Carbs', style: TextStyle(fontSize: 12, color: Colors.white70)),
                                     ],
                                   ),
                                 ),
                                 Expanded(
                                   child: Column(
                                     children: [
-                                      Text('🍚 ${_nutritionGoals!['carbs']!.toInt()}g', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                      const Text('Carbs', style: TextStyle(fontSize: 12)),
-                                    ],
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Column(
-                                    children: [
-                                      Text('🥑 ${_nutritionGoals!['fat']!.toInt()}g', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                      const Text('Fat', style: TextStyle(fontSize: 12)),
+                                      Text(
+                                        '🥑 ${_nutritionGoals!['fat']!.toInt()}g',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      const Text('Fat', style: TextStyle(fontSize: 12, color: Colors.white70)),
                                     ],
                                   ),
                                 ),
@@ -232,6 +322,56 @@ class _ProfileInformationScreenState extends State<ProfileInformationScreen> {
                   ],
 
                   // Profile Section
+                  // Friendly reminder about height and weight
+                  if (_heightCm == null || _weightKg == null)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 20),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8F5E9),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: const Color(0xFF4CAF50).withOpacity(0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.favorite,
+                            color: Color(0xFF4CAF50),
+                            size: 24,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Complete Your Profile',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF2E7D32),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'To provide you with the most accurate nutrition recommendations, please make sure to set your height and weight. These measurements help us calculate your personalized daily calorie and nutrient needs based on your body composition and goals.',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey[700],
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  
                   const Text(
                     'Profile Information',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -244,7 +384,7 @@ class _ProfileInformationScreenState extends State<ProfileInformationScreen> {
                       Expanded(
                         child: Card(
                           child: InkWell(
-                            onTap: () => _showAgeDialog(),
+                            onTap: () => _showAgePicker(),
                             borderRadius: BorderRadius.circular(12),
                             child: Padding(
                               padding: const EdgeInsets.all(16),
@@ -290,7 +430,7 @@ class _ProfileInformationScreenState extends State<ProfileInformationScreen> {
                       Expanded(
                         child: Card(
                           child: InkWell(
-                            onTap: () => _showHeightDialog(),
+                            onTap: () => _showHeightPicker(),
                             borderRadius: BorderRadius.circular(12),
                             child: Padding(
                               padding: const EdgeInsets.all(16),
@@ -310,7 +450,7 @@ class _ProfileInformationScreenState extends State<ProfileInformationScreen> {
                       Expanded(
                         child: Card(
                           child: InkWell(
-                            onTap: () => _showWeightDialog(),
+                            onTap: () => _showWeightPicker(),
                             borderRadius: BorderRadius.circular(12),
                             child: Padding(
                               padding: const EdgeInsets.all(16),
@@ -409,52 +549,30 @@ class _ProfileInformationScreenState extends State<ProfileInformationScreen> {
                           : const Text('Save All Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ),
+              ],
+            ),
+                    ),
+                  ),
                 ],
               ),
-            ),
+      ),
     );
   }
 
-  void _showAgeDialog() {
-    final TextEditingController ageController = TextEditingController(text: _age?.toString() ?? '');
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Age'),
-        content: TextField(
-          controller: ageController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Age',
-            hintText: 'Enter your age',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final age = int.tryParse(ageController.text);
-              if (age != null && age > 0 && age < 150) {
-                setState(() {
-                  _age = age;
-                });
-                Navigator.pop(context);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter a valid age (1-149)')),
-                );
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+  Future<void> _showAgePicker() async {
+    const minAge = 10;
+    const maxAge = 100;
+    final initialAge = (_age ?? 25).clamp(minAge, maxAge);
+    final selected = await _showCupertinoNumberPicker(
+      title: 'Select Age',
+      min: minAge,
+      max: maxAge,
+      initialValue: initialAge,
+      unitSuffix: ' yrs',
     );
+    if (selected != null && mounted) {
+      setState(() => _age = selected);
+    }
   }
 
   void _showGenderDialog() {
@@ -470,9 +588,11 @@ class _ProfileInformationScreenState extends State<ProfileInformationScreen> {
               value: 'male',
               groupValue: _gender,
               onChanged: (value) {
-                setState(() {
-                  _gender = value;
-                });
+                if (mounted) {
+                  setState(() {
+                    _gender = value;
+                  });
+                }
                 Navigator.pop(context);
               },
             ),
@@ -481,9 +601,11 @@ class _ProfileInformationScreenState extends State<ProfileInformationScreen> {
               value: 'female',
               groupValue: _gender,
               onChanged: (value) {
-                setState(() {
-                  _gender = value;
-                });
+                if (mounted) {
+                  setState(() {
+                    _gender = value;
+                  });
+                }
                 Navigator.pop(context);
               },
             ),
@@ -499,88 +621,36 @@ class _ProfileInformationScreenState extends State<ProfileInformationScreen> {
     );
   }
 
-  void _showHeightDialog() {
-    final TextEditingController heightController = TextEditingController(text: _heightCm?.toString() ?? '');
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Height'),
-        content: TextField(
-          controller: heightController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Height (cm)',
-            hintText: 'Enter your height in centimeters',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final height = double.tryParse(heightController.text);
-              if (height != null && height > 50 && height < 300) {
-                setState(() {
-                  _heightCm = height;
-                });
-                Navigator.pop(context);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter a valid height (50-300 cm)')),
-                );
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+  Future<void> _showHeightPicker() async {
+    const minHeight = 100;
+    const maxHeight = 220;
+    final initialHeight = (_heightCm?.round() ?? 165).clamp(minHeight, maxHeight);
+    final selected = await _showCupertinoNumberPicker(
+      title: 'Select Height',
+      min: minHeight,
+      max: maxHeight,
+      initialValue: initialHeight,
+      unitSuffix: ' cm',
     );
+    if (selected != null && mounted) {
+      setState(() => _heightCm = selected.toDouble());
+    }
   }
 
-  void _showWeightDialog() {
-    final TextEditingController weightController = TextEditingController(text: _weightKg?.toString() ?? '');
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Weight'),
-        content: TextField(
-          controller: weightController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Weight (kg)',
-            hintText: 'Enter your weight in kilograms',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final weight = double.tryParse(weightController.text);
-              if (weight != null && weight > 20 && weight < 300) {
-                setState(() {
-                  _weightKg = weight;
-                });
-                Navigator.pop(context);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter a valid weight (20-300 kg)')),
-                );
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+  Future<void> _showWeightPicker() async {
+    const minWeight = 30;
+    const maxWeight = 200;
+    final initialWeight = (_weightKg?.round() ?? 60).clamp(minWeight, maxWeight);
+    final selected = await _showCupertinoNumberPicker(
+      title: 'Select Weight',
+      min: minWeight,
+      max: maxWeight,
+      initialValue: initialWeight,
+      unitSuffix: ' kg',
     );
+    if (selected != null && mounted) {
+      setState(() => _weightKg = selected.toDouble());
+    }
   }
 
   void _showActivityLevelDialog() {
@@ -611,9 +681,11 @@ class _ProfileInformationScreenState extends State<ProfileInformationScreen> {
                 value: option['key'],
                 groupValue: _activityLevel,
                 onChanged: (value) {
-                  setState(() {
-                    _activityLevel = value;
-                  });
+                  if (mounted) {
+                    setState(() {
+                      _activityLevel = value;
+                    });
+                  }
                   Navigator.pop(context);
                 },
               );
@@ -627,6 +699,71 @@ class _ProfileInformationScreenState extends State<ProfileInformationScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<int?> _showCupertinoNumberPicker({
+    required String title,
+    required int min,
+    required int max,
+    required int initialValue,
+    String unitSuffix = '',
+  }) async {
+    int tempValue = initialValue.clamp(min, max);
+    return showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        final controller = FixedExtentScrollController(initialItem: tempValue - min);
+        return SizedBox(
+          height: 280,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                    Text(
+                      title,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, tempValue),
+                      child: const Text('Done'),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: CupertinoPicker(
+                  scrollController: controller,
+                  itemExtent: 36,
+                  magnification: 1.1,
+                  useMagnifier: true,
+                  onSelectedItemChanged: (index) {
+                    tempValue = min + index;
+                  },
+                  children: List.generate(
+                    max - min + 1,
+                    (index) => Center(
+                      child: Text(
+                        '${min + index}$unitSuffix',
+                        style: const TextStyle(fontSize: 20),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -656,9 +793,11 @@ class _ProfileInformationScreenState extends State<ProfileInformationScreen> {
                 value: option['key'],
                 groupValue: _weightGoal,
                 onChanged: (value) {
-                  setState(() {
-                    _weightGoal = value;
-                  });
+                  if (mounted) {
+                    setState(() {
+                      _weightGoal = value;
+                    });
+                  }
                   Navigator.pop(context);
                 },
               );
@@ -673,6 +812,91 @@ class _ProfileInformationScreenState extends State<ProfileInformationScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _showCaloriePicker() async {
+    if (_nutritionGoals == null || _nutritionGoals!['calories'] == null) return;
+    
+    const minCalories = 1000;
+    const maxCalories = 5000;
+    const step = 50; // Interval of 50 calories
+    final initialCalories = _nutritionGoals!['calories']!.toInt();
+    
+    // Round initial value to nearest 50
+    final roundedInitial = ((initialCalories / step).round() * step).clamp(minCalories, maxCalories);
+    
+    // Generate list of calorie values with step of 50
+    final calorieValues = <int>[];
+    for (int i = minCalories; i <= maxCalories; i += step) {
+      calorieValues.add(i);
+    }
+    
+    int tempValue = roundedInitial;
+    final initialIndex = calorieValues.indexOf(roundedInitial);
+    
+    final selected = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        final controller = FixedExtentScrollController(
+          initialItem: initialIndex >= 0 ? initialIndex : 0,
+        );
+        return SizedBox(
+          height: 280,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                    const Text(
+                      'Set Calorie Goal',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, tempValue),
+                      child: const Text('Done'),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: CupertinoPicker(
+                  scrollController: controller,
+                  itemExtent: 36,
+                  magnification: 1.1,
+                  useMagnifier: true,
+                  onSelectedItemChanged: (index) {
+                    tempValue = calorieValues[index];
+                  },
+                  children: calorieValues.map((value) {
+                    return Center(
+                      child: Text(
+                        '$value kcal',
+                        style: const TextStyle(fontSize: 20),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    
+    if (selected != null && mounted && _nutritionGoals != null) {
+      setState(() {
+        _nutritionGoals!['calories'] = selected.toDouble();
+        _caloriesManuallyEditedThisSession = true; // Mark as manually edited
+      });
+    }
   }
 }
 

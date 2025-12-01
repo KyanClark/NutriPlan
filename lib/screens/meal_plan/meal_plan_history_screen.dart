@@ -199,22 +199,51 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text('Meal Plan History'),
-        backgroundColor: Colors.green,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.sort),
-            tooltip: 'Sort by Period',
-            onPressed: _showSortOptions,
-          ),
-        ],
-      ),
-      body: Column(
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Custom header with back button and title
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Back button
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF388E3C)),
+                      onPressed: () => Navigator.of(context).pop(),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ),
+                  // Centered title
+                  const Text(
+                    'Meal Plan History',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF388E3C),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  // Sort button on the right
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: IconButton(
+                      icon: const Icon(Icons.sort, color: Color(0xFF388E3C)),
+                      tooltip: 'Sort by Period',
+                      onPressed: _showSortOptions,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Column(
         children: [
           // Sorting indicator
           Container(
@@ -399,8 +428,12 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
                     );
                   },
                 ),
+              ),
+            ],
           ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }

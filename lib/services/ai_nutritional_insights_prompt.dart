@@ -78,6 +78,7 @@ Generate a comprehensive analysis that empowers this user to optimize their nutr
     Map<String, dynamic> monthlyData,
     UserNutritionGoals? goals, {
     List<String> availableRecipes = const [],
+    bool hasMealsToday = true,
   }) {
     final weeklyAverages = weeklyData['averages'] as Map<String, double>? ?? {};
     final dailyData = weeklyData['dailyData'] as Map<String, Map<String, double>>? ?? {};
@@ -96,7 +97,7 @@ Generate a comprehensive analysis that empowers this user to optimize their nutr
     final goalAchievement = dailyCalories.where((c) => c >= calorieGoal * 0.8).length;
 
     return '''
-As a professional nutritionist and dietician analyzing this user's weekly nutrition data, generate exactly 3 personalized, actionable insights in this JSON format:
+As a professional dietician analyzing this user's weekly nutrition data, generate exactly 3 personalized, actionable insights in this JSON format:
 
 {
   "insights": [
@@ -134,20 +135,23 @@ AVAILABLE RECIPES:
 ${availableRecipes.isEmpty ? 'No recipes available' : availableRecipes.take(50).join(', ')}
 ${availableRecipes.length > 50 ? '... and ${availableRecipes.length - 50} more recipes' : ''}
 
+TODAY'S MEAL LOGGING STATUS:
+${hasMealsToday ? '✅ User has logged meals for today' : '⚠️ User has NOT logged any meals for today yet'}
+
 TASK:
-Generate exactly 3 insights that provide:
-1. CELEBRATION: Highlight positive patterns and achievements
-2. IMPROVEMENT: Identify specific nutrient gaps with actionable solutions (RECOMMEND SPECIFIC MEALS from the available recipes list above)
-3. MOTIVATION: Provide progress tracking and encouragement
+${hasMealsToday 
+  ? 'Generate exactly 3 insights that provide:\n1. CELEBRATION: Highlight positive patterns and achievements\n2. IMPROVEMENT: Identify specific nutrient gaps with actionable solutions (RECOMMEND SPECIFIC MEALS from the available recipes list above)\n3. MOTIVATION: Provide progress tracking and encouragement'
+  : 'IMPORTANT: User has NOT logged any meals for today. Generate exactly 1-2 insights that:\n1. Gently remind them to start logging their meals for today\n2. Explain the benefits of meal tracking (optional second insight)\nDO NOT generate random nutrition advice when they haven\'t logged meals yet. Focus on encouraging meal logging first.'}
 
 REQUIREMENTS:
-- Titles must be concise (max 6 words)
-- Descriptions must include specific numbers and percentages
+- Titles must be concise (max 8 words)
+- Descriptions must include specific numbers and percentages (when applicable)
 - Focus on actionable, implementable advice
 - IMPORTANT: When recommending meals, ONLY use recipe names from the "AVAILABLE RECIPES" list above
 - If recommending meals, mention 1-3 specific recipe names that would help address nutrient gaps
 - Balance encouragement with practical guidance
 - Make each insight unique and valuable
+${!hasMealsToday ? '- CRITICAL: If user hasn\'t logged meals today, prioritize reminding them to log meals instead of giving random nutrition advice' : ''}
 
 Return ONLY valid JSON.
 ''';

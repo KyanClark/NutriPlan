@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'health_conditions_page.dart';
 import '../../services/nutrition_calculator_service.dart';
+import '../../utils/onboarding_transitions.dart';
 
 class WeightGoalPage extends StatefulWidget {
   final int age;
@@ -53,44 +54,39 @@ class _WeightGoalPageState extends State<WeightGoalPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Weight Goal'),
-        centerTitle: true,
-        backgroundColor: const Color(0xFF4CAF50),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 24),
-            const Text(
-              'What\'s your goal?',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF388E3C),
-                letterSpacing: 1.2,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Back button
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF388E3C)),
+                onPressed: () => Navigator.of(context).pop(),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
               ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'We\'ll calculate your personalized nutrition targets based on your goal.',
-              style: TextStyle(fontSize: 14, color: Colors.black87),
-            ),
-            const SizedBox(height: 32),
-            
-            // BMI Display
-            _buildBMICard(),
-            
-            const SizedBox(height: 32),
-            
-            // Goal Selection
-            Expanded(
+              const SizedBox(height: 16),
+              Text(
+                'What\'s your goal?',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: const Color(0xFF388E3C),
+                  fontWeight: FontWeight.w800,
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'We\'ll calculate your personalized nutrition targets based on your goal.',
+                style: TextStyle(fontSize: 16, color: Colors.black87, height: 1.5),
+              ),
+              const SizedBox(height: 20),
+              // BMI Display
+              _buildBMICard(),
+              const SizedBox(height: 20),
+              // Goal Selection
+              Expanded(
               child: ListView.separated(
                 itemCount: weightGoals.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 16),
@@ -173,13 +169,11 @@ class _WeightGoalPageState extends State<WeightGoalPage> {
                   );
                 },
               ),
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // Continue Button
-            SizedBox(
-              width: double.infinity,
+              ),
+              const SizedBox(height: 24),
+              // Continue Button
+              SizedBox(
+                width: double.infinity,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4CAF50),
@@ -200,13 +194,18 @@ class _WeightGoalPageState extends State<WeightGoalPage> {
                     weightGoal: selectedGoal!,
                   );
                   
-                  // Save to database
+                  // Save to database - save all profile data together
                   final user = Supabase.instance.client.auth.currentUser;
                   if (user != null) {
                     await Supabase.instance.client
                       .from('user_preferences')
                       .upsert({
                         'user_id': user.id,
+                        'age': widget.age,
+                        'gender': widget.gender,
+                        'height_cm': widget.heightCm,
+                        'weight_kg': widget.weightKg,
+                        'activity_level': widget.activityLevel,
                         'weight_goal': selectedGoal,
                         'calorie_goal': nutritionGoals['calories'],
                         'protein_goal': nutritionGoals['protein'],
@@ -215,13 +214,16 @@ class _WeightGoalPageState extends State<WeightGoalPage> {
                         'fiber_goal': nutritionGoals['fiber'],
                         'sugar_goal': nutritionGoals['sugar'],
                         'cholesterol_goal': nutritionGoals['cholesterol'],
+                        'sodium_limit': nutritionGoals['sodium'],
+                        'iron_goal': nutritionGoals['iron_goal'],
+                        'vitamin_c_goal': nutritionGoals['vitamin_c_goal'],
                       });
                   }
                   
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => HealthConditionsPage(
+                    OnboardingPageRoute(
+                      page: HealthConditionsPage(
                         baseNutritionGoals: nutritionGoals,
                       ),
                     ),
@@ -233,27 +235,27 @@ class _WeightGoalPageState extends State<WeightGoalPage> {
           ],
         ),
       ),
+      )
     );
   }
   
   Widget _buildBMICard() {
     if (widget.heightCm == null || widget.weightKg == null) {
       return Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: Colors.grey[100],
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.grey[300]!),
         ),
         child: const Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.info_outline, color: Colors.grey),
-            SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'BMI calculation requires height and weight',
-                style: TextStyle(color: Colors.grey),
-              ),
+            Icon(Icons.info_outline, color: Colors.grey, size: 18),
+            SizedBox(width: 8),
+            Text(
+              'BMI requires height & weight',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
             ),
           ],
         ),
@@ -279,52 +281,51 @@ class _WeightGoalPageState extends State<WeightGoalPage> {
     }
     
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: bmiColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: bmiColor.withOpacity(0.3)),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 60,
-            height: 60,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               color: bmiColor.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(30),
+              borderRadius: BorderRadius.circular(18),
             ),
             child: Center(
               child: Text(
                 '📊',
-                style: const TextStyle(fontSize: 28),
+                style: const TextStyle(fontSize: 18),
               ),
             ),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Your BMI: ${bmi.toStringAsFixed(1)}',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: bmiColor,
-                  ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'BMI: ${bmi.toStringAsFixed(1)}',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: bmiColor,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  bmiCategory,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: bmiColor,
-                    fontWeight: FontWeight.w600,
-                  ),
+              ),
+              Text(
+                bmiCategory,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: bmiColor,
+                  fontWeight: FontWeight.w600,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
