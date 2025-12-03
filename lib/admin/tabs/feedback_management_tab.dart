@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../services/admin/admin_feedback_service.dart';
+import '../services/admin_feedback_service.dart';
+import '../pages/view_feedback_dialog.dart';
+import '../widgets/feedback_card_skeleton.dart';
 
 class FeedbackManagementTab extends StatefulWidget {
   const FeedbackManagementTab({super.key});
@@ -10,17 +12,40 @@ class FeedbackManagementTab extends StatefulWidget {
 }
 
 class _FeedbackManagementTabState extends State<FeedbackManagementTab> {
+  static List<Map<String, dynamic>>? _cachedFeedbacks; // Static cache
+  static Map<String, dynamic>? _cachedStats; // Static cache for stats
+  static bool _cacheValid = false; // Cache validity flag
+  
   List<Map<String, dynamic>> _feedbacks = [];
   Map<String, dynamic> _stats = {};
   bool _isLoading = true;
   String _filterRating = 'all';
   String _filterRecipe = 'all';
+  String _filterComments = 'all'; // 'all', 'with', 'without'
   List<Map<String, dynamic>> _recipes = [];
 
   @override
   void initState() {
     super.initState();
+    // Use cached data if available
+    if (_cacheValid && _cachedFeedbacks != null && _cachedStats != null) {
+      setState(() {
+        _feedbacks = _cachedFeedbacks!;
+        _stats = _cachedStats!;
+        // Extract unique recipes from feedbacks
+        final recipeMap = <String, Map<String, dynamic>>{};
+        for (final feedback in _feedbacks) {
+          final recipe = feedback['recipes'] as Map<String, dynamic>?;
+          if (recipe != null) {
+            recipeMap[recipe['id'].toString()] = recipe;
+          }
+        }
+        _recipes = recipeMap.values.toList();
+        _isLoading = false;
+      });
+    } else {
     _loadData();
+    }
   }
 
   Future<void> _loadData() async {
@@ -49,6 +74,10 @@ class _FeedbackManagementTabState extends State<FeedbackManagementTab> {
         _stats = stats;
         _isLoading = false;
       });
+      // Update cache
+      _cachedFeedbacks = feedbacks;
+      _cachedStats = stats;
+      _cacheValid = true;
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
@@ -57,6 +86,12 @@ class _FeedbackManagementTabState extends State<FeedbackManagementTab> {
         );
       }
     }
+  }
+
+  static void invalidateCache() {
+    _cacheValid = false;
+    _cachedFeedbacks = null;
+    _cachedStats = null;
   }
 
   Future<void> _deleteFeedback(Map<String, dynamic> feedback) async {
@@ -83,6 +118,8 @@ class _FeedbackManagementTabState extends State<FeedbackManagementTab> {
 
     try {
       await AdminFeedbackService.deleteFeedback(feedback['id'].toString());
+      // Invalidate cache
+      invalidateCache();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Feedback deleted successfully')),
@@ -115,6 +152,18 @@ class _FeedbackManagementTabState extends State<FeedbackManagementTab> {
       }).toList();
     }
 
+    if (_filterComments == 'with') {
+      filtered = filtered.where((f) {
+        final comment = f['comment'] as String?;
+        return comment != null && comment.trim().isNotEmpty;
+      }).toList();
+    } else if (_filterComments == 'without') {
+      filtered = filtered.where((f) {
+        final comment = f['comment'] as String?;
+        return comment == null || comment.trim().isEmpty;
+      }).toList();
+    }
+
     return filtered;
   }
 
@@ -125,8 +174,50 @@ class _FeedbackManagementTabState extends State<FeedbackManagementTab> {
         _buildStatsCard(),
         _buildFilters(),
         Expanded(
-          child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
+          child: _isLoading && _cachedFeedbacks == null
+              ? Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4CAF50).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF4CAF50).withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4CAF50)),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Text(
+                            'Loading feedbacks...',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF4CAF50),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(8),
+                        itemCount: 5,
+                        itemBuilder: (context, index) {
+                          return const FeedbackCardSkeleton();
+                        },
+                      ),
+                    ),
+                  ],
+                )
               : _filteredFeedbacks.isEmpty
                   ? Center(
                       child: Column(
@@ -154,6 +245,16 @@ class _FeedbackManagementTabState extends State<FeedbackManagementTab> {
                           final feedback = _filteredFeedbacks[index];
                           return _FeedbackCard(
                             feedback: feedback,
+                            onTap: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) => ViewFeedbackDialog(
+                                  feedback: feedback,
+                                  onDelete: () => _deleteFeedback(feedback),
+                                  onRefresh: _loadData,
+                                ),
+                              );
+                            },
                             onDelete: () => _deleteFeedback(feedback),
                           );
                         },
@@ -174,14 +275,14 @@ class _FeedbackManagementTabState extends State<FeedbackManagementTab> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Colors.blue[400]!, Colors.blue[600]!],
+          colors: [const Color(0xFF4CAF50).withOpacity(0.8), const Color(0xFF4CAF50)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.withOpacity(0.3),
+            color: const Color(0xFF4CAF50).withOpacity(0.3),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -212,7 +313,8 @@ class _FeedbackManagementTabState extends State<FeedbackManagementTab> {
 
   Widget _buildFilters() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -224,15 +326,19 @@ class _FeedbackManagementTabState extends State<FeedbackManagementTab> {
           ),
         ],
       ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          Expanded(
+            SizedBox(
+              width: 200,
             child: DropdownButtonFormField<String>(
               value: _filterRating,
               decoration: InputDecoration(
-                labelText: 'Filter by Rating',
+                  labelText: 'Rating',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  isDense: true,
               ),
               items: const [
                 DropdownMenuItem(value: 'all', child: Text('All Ratings')),
@@ -243,18 +349,43 @@ class _FeedbackManagementTabState extends State<FeedbackManagementTab> {
                 DropdownMenuItem(value: '1', child: Text('1 Star')),
               ],
               onChanged: (value) {
+                  if (!mounted) return;
                 setState(() => _filterRating = value ?? 'all');
               },
             ),
           ),
-          const SizedBox(width: 16),
-          Expanded(
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 200,
+              child: DropdownButtonFormField<String>(
+                value: _filterComments,
+                decoration: InputDecoration(
+                  labelText: 'Comments',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  isDense: true,
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'all', child: Text('All')),
+                  DropdownMenuItem(value: 'with', child: Text('With Comments')),
+                  DropdownMenuItem(value: 'without', child: Text('Without Comments')),
+                ],
+                onChanged: (value) {
+                  if (!mounted) return;
+                  setState(() => _filterComments = value ?? 'all');
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 200,
             child: DropdownButtonFormField<String>(
               value: _filterRecipe,
               decoration: InputDecoration(
-                labelText: 'Filter by Recipe',
+                  labelText: 'Recipe',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  isDense: true,
               ),
               items: [
                 const DropdownMenuItem(value: 'all', child: Text('All Recipes')),
@@ -268,7 +399,30 @@ class _FeedbackManagementTabState extends State<FeedbackManagementTab> {
                     )),
               ],
               onChanged: (value) {
+                if (!mounted) return;
                 setState(() => _filterRecipe = value ?? 'all');
+              },
+            ),
+          ),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 200,
+            child: DropdownButtonFormField<String>(
+              value: _filterComments,
+              decoration: InputDecoration(
+                labelText: 'Comments',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                isDense: true,
+              ),
+              items: const [
+                DropdownMenuItem(value: 'all', child: Text('All')),
+                DropdownMenuItem(value: 'with', child: Text('With Comments')),
+                DropdownMenuItem(value: 'without', child: Text('Without Comments')),
+              ],
+              onChanged: (value) {
+                if (!mounted) return;
+                setState(() => _filterComments = value ?? 'all');
               },
             ),
           ),
@@ -318,10 +472,12 @@ class _StatItem extends StatelessWidget {
 
 class _FeedbackCard extends StatelessWidget {
   final Map<String, dynamic> feedback;
+  final VoidCallback onTap;
   final VoidCallback onDelete;
 
   const _FeedbackCard({
     required this.feedback,
+    required this.onTap,
     required this.onDelete,
   });
 
@@ -332,7 +488,16 @@ class _FeedbackCard extends StatelessWidget {
     final createdAt = feedback['created_at'] as String?;
     final recipe = feedback['recipes'] as Map<String, dynamic>?;
     final profile = feedback['profiles'] as Map<String, dynamic>?;
-    final username = profile?['username'] ?? 'Anonymous';
+    
+    // Try to get username, fallback to full_name, then email, then Anonymous
+    String username = 'Anonymous';
+    if (profile != null) {
+      username = profile['username'] as String? ?? 
+                 profile['full_name'] as String? ?? 
+                 profile['email'] as String? ?? 
+                 'Anonymous';
+    }
+    
     final recipeTitle = recipe?['title'] ?? 'Unknown Recipe';
 
     final dateFormat = DateFormat('MMM d, y • h:mm a');
@@ -342,14 +507,19 @@ class _FeedbackCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
+      elevation: 4,
+      shadowColor: Colors.black.withOpacity(0.2),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: Column(
@@ -361,6 +531,8 @@ class _FeedbackCard extends StatelessWidget {
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -369,11 +541,15 @@ class _FeedbackCard extends StatelessWidget {
                           color: Colors.grey[600],
                           fontSize: 14,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
+                const SizedBox(width: 8),
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: List.generate(5, (index) {
                     return Icon(
                       index < rating ? Icons.star : Icons.star_border,
@@ -399,25 +575,15 @@ class _FeedbackCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
                 Text(
                   date,
                   style: TextStyle(
                     color: Colors.grey[600],
                     fontSize: 12,
                   ),
-                ),
-                TextButton.icon(
-                  onPressed: onDelete,
-                  icon: const Icon(Icons.delete, size: 18),
-                  label: const Text('Delete'),
-                  style: TextButton.styleFrom(foregroundColor: Colors.red),
-                ),
-              ],
             ),
           ],
+        ),
         ),
       ),
     );

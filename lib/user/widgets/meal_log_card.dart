@@ -1,0 +1,374 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import '../models/meal_history_entry.dart';
+
+class MealLogCard extends StatefulWidget {
+  final MealHistoryEntry meal;
+  
+  const MealLogCard({
+    super.key,
+    required this.meal,
+  });
+
+  @override
+  State<MealLogCard> createState() => _MealLogCardState();
+}
+
+class _MealLogCardState extends State<MealLogCard> {
+  bool expanded = false;
+  
+  Color _getMealCategoryColor(MealCategory category) {
+    switch (category) {
+      case MealCategory.breakfast:
+        return Colors.orange;
+      case MealCategory.lunch:
+        return Colors.green;
+      case MealCategory.dinner:
+        return Colors.purple;
+    }
+  }
+
+  String _getMealCategoryDisplayName(MealCategory category) {
+    switch (category) {
+      case MealCategory.breakfast:
+        return 'Breakfast';
+      case MealCategory.lunch:
+        return 'Lunch';
+      case MealCategory.dinner:
+        return 'Dinner';
+    }
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    final meal = widget.meal;
+    
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: () => setState(() => expanded = !expanded),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  // Recipe image
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      meal.imageUrl,
+                      width: 60,
+                      height: 60,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.restaurant,
+                          color: Colors.grey,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  
+                  // Meal details
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          meal.title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            // Category badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: _getMealCategoryColor(meal.category).withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                _getMealCategoryDisplayName(meal.category),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: _getMealCategoryColor(meal.category),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            
+                            // Time
+                            Text(
+                              DateFormat('h:mm a').format(meal.completedAt.toLocal()),
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Calories and expand icon
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '${meal.calories.toStringAsFixed(0)} kcal',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: Colors.orange,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Icon(
+                        expanded ? Icons.expand_less : Icons.expand_more,
+                        color: Colors.grey[600],
+                        size: 20,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              
+              // Expanded nutrition details
+              if (expanded) ...[
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 12),
+                
+                // Nutrition macros
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
+                  children: [
+                    _MacroChip(
+                      label: 'Protein',
+                      value: meal.protein,
+                      color: Colors.blue,
+                      unit: 'g',
+                    ),
+                    _MacroChip(
+                      label: 'Carbs',
+                      value: meal.carbs,
+                      color: Colors.green,
+                      unit: 'g',
+                    ),
+                    _MacroChip(
+                      label: 'Fat',
+                      value: meal.fat,
+                      color: Colors.orange,
+                      unit: 'g',
+                    ),
+                    _MacroChip(
+                      label: 'Sugar',
+                      value: meal.sugar,
+                      color: Colors.pink,
+                      unit: 'g',
+                    ),
+                    _MacroChip(
+                      label: 'Fiber',
+                      value: meal.fiber,
+                      color: Colors.purple,
+                      unit: 'g',
+                    ),
+                    _MacroChip(
+                      label: 'Sodium',
+                      value: meal.sodium,
+                      color: const Color(0xFFFF6961),
+                      unit: 'mg',
+                    ),
+                    _MacroChip(
+                      label: 'Cholesterol',
+                      value: meal.cholesterol,
+                      color: Colors.indigo,
+                      unit: 'mg',
+                    ),
+                  ],
+                ),
+                
+                // Rice information if included
+                if (meal.includeRice && meal.riceServing != null) ...[
+                  const SizedBox(height: 16),
+                  _RiceNutritionSection(meal: meal),
+                ],
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RiceNutritionSection extends StatefulWidget {
+  final MealHistoryEntry meal;
+  
+  const _RiceNutritionSection({required this.meal});
+  
+  @override
+  State<_RiceNutritionSection> createState() => _RiceNutritionSectionState();
+}
+
+class _RiceNutritionSectionState extends State<_RiceNutritionSection> {
+  bool _isExpanded = false;
+  
+  @override
+  Widget build(BuildContext context) {
+    final meal = widget.meal;
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.orange[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.orange[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () => setState(() => _isExpanded = !_isExpanded),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  const Text('🍚', style: TextStyle(fontSize: 18)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Rice: ${meal.riceServing}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange[900],
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    _isExpanded ? Icons.expand_less : Icons.expand_more,
+                    color: Colors.orange[900],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_isExpanded) ...[
+            const Divider(height: 1, color: Colors.orange),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  if (meal.riceCalories != null && meal.riceCalories! > 0)
+                    _MacroChip(
+                      label: 'Calories',
+                      value: meal.riceCalories!,
+                      color: Colors.orange,
+                      unit: ' kcal',
+                    ),
+                  if (meal.riceProtein != null && meal.riceProtein! > 0)
+                    _MacroChip(
+                      label: 'Protein',
+                      value: meal.riceProtein!,
+                      color: Colors.blue,
+                      unit: 'g',
+                    ),
+                  if (meal.riceCarbs != null && meal.riceCarbs! > 0)
+                    _MacroChip(
+                      label: 'Carbs',
+                      value: meal.riceCarbs!,
+                      color: Colors.green,
+                      unit: 'g',
+                    ),
+                  if (meal.riceFat != null && meal.riceFat! > 0)
+                    _MacroChip(
+                      label: 'Fat',
+                      value: meal.riceFat!,
+                      color: Colors.orange,
+                      unit: 'g',
+                    ),
+                  if (meal.riceFiber != null && meal.riceFiber! > 0)
+                    _MacroChip(
+                      label: 'Fiber',
+                      value: meal.riceFiber!,
+                      color: Colors.purple,
+                      unit: 'g',
+                    ),
+                  if (meal.riceSodium != null && meal.riceSodium! > 0)
+                    _MacroChip(
+                      label: 'Sodium',
+                      value: meal.riceSodium!,
+                      color: const Color(0xFFFF6961),
+                      unit: 'mg',
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MacroChip extends StatelessWidget {
+  final String label;
+  final double value;
+  final Color color;
+  final String unit;
+  
+  const _MacroChip({
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.unit,
+  });
+  
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: color.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        '$label: ${value.toStringAsFixed(1)}$unit',
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+}

@@ -43,6 +43,7 @@ dependencies:
   flutter_bloc: ^8.1.4
   lottie: ^3.1.2
   logger: ^2.0.2+1
+  # flutter_tts: ^3.8.3  # Commented out for Windows build
 
 
 dev_dependencies:
@@ -70,11 +71,12 @@ flutter:
   assets:
     - .env
     - assets/google_logo.png
-    - assets/data/
+    - assets/data/fnri_detailed_nutritional_data.csv
     - assets/widgets/
     - assets/navigation_icons/
     - assets/meal-tracker-icons/
     - assets/default-profile-pictures/
+    - assets/meal_plan_icons/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

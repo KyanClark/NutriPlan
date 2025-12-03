@@ -10,6 +10,12 @@ set(BINARY_NAME "nutriplan")
 # versions of CMake.
 cmake_policy(VERSION 3.14...3.25)
 
+# Suppress deprecation warnings from plugins (e.g., flutter_tts using exec_program)
+# This is safe since we're not using TTS on Windows anyway
+if(POLICY CMP0153)
+  cmake_policy(SET CMP0153 OLD)
+endif()
+
 # Define build configuration option.
 get_property(IS_MULTICONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if(IS_MULTICONFIG)

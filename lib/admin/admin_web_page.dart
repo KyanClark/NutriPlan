@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import '../../services/admin/admin_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'tabs/recipe_management_tab.dart';
 import 'tabs/feedback_management_tab.dart';
 
@@ -11,159 +10,211 @@ class AdminWebPage extends StatefulWidget {
   State<AdminWebPage> createState() => _AdminWebPageState();
 }
 
-class _AdminWebPageState extends State<AdminWebPage> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  bool _isLoading = true;
-  bool _isAdmin = false;
+class _AdminWebPageState extends State<AdminWebPage> {
+  int _selectedIndex = 0; // 0 = recipes, 1 = feedback
 
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _checkAdminAccess();
-  }
+  void _onLogout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4CAF50),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
 
-  Future<void> _checkAdminAccess() async {
-    final isAdmin = await AdminService.isCurrentUserAdmin();
-    setState(() {
-      _isAdmin = isAdmin;
-      _isLoading = false;
-    });
+    if (confirmed != true) return;
 
-    if (!isAdmin && mounted) {
-      // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Access denied. Admin privileges required.'),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 5),
-        ),
-      );
+    try {
+      // Sign out from Supabase Auth
+      await Supabase.instance.client.auth.signOut();
+    } catch (e) {
+      // Ignore sign out errors
     }
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
+    if (mounted) {
+      // Go back to admin login page
+      Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Only allow on web
-    if (!kIsWeb) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.computer, size: 64, color: Colors.grey),
-              const SizedBox(height: 16),
-              const Text(
-                'Admin Panel is only available on web',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Please access this page from a web browser',
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (_isLoading) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: 16),
-              Text(
-                'Checking admin access...',
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (!_isAdmin) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.lock, size: 64, color: Colors.red[300]),
-              const SizedBox(height: 16),
-              const Text(
-                'Access Denied',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Admin privileges required to access this page',
-                style: TextStyle(color: Colors.grey[600], fontSize: 16),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.arrow_back),
-                label: const Text('Go Back'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+    final isWideScreen = MediaQuery.of(context).size.width > 900;
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Row(
-          children: [
-            Icon(Icons.admin_panel_settings, size: 28),
-            SizedBox(width: 12),
-            Text(
-              'Admin Panel',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
-            ),
-          ],
+        title: const Center(
+          child: Text(
+            'NutriPlan',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+          ),
         ),
-        backgroundColor: Colors.blue[700],
+        backgroundColor: const Color(0xFF4CAF50),
         foregroundColor: Colors.white,
         elevation: 2,
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
-          indicatorWeight: 3,
-          tabs: const [
-            Tab(
-              icon: Icon(Icons.restaurant_menu),
-              text: 'Recipe Management',
-            ),
-            Tab(
-              icon: Icon(Icons.feedback),
-              text: 'Feedback Management',
-            ),
-          ],
+      ),
+      body: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 1400),
+          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Row(
+            children: [
+              // Sidebar
+              Container(
+                width: isWideScreen ? 240 : 200,
+                margin: const EdgeInsets.only(right: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 20),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.admin_panel_settings,
+                            size: 20,
+                            color: Color(0xFF4CAF50),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Admin Panel',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF4CAF50),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _SidebarItem(
+                      icon: Icons.restaurant_menu,
+                      label: 'Recipe Management',
+                      selected: _selectedIndex == 0,
+                      onTap: () {
+                        setState(() => _selectedIndex = 0);
+                      },
+                    ),
+                    _SidebarItem(
+                      icon: Icons.feedback,
+                      label: 'Feedback Management',
+                      selected: _selectedIndex == 1,
+                      onTap: () {
+                        setState(() => _selectedIndex = 1);
+                      },
+                    ),
+                    const Spacer(),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.logout, color: Colors.redAccent),
+                      title: const Text(
+                        'Logout',
+                        style: TextStyle(
+                          color: Colors.redAccent,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      onTap: _onLogout,
+                    ),
+                  ],
+                ),
+              ),
+              // Main content
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    color: Colors.white,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: _selectedIndex == 0
+                          ? const RecipeManagementTab()
+                          : const FeedbackManagementTab(),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-      body: Container(
-        constraints: const BoxConstraints(maxWidth: 1400),
-        margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        child: TabBarView(
-          controller: _tabController,
-          children: const [
-            RecipeManagementTab(),
-            FeedbackManagementTab(),
-          ],
+    );
+  }
+}
+
+class _SidebarItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _SidebarItem({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      child: Material(
+        color: selected ? const Color(0xFF4CAF50).withOpacity(0.1) : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 22,
+                  color: selected ? const Color(0xFF4CAF50) : Colors.grey[700],
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                      color: selected ? const Color(0xFF4CAF50) : Colors.grey[800],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../models/recipes.dart';
-import '../../services/admin/admin_recipe_service.dart';
+import '../../user/models/recipes.dart';
+import '../services/admin_recipe_service.dart';
 
 class RecipeFormDialog extends StatefulWidget {
   final Recipe? recipe;
