@@ -197,199 +197,253 @@ class _AccountSwitchScreenState extends State<AccountSwitchScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF4CAF50),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const AnimatedLogo(),
-              const SizedBox(height: 24),
-              const Text(
-                'Healthy recipes, smarter planning.\nPick an account or sign in to get started.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  height: 1.4,
-                  color: Color.fromARGB(220, 255, 255, 255),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Top spacer to center logo
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const AnimatedLogo(),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Healthy recipes, smarter planning.\nPick an account or sign in to get started.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.4,
+                          color: Color.fromARGB(220, 255, 255, 255),
+                        ),
+                      ),
+                      if (_isLoading) ...[
+                        const SizedBox(height: 32),
+                        const CircularProgressIndicator(color: Colors.white),
+                      ],
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 32),
-                if (_isLoading)
-                  const CircularProgressIndicator(color: Colors.white)
-                else ...[
-                  if (_savedAccounts.isNotEmpty)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            'Saved accounts',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        ..._savedAccounts.map((acc) {
-                          final displayName =
-                              (acc['display_name'] as String?) ?? 'NutriPlan user';
-                          final identifier =
-                              (acc['identifier'] as String?) ?? '';
-                          final avatarUrl = acc['avatar_url'] as String?;
-                          final gender = acc['gender'] as String?;
-                          final userId = acc['user_id'] as String? ?? '';
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 10),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: ListTile(
-                              onTap: () => _loginWithAccount(
-                                displayName: displayName,
-                                identifier: identifier,
-                              ),
-                              leading: ProfileAvatarWidget(
-                                avatarUrl: avatarUrl,
-                                gender: gender,
-                                radius: 22,
-                                backgroundColor: Colors.grey[200],
-                              ),
-                              title: Text(
-                                displayName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              subtitle: identifier.isNotEmpty
-                                  ? Text(
-                                      identifier,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey,
-                                      ),
-                                    )
-                                  : null,
-                              trailing: IconButton(
-                                icon: const Icon(Icons.close, size: 18),
-                                color: Colors.grey[600],
-                                onPressed: () => _removeAccount(userId, displayName),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-                  // Bottom actions
-                  if (_savedAccounts.isNotEmpty) ...[
-                    ElevatedButton(
-                      onPressed: () => _openLogin(),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: const Color(0xFF4CAF50),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 32, vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                      ),
-                      child: const Text(
-                        'Login another account',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const SignupScreen(),
-                          ),
-                        );
-                      },
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                      ),
-                      child: const Text(
-                        'Sign up',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ] else ...[
-                    // No saved accounts: show only Login / Sign up
-                    ElevatedButton(
-                      onPressed: () => _openLogin(),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: const Color(0xFF4CAF50),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 32, vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                      ),
-                      child: const Text(
-                        'Login',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const SignupScreen(),
-                          ),
-                        );
-                      },
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                      ),
-                      child: const Text(
-                        'Sign up',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ],
             ),
-          ),
+            // Scrollable saved accounts list (if any) - appears below centered logo
+            if (!_isLoading && _savedAccounts.isNotEmpty)
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Saved accounts',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ..._savedAccounts.map((acc) {
+                        final displayName =
+                            (acc['display_name'] as String?) ?? 'NutriPlan user';
+                        final identifier =
+                            (acc['identifier'] as String?) ?? '';
+                        final avatarUrl = acc['avatar_url'] as String?;
+                        final gender = acc['gender'] as String?;
+                        final userId = acc['user_id'] as String? ?? '';
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: ListTile(
+                            onTap: () => _loginWithAccount(
+                              displayName: displayName,
+                              identifier: identifier,
+                            ),
+                            leading: ProfileAvatarWidget(
+                              avatarUrl: avatarUrl,
+                              gender: gender,
+                              radius: 22,
+                              backgroundColor: Colors.grey[200],
+                            ),
+                            title: Text(
+                              displayName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            subtitle: identifier.isNotEmpty
+                                ? Text(
+                                    identifier,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  )
+                                : null,
+                            trailing: IconButton(
+                              icon: const Icon(Icons.close, size: 18),
+                              color: Colors.grey[600],
+                              onPressed: () => _removeAccount(userId, displayName),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ],
+                  ),
+                ),
+              ),
+            // Bottom buttons - fixed at bottom
+            if (!_isLoading)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_savedAccounts.isNotEmpty) ...[
+                      // Login another account button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => _openLogin(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: const Color(0xFF4CAF50),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 2,
+                          ),
+                          child: const Text(
+                            'Login another account',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Sign up button
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const SignupScreen(),
+                              ),
+                            );
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Colors.white, width: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Sign up',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ] else ...[
+                      // No saved accounts: show Login and Sign up buttons
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => _openLogin(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: const Color(0xFF4CAF50),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 2,
+                          ),
+                          child: const Text(
+                            'Login',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const SignupScreen(),
+                              ),
+                            );
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Colors.white, width: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Sign up',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+          ],
         ),
+      ),
     );
   }
 }

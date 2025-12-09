@@ -38,8 +38,8 @@ class ViewRecipesPage extends StatelessWidget {
       if (context.mounted) {
         Navigator.of(context).pop(true); // Return true to indicate deletion
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Recipe deleted successfully'),
+          SnackBar(
+            content: Text('Recipe "${recipe.title}" deleted successfully'),
             backgroundColor: Colors.green,
           ),
         );
@@ -173,7 +173,12 @@ class ViewRecipesPage extends StatelessWidget {
                         runSpacing: 12,
                         children: [
                           _InfoChip(
-                            icon: Icons.local_fire_department,
+                            leading: Image.asset(
+                              'assets/meal-tracker-icons/calories.png',
+                              height: 18,
+                              width: 18,
+                              fit: BoxFit.contain,
+                            ),
                             label: '${recipe.calories} cal',
                           ),
                           _InfoChip(
@@ -319,6 +324,10 @@ class ViewRecipesPage extends StatelessWidget {
                               label: 'Sodium',
                               value: '${recipe.macros['sodium']?.toStringAsFixed(0) ?? '0'} mg',
                             ),
+                            _NutritionItem(
+                              label: 'Cholesterol',
+                              value: '${recipe.macros['cholesterol']?.toStringAsFixed(0) ?? '0'} mg',
+                            ),
                           ],
                         ),
                       ),
@@ -363,15 +372,16 @@ class ViewRecipesPage extends StatelessWidget {
 }
 
 class _InfoChip extends StatelessWidget {
-  final IconData icon;
+  final IconData? icon;
+  final Widget? leading;
   final String label;
 
-  const _InfoChip({required this.icon, required this.label});
+  const _InfoChip({this.icon, this.leading, required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Chip(
-      avatar: Icon(icon, size: 18),
+      avatar: leading ?? (icon != null ? Icon(icon, size: 18) : null),
       label: Text(label, style: const TextStyle(fontSize: 14)),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     );

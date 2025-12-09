@@ -709,13 +709,15 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
 
   Widget _buildScrollableInstruction(String instruction) {
     return Container(
-      height: 120, // Fixed height for consistent layout
+      // Increase height so more of the instruction text is visible
+      // before scrolling, while still fitting comfortably on small screens.
+      height: 180,
       child: Stack(
         children: [
           // Scrollable text
           SingleChildScrollView(
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 20), // Space for fade effect
+              padding: const EdgeInsets.only(bottom: 24), // Space for fade effect
               child: Text(
                 instruction,
                 textAlign: TextAlign.center,

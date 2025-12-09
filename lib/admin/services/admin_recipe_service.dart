@@ -73,12 +73,21 @@ class AdminRecipeService {
       if (instructions != null) updateData['instructions'] = instructions;
       if (macros != null) updateData['macros'] = macros;
       if (allergyWarning != null) updateData['allergy_warning'] = allergyWarning;
-      if (calories != null) updateData['calories'] = calories;
+      // Always update calories if provided (including 0) - this is required
+      if (calories != null) {
+        updateData['calories'] = calories;
+        AppLogger.info('Updating calories to: $calories');
+      } else {
+        AppLogger.warning('Calories is null in updateRecipe call');
+      }
       if (tags != null) updateData['tags'] = tags;
-      if (cost != null) updateData['cost'] = cost;
+      // Always update cost if provided (including 0.0)
+      if (cost != null) {
+        updateData['cost'] = cost;
+      }
       if (notes != null) updateData['notes'] = notes;
-
-      updateData['updated_at'] = DateTime.now().toIso8601String();
+      
+      AppLogger.info('Update data: $updateData');
 
       final response = await Supabase.instance.client
           .from('recipes')
@@ -87,7 +96,13 @@ class AdminRecipeService {
           .select()
           .single();
 
-      return Recipe.fromMap(Map<String, dynamic>.from(response));
+      AppLogger.info('Recipe update response: $response');
+      AppLogger.info('Calories in response: ${response['calories']}');
+      
+      final updatedRecipe = Recipe.fromMap(Map<String, dynamic>.from(response));
+      AppLogger.info('Parsed recipe calories: ${updatedRecipe.calories}');
+      
+      return updatedRecipe;
     } catch (e) {
       AppLogger.error('Error updating recipe', e);
       throw Exception('Failed to update recipe: $e');

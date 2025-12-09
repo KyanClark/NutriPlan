@@ -27,6 +27,33 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
   bool _isLoading = false;
   String? _errorText;
 
+  Widget _buildBrandRow({
+    double logoSize = 90,
+    double fontSize = 48,
+    Color textColor = Colors.white,
+    double letterSpacing = 1.2,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Image.asset(
+          'assets/widgets/NutriPlan_Logo.png',
+          height: logoSize,
+        ),
+        const SizedBox(width: 12),
+        Text(
+          'NutriPlan',
+          style: TextStyle(
+            fontSize: fontSize,
+            fontWeight: FontWeight.bold,
+            color: textColor,
+            letterSpacing: letterSpacing,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -146,17 +173,10 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
-                      'NutriPlan',
-                      style: TextStyle(
-                        fontSize: 48,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
+                _buildBrandRow(),
                     const SizedBox(height: 8),
                     const Text(
-                      'Admin Login',
+                      'Admin',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w500,

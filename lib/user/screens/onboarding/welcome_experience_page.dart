@@ -15,11 +15,15 @@ class _WelcomeExperiencePageState extends State<WelcomeExperiencePage> with Tick
   int _pageIndex = 0;
   
   // Animation controllers for first slide
-  late AnimationController _titleController;
+  late AnimationController _logoPopController;
+  late AnimationController _textEntranceController;
   late AnimationController _titleSlideController; // Separate controller for slide animation
   late AnimationController _contentController;
+  late Animation<double> _logoScaleAnimation;
+  late Animation<double> _logoFadeAnimation;
+  late Animation<Offset> _textSlideFromLeft;
+  late Animation<double> _textFadeAnimation;
   late Animation<Offset> _titleSlideAnimation;
-  late Animation<double> _titleFadeAnimation;
   late Animation<double> _contentFadeAnimation;
   bool _animationComplete = false; // Track when animation is done
 
@@ -85,8 +89,12 @@ class _WelcomeExperiencePageState extends State<WelcomeExperiencePage> with Tick
   void initState() {
     super.initState();
     // Initialize animation controllers
-    _titleController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+    _logoPopController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+    _textEntranceController = AnimationController(
+      duration: const Duration(milliseconds: 600),
       vsync: this,
     );
     _titleSlideController = AnimationController(
@@ -98,9 +106,22 @@ class _WelcomeExperiencePageState extends State<WelcomeExperiencePage> with Tick
       vsync: this,
     );
     
-    // Title fade in animation
-    _titleFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _titleController, curve: Curves.easeOut),
+    // Logo pop-in
+    _logoScaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _logoPopController, curve: Curves.easeOutBack),
+    );
+    _logoFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _logoPopController, curve: Curves.easeOut),
+    );
+    // Text slides from left
+    _textSlideFromLeft = Tween<Offset>(
+      begin: const Offset(-0.4, 0),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(parent: _textEntranceController, curve: Curves.easeOutCubic),
+    );
+    _textFadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _textEntranceController, curve: Curves.easeOut),
     );
     // Title slide up animation - from center (0.5) to title position (0.2)
     // Slide distance: 0.2 - 0.5 = -0.3 (30% of screen height up)
@@ -118,39 +139,47 @@ class _WelcomeExperiencePageState extends State<WelcomeExperiencePage> with Tick
     // Start animations after first frame is rendered
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _pageIndex == 0) {
-        setState(() => _animationComplete = false);
-        // First: NutriPlan text fades in and stays in middle for 2 seconds
-        _titleController.forward().then((_) {
-          if (mounted) {
-            // Wait 2 seconds before sliding up
-            Future.delayed(const Duration(seconds: 2), () {
-              if (mounted) {
-                // Now slide up using separate controller
-                _titleSlideController.forward().then((_) {
+        _startIntroAnimations();
+      }
+    });
+  }
+
+  void _startIntroAnimations() {
+    setState(() => _animationComplete = false);
+    _logoPopController.reset();
+    _textEntranceController.reset();
+    _titleSlideController.reset();
+    _contentController.reset();
+
+    _logoPopController.forward().then((_) {
+      if (!mounted) return;
+      Future.delayed(const Duration(milliseconds: 150), () {
+        if (!mounted) return;
+        _textEntranceController.forward().then((_) {
+          if (!mounted) return;
+          Future.delayed(const Duration(milliseconds: 150), () {
+            if (!mounted) return;
+            _titleSlideController.forward().then((_) {
+              if (!mounted) return;
+              Future.delayed(const Duration(milliseconds: 200), () {
+                if (!mounted) return;
+                _contentController.forward().then((_) {
                   if (mounted) {
-                    // Small delay, then content fades in
-                    Future.delayed(const Duration(milliseconds: 200), () {
-                      if (mounted) {
-                        _contentController.forward().then((_) {
-                          if (mounted) {
-                            setState(() => _animationComplete = true);
-                          }
-                        });
-                      }
-                    });
+                    setState(() => _animationComplete = true);
                   }
                 });
-              }
+              });
             });
-          }
+          });
         });
-      }
+      });
     });
   }
 
   @override
   void dispose() {
-    _titleController.dispose();
+    _logoPopController.dispose();
+    _textEntranceController.dispose();
     _titleSlideController.dispose();
     _contentController.dispose();
     _pageController.dispose();
@@ -194,33 +223,7 @@ class _WelcomeExperiencePageState extends State<WelcomeExperiencePage> with Tick
                   setState(() => _pageIndex = index);
                   // Restart animations when returning to first slide
                   if (index == 0) {
-                    setState(() => _animationComplete = false);
-                    _titleController.reset();
-                    _titleSlideController.reset();
-                    _contentController.reset();
-                    _titleController.forward().then((_) {
-                      if (mounted) {
-                        // Wait 2 seconds before sliding up
-                        Future.delayed(const Duration(seconds: 2), () {
-                          if (mounted) {
-                            _titleSlideController.forward().then((_) {
-                              if (mounted) {
-                                // Small delay, then content fades in
-                                Future.delayed(const Duration(milliseconds: 200), () {
-                                  if (mounted) {
-                                    _contentController.forward().then((_) {
-                                      if (mounted) {
-                                        setState(() => _animationComplete = true);
-                                      }
-                                    });
-                                  }
-                                });
-                              }
-                            });
-                          }
-                        });
-                      }
-                    });
+                    _startIntroAnimations();
                   } else {
                     setState(() => _animationComplete = true);
                   }
@@ -306,18 +309,37 @@ class _WelcomeExperiencePageState extends State<WelcomeExperiencePage> with Tick
                             top: centerY - 21 + slideOffset, // Start at center, slide up
                             left: 0,
                             right: 0,
-                            child: FadeTransition(
-                              opacity: _titleFadeAnimation,
-                              child: Center(
-                                child: Text(
-                                  'NutriPlan',
-                                  style: theme.textTheme.displayLarge?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 2,
-                                    fontSize: 42,
+                            child: Center(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ScaleTransition(
+                                    scale: _logoScaleAnimation,
+                                    child: FadeTransition(
+                                      opacity: _logoFadeAnimation,
+                                      child: Image.asset(
+                                        'assets/widgets/NutriPlan_Logo.png',
+                                        height: 60,
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                  const SizedBox(width: 14),
+                                  SlideTransition(
+                                    position: _textSlideFromLeft,
+                                    child: FadeTransition(
+                                      opacity: _textFadeAnimation,
+                                      child: Text(
+                                        'NutriPlan',
+                                        style: theme.textTheme.displayLarge?.copyWith(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 2,
+                                          fontSize: 42,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           );

@@ -97,6 +97,7 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
       case 'desserts':
         return _getDessertsRecipes(recipes);
       case 'vegetarian':
+      case 'vegetable':
         return _getVegetarianRecipes(recipes);
       
       // Health-oriented categories
@@ -155,16 +156,34 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
   }
 
   List<Recipe> _getPorkRecipes(List<Recipe> recipes) {
-    return recipes.where((recipe) => 
-      recipe.title.toLowerCase().contains('pork') ||
-      recipe.title.toLowerCase().contains('baboy') ||
-      recipe.title.toLowerCase().contains('lechon') ||
-      recipe.title.toLowerCase().contains('sisig') ||
-      recipe.title.toLowerCase().contains('adobo') ||
-      recipe.title.toLowerCase().contains('kaldereta') ||
-      recipe.title.toLowerCase().contains('afritada') ||
-      recipe.title.toLowerCase().contains('menudo')
-    ).toList();
+    return recipes.where((recipe) {
+      final title = recipe.title.toLowerCase();
+      final ingredients = recipe.ingredients.map((i) => i.toLowerCase()).join(' ');
+      
+      // STRICTLY EXCLUDE recipes with beef or chicken
+      if (title.contains('beef') || title.contains('baka') || 
+          title.contains('chicken') || title.contains('manok')) {
+        return false;
+      }
+      
+      // Check ingredients - exclude if contains beef or chicken
+      if (ingredients.contains('beef') || ingredients.contains('baka') ||
+          ingredients.contains('chicken') || ingredients.contains('manok')) {
+        return false;
+      }
+      
+      // Include pork-specific recipes
+      return title.contains('pork') ||
+          title.contains('baboy') ||
+          title.contains('lechon') ||
+          (title.contains('sisig') && !title.contains('chicken') && !title.contains('beef')) ||
+          (title.contains('adobo') && !title.contains('chicken') && !title.contains('beef')) ||
+          (title.contains('kaldereta') && !title.contains('chicken') && !title.contains('beef')) ||
+          (title.contains('afritada') && !title.contains('chicken') && !title.contains('beef')) ||
+          (title.contains('menudo') && !title.contains('chicken') && !title.contains('beef')) ||
+          ingredients.contains('pork') ||
+          ingredients.contains('baboy');
+    }).toList();
   }
 
 
@@ -172,6 +191,14 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
   List<Recipe> _getChickenRecipes(List<Recipe> recipes) {
     return recipes.where((recipe) {
       final title = recipe.title.toLowerCase();
+      final ingredients = recipe.ingredients.map((i) => i.toLowerCase()).join(' ');
+      
+      // STRICTLY EXCLUDE recipes with beef or pork
+      if (title.contains('beef') || title.contains('baka') || 
+          title.contains('pork') || title.contains('baboy')) {
+        return false;
+      }
+      
       // Exclude recipes that are clearly not chicken-based
       if (title.contains('pusit') ||
           title.contains('kangkong') ||
@@ -189,23 +216,40 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
         return false;
       }
       
+      // Check ingredients - exclude if contains beef or pork
+      if (ingredients.contains('beef') || ingredients.contains('baka') ||
+          ingredients.contains('pork') || ingredients.contains('baboy')) {
+        return false;
+      }
+      
       // Include chicken-specific recipes
-      return (title.contains('chicken') && !title.contains('beef')) ||
+      return (title.contains('chicken') && !title.contains('beef') && !title.contains('pork')) ||
           title.contains('manok') ||
-          title.contains('tinola') ||
-          title.contains('inasal') ||
+          (title.contains('tinola') && !title.contains('beef') && !title.contains('pork')) ||
+          (title.contains('inasal') && !title.contains('beef') && !title.contains('pork')) ||
           title.contains('fried chicken') ||
           (title.contains('kare') && title.contains('chicken')) || // Chicken kare kare
-          recipe.ingredients.any((ingredient) => 
-            ingredient.toLowerCase().contains('chicken') ||
-            ingredient.toLowerCase().contains('manok')
-          );
+          (title.contains('adobo') && (title.contains('chicken') || title.contains('manok'))) ||
+          (title.contains('kaldereta') && (title.contains('chicken') || title.contains('manok'))) ||
+          recipe.ingredients.any((ingredient) {
+            final ing = ingredient.toLowerCase();
+            return (ing.contains('chicken') || ing.contains('manok')) &&
+                   !ing.contains('beef') && !ing.contains('baka') &&
+                   !ing.contains('pork') && !ing.contains('baboy');
+          });
     }).toList();
   }
 
   List<Recipe> _getBeefRecipes(List<Recipe> recipes) {
     return recipes.where((recipe) {
       final title = recipe.title.toLowerCase();
+      final ingredients = recipe.ingredients.map((i) => i.toLowerCase()).join(' ');
+      
+      // STRICTLY EXCLUDE recipes with pork or chicken
+      if (title.contains('pork') || title.contains('baboy') || 
+          title.contains('chicken') || title.contains('manok')) {
+        return false;
+      }
       
       // Exclude chicken-based recipes that might contain beef-related keywords
       if (title.contains('chicken') && (title.contains('kare') || title.contains('kaldereta'))) {
@@ -217,37 +261,78 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
         return false;
       }
       
+      // Check ingredients - exclude if contains pork or chicken
+      if (ingredients.contains('pork') || ingredients.contains('baboy') ||
+          ingredients.contains('chicken') || ingredients.contains('manok')) {
+        return false;
+      }
+      
       // Include beef-specific recipes
       return title.contains('beef') ||
           title.contains('baka') ||
-          (title.contains('tapa') && !title.contains('chicken')) ||
+          (title.contains('tapa') && !title.contains('chicken') && !title.contains('pork')) ||
           title.contains('bulalo') ||
-          (title.contains('kare-kare') && !title.contains('chicken')) ||
-          (title.contains('kare kare') && !title.contains('chicken')) ||
-          (title.contains('kaldereta') && !title.contains('chicken')) ||
-          recipe.ingredients.any((ingredient) => 
-            (ingredient.toLowerCase().contains('beef') ||
-             ingredient.toLowerCase().contains('baka')) &&
-            !ingredient.toLowerCase().contains('chicken')
-          );
+          (title.contains('kare-kare') && !title.contains('chicken') && !title.contains('pork')) ||
+          (title.contains('kare kare') && !title.contains('chicken') && !title.contains('pork')) ||
+          (title.contains('kaldereta') && !title.contains('chicken') && !title.contains('pork')) ||
+          (title.contains('adobo') && (title.contains('beef') || title.contains('baka'))) ||
+          recipe.ingredients.any((ingredient) {
+            final ing = ingredient.toLowerCase();
+            return (ing.contains('beef') || ing.contains('baka')) &&
+                   !ing.contains('chicken') && !ing.contains('manok') &&
+                   !ing.contains('pork') && !ing.contains('baboy');
+          });
     }).toList();
   }
 
   List<Recipe> _getVegetarianRecipes(List<Recipe> recipes) {
-    return recipes.where((recipe) => 
-      recipe.tags.contains('Vegetarian') ||
-      recipe.tags.contains('Vegan') ||
-      recipe.title.toLowerCase().contains('vegetarian') ||
-      recipe.title.toLowerCase().contains('vegan') ||
-      recipe.title.toLowerCase().contains('pinakbet') ||
-      recipe.title.toLowerCase().contains('laing') ||
-      recipe.title.toLowerCase().contains('ginataang gulay') ||
-      recipe.title.toLowerCase().contains('tofu') ||
-      recipe.ingredients.any((ingredient) => 
-        ingredient.toLowerCase().contains('tofu') ||
-        ingredient.toLowerCase().contains('vegetable')
-      )
-    ).toList();
+    return recipes.where((recipe) {
+      final title = recipe.title.toLowerCase();
+      final ingredients = recipe.ingredients.map((i) => i.toLowerCase()).join(' ');
+      
+      // STRICTLY EXCLUDE any meat ingredients
+      final meatKeywords = [
+        'beef', 'baka', 'pork', 'baboy', 'chicken', 'manok',
+        'fish', 'isda', 'seafood', 'shrimp', 'hipon', 'crab', 'alimango',
+        'meat', 'karne', 'turkey', 'duck', 'bibe', 'lamb', 'kordero'
+      ];
+      
+      // Exclude if title contains meat keywords
+      if (meatKeywords.any((keyword) => title.contains(keyword))) {
+        return false;
+      }
+      
+      // Exclude if ingredients contain meat keywords
+      if (meatKeywords.any((keyword) => ingredients.contains(keyword))) {
+        return false;
+      }
+      
+      // Include vegetarian-specific recipes
+      return recipe.tags.contains('Vegetarian') ||
+          recipe.tags.contains('Vegan') ||
+          title.contains('vegetarian') ||
+          title.contains('vegan') ||
+          title.contains('pinakbet') ||
+          title.contains('laing') ||
+          title.contains('ginataang gulay') ||
+          title.contains('ginisang monggo') ||
+          title.contains('ginisang munggo') ||
+          title.contains('tofu') ||
+          title.contains('chop suey') ||
+          title.contains('kangkong') ||
+          title.contains('talong') ||
+          title.contains('sitaw') ||
+          title.contains('okra') ||
+          title.contains('ampalaya') ||
+          title.contains('kalabasa') ||
+          recipe.ingredients.any((ingredient) {
+            final ing = ingredient.toLowerCase();
+            return (ing.contains('tofu') || ing.contains('vegetable') || 
+                    ing.contains('gulay') || ing.contains('monggo') || 
+                    ing.contains('munggo')) &&
+                   !meatKeywords.any((keyword) => ing.contains(keyword));
+          });
+    }).toList();
   }
 
   // New category filtering methods

@@ -766,7 +766,7 @@ class SmartMealSuggestionService {
     }
   }
 
-  /// Build prompt for AI suggestions
+  /// Build prompt for AI suggestions with enhanced anti-repetition and recipe selection
   static Future<String> _buildAIPrompt(SuggestionContext context) async {
     final mealType = context.mealCategory.name.toLowerCase();
     final timeOfDay = context.targetTime.hour < 12 ? 'morning' : 
@@ -787,8 +787,37 @@ IMPORTANT: Suggest meals that COMPLEMENT the last meal nutritionally. If last me
 '''
         : 'No previous meal logged today.';
     
-    // Get health conditions
+    // Get recent meals to avoid repetition
+    final recentMeals = await _getRecentRecipeIdentifiers(context.userId, days: 14);
+    final recentMealsList = recentMeals.take(15).join(', ');
+    
+    // Get available recipes for this meal category
+    var allRecipes = await RecipeService.fetchRecipes(userId: context.userId);
+    allRecipes = allRecipes.where((r) => !RecipeService.isRecipeDisallowed(r)).toList();
+    
+    // Filter by health conditions
     final healthConditions = context.userGoals.healthConditions ?? [];
+    if (healthConditions.isNotEmpty && !healthConditions.contains('none')) {
+      allRecipes = allRecipes.where((r) {
+        return _isRecipeHealthyForConditions(r, healthConditions);
+      }).toList();
+    }
+    
+    // Filter healthy recipes
+    allRecipes = allRecipes.where((r) => _isRecipeHealthy(r)).toList();
+    
+    // Build available recipes list (limit to 50 for token efficiency)
+    final recipesList = allRecipes.take(50).map((r) {
+      final protein = (r.macros['protein'] ?? 0).toDouble();
+      final carbs = (r.macros['carbs'] ?? 0).toDouble();
+      final fat = (r.macros['fat'] ?? 0).toDouble();
+      final fiber = (r.macros['fiber'] ?? 0).toDouble();
+      final sugar = (r.macros['sugar'] ?? 0).toDouble();
+      final sodium = (r.macros['sodium'] ?? 0).toDouble();
+      return '- ${r.title} (ID: ${r.id}) | Calories: ${r.calories} | Protein: ${protein}g | Carbs: ${carbs}g | Fat: ${fat}g | Fiber: ${fiber}g | Sugar: ${sugar}g | Sodium: ${sodium}mg';
+    }).join('\n');
+    
+    // Get health conditions info
     final healthInfo = healthConditions.isNotEmpty && !healthConditions.contains('none')
         ? '''
 CRITICAL HEALTH CONDITIONS (STRICTLY ENFORCE):
@@ -807,34 +836,43 @@ ONLY suggest recipes that meet ALL health condition requirements.
         : '';
     
     return '''
-You are a Filipino nutrition expert. Suggest 3 HEALTHY Filipino recipes for $mealType in the $timeOfDay.
+You are an expert Filipino nutritionist. Analyze the user's data and suggest 3 HEALTHY Filipino recipes for $mealType in the $timeOfDay.
 
 $lastMealInfo
 
 Current nutrition status:
-- Protein: ${context.currentNutrition.totalProtein}g (goal: ${context.userGoals.proteinGoal}g)
-- Carbs: ${context.currentNutrition.totalCarbs}g (goal: ${context.userGoals.carbGoal}g)
-- Fat: ${context.currentNutrition.totalFat}g (goal: ${context.userGoals.fatGoal}g)
-- Calories: ${context.currentNutrition.totalCalories} (goal: ${context.userGoals.calorieGoal})
+- Protein: ${context.currentNutrition.totalProtein}g (goal: ${context.userGoals.proteinGoal}g) - ${((context.currentNutrition.totalProtein / context.userGoals.proteinGoal) * 100).toStringAsFixed(0)}%
+- Carbs: ${context.currentNutrition.totalCarbs}g (goal: ${context.userGoals.carbGoal}g) - ${((context.currentNutrition.totalCarbs / context.userGoals.carbGoal) * 100).toStringAsFixed(0)}%
+- Fat: ${context.currentNutrition.totalFat}g (goal: ${context.userGoals.fatGoal}g) - ${((context.currentNutrition.totalFat / context.userGoals.fatGoal) * 100).toStringAsFixed(0)}%
+- Calories: ${context.currentNutrition.totalCalories} (goal: ${context.userGoals.calorieGoal}) - ${((context.currentNutrition.totalCalories / context.userGoals.calorieGoal) * 100).toStringAsFixed(0)}%
+- Fiber: ${context.currentNutrition.totalFiber}g (recommended: 25-30g)
 
 $healthInfo
 
-Nutritional gaps to address: ${context.nutritionalGaps.join(', ')}
+CRITICAL ANTI-REPETITION REQUIREMENT:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The following meals were consumed in the last 14 days. You MUST AVOID selecting these to ensure variety:
+${recentMealsList.isEmpty ? 'None (user has no recent meals)' : recentMealsList}
+
+AVAILABLE RECIPES (SELECT FROM THESE ONLY):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+$recipesList
 
 REQUIREMENTS:
-1. ONLY suggest HEALTHY meals (reasonable calories 200-800, low sugar <30g, low sodium <1000mg, has protein >5g or fiber >2g)
+1. SELECT recipes ONLY from the "AVAILABLE RECIPES" list above - use EXACT recipe titles
 2. Meals must COMPLEMENT the last meal nutritionally (if last meal provided)
-3. STRICTLY follow health condition restrictions (if any)
-4. Are appropriate for $mealType
-5. Fit Filipino dietary preferences
-6. Include cost estimates (₱50-200 range)
+3. STRICTLY AVOID meals from the "Recent Meals" list - prioritize variety
+4. STRICTLY follow health condition restrictions (if any)
+5. Are appropriate for $mealType
+6. Help address nutritional gaps: ${context.nutritionalGaps.map((g) => '${g.nutrient} (${g.priority.name})').join(', ')}
+7. Ensure variety - no repetitive suggestions
 
 Format your response as JSON:
 {
   "suggestions": [
     {
-      "title": "Recipe Name",
-      "reasoning": "Why this recipe complements the last meal and meets health requirements",
+      "title": "EXACT recipe title from available recipes list",
+      "reasoning": "Why this recipe complements the last meal, addresses nutritional gaps, and ensures variety",
       "cost": 120,
       "calories": 350,
       "protein": 25,
@@ -846,6 +884,8 @@ Format your response as JSON:
     }
   ]
 }
+
+IMPORTANT: Use EXACT recipe titles from the available recipes list. Do not create new recipes.
 ''';
   }
 

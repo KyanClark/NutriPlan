@@ -6,7 +6,6 @@ import '../../services/feedback_service.dart';
 import '../../services/fnri_nutrition_service.dart';
 import '../../services/recipe_service.dart';
 import '../../widgets/nutrition_loading_skeleton.dart';
-import 'ingredient_tracking_debug_page.dart';
 
 /// Macro chip widget for displaying nutrition information with icons
 class _MacroChip extends StatelessWidget {
@@ -14,8 +13,8 @@ class _MacroChip extends StatelessWidget {
   final String value;
   final String unit;
   const _MacroChip({required this.label, required this.value, this.unit = 'g'});
-  
-  // Get icon path for each macro
+
+  // Icon asset per macro
   String? _getIconPath(String label) {
     switch (label.toLowerCase()) {
       case 'carbs':
@@ -36,8 +35,7 @@ class _MacroChip extends StatelessWidget {
         return null;
     }
   }
-  
-  // Get fallback icon if image fails to load
+
   IconData _getFallbackIcon(String label) {
     switch (label.toLowerCase()) {
       case 'carbs':
@@ -58,105 +56,109 @@ class _MacroChip extends StatelessWidget {
         return Icons.info;
     }
   }
-  
-  // Get color for each macro
-  Color _getColor(String label) {
+
+  // Palette tuned for readability (darker text, subtle backgrounds)
+  Color _getBaseColor(String label) {
     switch (label.toLowerCase()) {
       case 'carbs':
-        return Colors.orange;
+        return const Color(0xFFEF6C00); // deep orange
       case 'protein':
-        return const Color.fromARGB(255, 255, 111, 111);
+        return const Color(0xFFD81B60); // deep pink
       case 'fat':
-        return const Color.fromARGB(255, 253, 224, 95);
+        return const Color(0xFFF9A825); // amber
       case 'fiber':
-        return const Color.fromARGB(255, 126, 248, 130);
+        return const Color(0xFF2E7D32); // green
       case 'sugar':
-        return const Color.fromARGB(255, 255, 173, 95);
+        return const Color(0xFF8E24AA); // purple
       case 'sodium':
-        return const Color.fromARGB(255, 146, 233, 255);
+        return const Color(0xFF039BE5); // blue
       case 'cholesterol':
-        return const Color.fromARGB(255, 230, 209, 24);
+        return const Color(0xFF6D4C41); // brown
       default:
-        return Colors.green;
+        return const Color(0xFF1565C0);
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
+    final color = _getBaseColor(label);
     final iconPath = _getIconPath(label);
-    final color = _getColor(label);
-    
+
     return Container(
+      constraints: const BoxConstraints(minWidth: 150, maxWidth: 200),
       margin: const EdgeInsets.only(right: 8, bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withOpacity(0.08),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: color.withOpacity(0.3),
+          color: color.withOpacity(0.35),
           width: 1,
         ),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Icon
-          if (iconPath != null)
-            SizedBox(
-              width: 20,
-              height: 20,
-              child: Image.asset(
-                iconPath,
-                width: 20,
-                height: 20,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  return Icon(
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: iconPath != null
+                ? Image.asset(
+                    iconPath,
+                    width: 18,
+                    height: 18,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Icon(
+                        _getFallbackIcon(label),
+                        size: 18,
+                        color: color,
+                      );
+                    },
+                    cacheWidth: 48,
+                    cacheHeight: 48,
+                    filterQuality: FilterQuality.low,
+                    gaplessPlayback: true,
+                  )
+                : Icon(
                     _getFallbackIcon(label),
                     size: 18,
                     color: color,
-                  );
-                },
-                cacheWidth: 40,
-                cacheHeight: 40,
-                filterQuality: FilterQuality.low,
-                gaplessPlayback: true,
-              ),
-            )
-          else
-            Icon(
-              _getFallbackIcon(label),
-              size: 18,
-              color: color,
-            ),
-          const SizedBox(width: 6),
-          // Label and value
-          Flexible(
-            child: RichText(
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              text: TextSpan(
-                style: TextStyle(
-                  fontSize: 13,
-                  color: color,
-                  fontWeight: FontWeight.w600,
+                  ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: color.withOpacity(0.9),
+                  ),
                 ),
-                children: [
-                  TextSpan(
-                    text: '$label: ',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                    ),
+                const SizedBox(height: 2),
+                Text(
+                  '$value$unit',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
                   ),
-                  TextSpan(
-                    text: '$value$unit',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
@@ -566,6 +568,229 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
     }
   }
 
+  /// Calculate recipe cost from ingredients
+  Future<void> _calculateRecipeCost() async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Calculating cost...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final quantities = _estimateIngredientQuantities(widget.recipe.ingredients);
+      double totalCost = 0.0;
+      final costBreakdown = <String, double>{};
+
+      // Calculate cost for each ingredient
+      for (final ingredient in widget.recipe.ingredients) {
+        final quantity = quantities[ingredient] ?? 100.0; // Quantity in grams
+        final ingredientLower = ingredient.toLowerCase();
+        
+        // Estimate price per 100g based on ingredient type
+        double pricePer100g = _estimateIngredientPrice(ingredientLower);
+        // Calculate cost: (quantity in grams / 100) * price per 100g
+        final ingredientCost = (quantity / 100.0) * pricePer100g;
+        
+        totalCost += ingredientCost;
+        costBreakdown[ingredient] = ingredientCost;
+      }
+
+      // Round to 2 decimal places
+      totalCost = double.parse(totalCost.toStringAsFixed(2));
+
+      // Update recipe cost in database
+      final client = Supabase.instance.client;
+      await client
+          .from('recipes')
+          .update({
+            'cost': totalCost,
+          })
+          .eq('id', widget.recipe.id);
+
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Show result dialog
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.calculate, color: Color(0xFF4CAF50)),
+                SizedBox(width: 8),
+                Text('Cost Calculated'),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Total Cost: ₱${totalCost.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF4CAF50),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Cost Breakdown:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  ...costBreakdown.entries.map((entry) => Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                entry.key,
+                                style: const TextStyle(fontSize: 12),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Text(
+                              '₱${entry.value.toStringAsFixed(2)}',
+                              style: const TextStyle(fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                      )),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        );
+      }
+
+      // Refresh the page to show updated cost
+      if (mounted) {
+        setState(() {
+          // Trigger rebuild to show updated cost
+        });
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error calculating cost: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Estimate price per 100g for an ingredient (in PHP)
+  double _estimateIngredientPrice(String ingredientLower) {
+    // Meat prices (per 100g)
+    if (ingredientLower.contains('chicken') || ingredientLower.contains('manok')) {
+      return 0.50; // ₱50 per kg = ₱0.05 per g = ₱5 per 100g
+    }
+    if (ingredientLower.contains('pork') || ingredientLower.contains('baboy')) {
+      return 0.60; // ₱60 per kg
+    }
+    if (ingredientLower.contains('beef') || ingredientLower.contains('baka')) {
+      return 0.80; // ₱80 per kg
+    }
+    if (ingredientLower.contains('fish') || ingredientLower.contains('isda') || ingredientLower.contains('tilapia')) {
+      return 0.40; // ₱40 per kg
+    }
+
+    // Vegetables (per 100g)
+    if (ingredientLower.contains('onion') || ingredientLower.contains('sibuyas')) {
+      return 0.15; // ₱15 per kg
+    }
+    if (ingredientLower.contains('garlic') || ingredientLower.contains('bawang')) {
+      return 0.30; // ₱30 per kg
+    }
+    if (ingredientLower.contains('tomato') || ingredientLower.contains('kamatis')) {
+      return 0.20; // ₱20 per kg
+    }
+    if (ingredientLower.contains('potato') || ingredientLower.contains('patatas')) {
+      return 0.12; // ₱12 per kg
+    }
+    if (ingredientLower.contains('eggplant') || ingredientLower.contains('talong')) {
+      return 0.15; // ₱15 per kg
+    }
+    if (ingredientLower.contains('string beans') || ingredientLower.contains('sitaw')) {
+      return 0.25; // ₱25 per kg
+    }
+    if (ingredientLower.contains('okra')) {
+      return 0.20; // ₱20 per kg
+    }
+    if (ingredientLower.contains('spinach') || ingredientLower.contains('kangkong')) {
+      return 0.18; // ₱18 per kg
+    }
+    if (ingredientLower.contains('cabbage') || ingredientLower.contains('repolyo')) {
+      return 0.10; // ₱10 per kg
+    }
+
+    // Rice and grains
+    if (ingredientLower.contains('rice') || ingredientLower.contains('bigas')) {
+      return 0.08; // ₱8 per kg
+    }
+
+    // Cooking ingredients
+    if (ingredientLower.contains('oil') || ingredientLower.contains('mantika')) {
+      return 0.25; // ₱25 per kg
+    }
+    if (ingredientLower.contains('salt') || ingredientLower.contains('asin')) {
+      return 0.05; // ₱5 per kg
+    }
+    if (ingredientLower.contains('sugar') || ingredientLower.contains('asukal')) {
+      return 0.10; // ₱10 per kg
+    }
+    if (ingredientLower.contains('vinegar') || ingredientLower.contains('suka')) {
+      return 0.15; // ₱15 per kg
+    }
+    if (ingredientLower.contains('soy sauce') || ingredientLower.contains('toyo')) {
+      return 0.20; // ₱20 per kg
+    }
+
+    // Eggs
+    if (ingredientLower.contains('egg') || ingredientLower.contains('itlog')) {
+      return 0.12; // ~₱12 per 100g (1 egg ≈ 50g, ₱6 per egg)
+    }
+
+    // Default price for unknown ingredients
+    return 0.20; // ₱20 per kg default
+  }
+
   /// Manually update nutrition data for the recipe
   Future<void> _updateNutrition() async {
     if (mounted) {
@@ -911,6 +1136,12 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
     }
   }
 
+  // Helper function to format date using local time (not UTC) to prevent date shift
+  String _formatDateForMealPlan(DateTime date) {
+    final localDate = date.toLocal();
+    return '${localDate.year}-${localDate.month.toString().padLeft(2, '0')}-${localDate.day.toString().padLeft(2, '0')}';
+  }
+
   Future<void> _addToMealPlan(TimeOfDay time) async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
@@ -938,7 +1169,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
               'title': widget.recipe.title,
               'meal_type': mealType,
               'meal_time': '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:00',
-              'date': DateTime.now().toUtc().toIso8601String().split('T').first,
+              'date': _formatDateForMealPlan(DateTime.now()),
             });
       } catch (e) {
         print('Failed to save to meal_plans: $e');
@@ -1187,25 +1418,25 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                                   const SizedBox(height: 12),
                                 
                                 // Test buttons for nutrition data management
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.start,
-                                  children: [
-                                    ElevatedButton.icon(
-                                      onPressed: isUpdatingNutrition ? null : _updateNutrition,
-                                      icon: const Icon(Icons.refresh, size: 16),
-                                      label: const Text('Update Nutrition'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.blue,
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                  ],
-                                ),
-                                  const SizedBox(height: 12),
+                                // Row(
+                                //   mainAxisAlignment: MainAxisAlignment.start,
+                                //   children: [
+                                //     ElevatedButton.icon(
+                                //       onPressed: isUpdatingNutrition ? null : _updateNutrition,
+                                //       icon: const Icon(Icons.refresh, size: 16),
+                                //       label: const Text('Update Nutrition'),
+                                //       style: ElevatedButton.styleFrom(
+                                //         backgroundColor: Colors.blue,
+                                //         foregroundColor: Colors.white,
+                                //         shape: RoundedRectangleBorder(
+                                //           borderRadius: BorderRadius.circular(8),
+                                //         ),
+                                //       ),
+                                //     ),
+                                //     const SizedBox(width: 8),
+                                //   ],
+                                // ),
+                                //   const SizedBox(height: 12),
                                 
                                 // Show loading state while updating
                                 if (isUpdatingNutrition)
@@ -1315,16 +1546,9 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                                   children: [
                                     const Text('Ingredients', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                                     TextButton.icon(
-                                      onPressed: () async {
-                                        await Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) => IngredientTrackingDebugPage(recipe: recipe),
-                                          ),
-                                        );
-                                      },
-                                      icon: const Icon(Icons.analytics_outlined, size: 18),
-                                      label: const Text('Track'),
+                                      onPressed: () => _calculateRecipeCost(),
+                                      icon: const Icon(Icons.calculate, size: 18),
+                                      label: const Text('Calculate Cost'),
                                       style: TextButton.styleFrom(
                                         foregroundColor: const Color(0xFF4CAF50),
                                       ),

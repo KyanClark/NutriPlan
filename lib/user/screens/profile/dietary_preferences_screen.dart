@@ -85,7 +85,7 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
     'Dairy (Milk)',
     'Eggs',
     'Peanuts',
-    'Tree Nuts',
+    'Coconuts',
     'Soy',
     'Wheat / Gluten',
     'Fish',
@@ -432,9 +432,8 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
                   if (_allergies.isNotEmpty) ...[
                     ExpansionTile(
                       initiallyExpanded: false,
-                      leading: const Icon(Icons.bug_report, color: Colors.orange),
                       title: const Text(
-                        'Debug: Excluded Recipes',
+                        'Excluded Recipes',
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                       ),
                       subtitle: Text(_excludedRecipes.isEmpty 
@@ -517,15 +516,6 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
                                               ),
                                             );
                                           }),
-                                          if (recipe.allergyWarning.isNotEmpty) ...[
-                                            const SizedBox(height: 12),
-                                            const Text(
-                                              'Allergy Warning:',
-                                              style: TextStyle(fontWeight: FontWeight.bold),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(recipe.allergyWarning),
-                                          ],
                                         ],
                                       ),
                                     ),

@@ -158,7 +158,7 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
                   Flexible(
                     flex: 2,
                     child: SizedBox(
-                      height: 50,
+                      height: 100,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
                         shrinkWrap: true,
@@ -596,7 +596,7 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
             children: [
               // Recipe image
               AspectRatio(
-                aspectRatio: 1.0,
+                aspectRatio: 1.5,
                 child: Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
@@ -694,6 +694,12 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
   }
 
 
+  // Helper function to format date using local time (not UTC) to prevent date shift
+  String _formatDateForMealPlan(DateTime date) {
+    final localDate = date.toLocal();
+    return '${localDate.year}-${localDate.month.toString().padLeft(2, '0')}-${localDate.day.toString().padLeft(2, '0')}';
+  }
+
   Future<void> _buildMealPlan() async {
     if (_selectedRecipes.isEmpty) return;
 
@@ -714,7 +720,7 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
                     'title': m.recipe.title,
                     'meal_type': m.mealType ?? 'dinner',
                     'meal_time': m.time != null ? '${m.time!.hour.toString().padLeft(2, '0')}:${m.time!.minute.toString().padLeft(2, '0')}:00' : null,
-                    'date': (m.scheduledDate ?? DateTime.now()).toUtc().toIso8601String().split('T').first,
+                    'date': _formatDateForMealPlan(m.scheduledDate ?? DateTime.now()),
                   };
                   
                   // Add rice data if included (only if columns exist in database)
@@ -737,7 +743,7 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
                         'title': m.recipe.title,
                         'meal_type': m.mealType ?? 'dinner',
                         'meal_time': m.time != null ? '${m.time!.hour.toString().padLeft(2, '0')}:${m.time!.minute.toString().padLeft(2, '0')}:00' : null,
-                        'date': (m.scheduledDate ?? DateTime.now()).toUtc().toIso8601String().split('T').first,
+                        'date': _formatDateForMealPlan(m.scheduledDate ?? DateTime.now()),
                       };
                       await Supabase.instance.client
                           .from('meal_plans')

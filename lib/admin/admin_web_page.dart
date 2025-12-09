@@ -12,6 +12,7 @@ class AdminWebPage extends StatefulWidget {
 
 class _AdminWebPageState extends State<AdminWebPage> {
   int _selectedIndex = 0; // 0 = recipes, 1 = feedback
+  bool _isDarkMode = false;
 
   void _onLogout() async {
     final confirmed = await showDialog<bool>(
@@ -53,14 +54,28 @@ class _AdminWebPageState extends State<AdminWebPage> {
   @override
   Widget build(BuildContext context) {
     final isWideScreen = MediaQuery.of(context).size.width > 900;
+    final Color scaffoldBg = _isDarkMode ? const Color(0xFF0F0F0F) : Colors.grey[100]!;
+    final Color panelBg = _isDarkMode ? const Color(0xFF1A1A1A) : Colors.white;
+    final Color sidebarText = _isDarkMode ? Colors.white : const Color(0xFF4CAF50);
+    final Color sidebarIcon = _isDarkMode ? Colors.white : const Color(0xFF4CAF50);
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: scaffoldBg,
       appBar: AppBar(
-        title: const Center(
-          child: Text(
-            'NutriPlan',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+        title: Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset(
+                'assets/widgets/NutriPlan_Logo.png',
+                height: 22,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'NutriPlan',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+              ),
+            ],
           ),
         ),
         backgroundColor: const Color(0xFF4CAF50),
@@ -78,11 +93,11 @@ class _AdminWebPageState extends State<AdminWebPage> {
                 width: isWideScreen ? 240 : 200,
                 margin: const EdgeInsets.only(right: 16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: panelBg,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withOpacity(_isDarkMode ? 0.2 : 0.05),
                       blurRadius: 6,
                       offset: const Offset(0, 3),
                     ),
@@ -96,18 +111,18 @@ class _AdminWebPageState extends State<AdminWebPage> {
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
                       child: Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.admin_panel_settings,
                             size: 20,
-                            color: Color(0xFF4CAF50),
+                            color: sidebarIcon,
                           ),
                           const SizedBox(width: 8),
-                          const Text(
+                          Text(
                             'Admin Panel',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF4CAF50),
+                              color: sidebarText,
                             ),
                           ),
                         ],
@@ -151,12 +166,19 @@ class _AdminWebPageState extends State<AdminWebPage> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
                   child: Container(
-                    color: Colors.white,
+                    color: panelBg,
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: _selectedIndex == 0
-                          ? const RecipeManagementTab()
-                          : const FeedbackManagementTab(),
+                          ? RecipeManagementTab(
+                              isDarkMode: _isDarkMode,
+                              onToggleDarkMode: (value) {
+                                setState(() => _isDarkMode = value);
+                              },
+                            )
+                          : FeedbackManagementTab(
+                              isDarkMode: _isDarkMode,
+                            ),
                     ),
                   ),
                 ),

@@ -273,12 +273,22 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       backgroundColor: Colors.grey[50],
       appBar: _selectedIndex == 0
           ? AppBar(
-              title: const Text(
-                'NutriPlan',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                ),
+              title: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(
+                    'assets/widgets/NutriPlan_Logo.png',
+                    height: 22,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'NutriPlan',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                    ),
+                  ),
+                ],
               ),
               backgroundColor: Colors.white,
               elevation: 0,
@@ -903,10 +913,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         'gradientColors': [const Color(0xFF4CAF50), const Color(0xFF8BC34A)],
       },
       {
-        'type': 'tip',
-        'title': 'Balanced Nutrition 🥗',
+        'type': 'meal_planning',
+        'title': 'Smart Meal Planning Made Simple',
         'description':
-            'Include a variety of fruits, vegetables, proteins, and whole grains in your daily meals.',
+            'Plan balanced meals tailored to your dietary preferences and health goals. Get personalized suggestions with our Auto General Meal Planning!',
+        'imagePath': 'assets/widgets/meal_planning_banner.jpg',
         'gradientColors': [const Color(0xFF2196F3), const Color(0xFF03DAC6)],
       },
     ];

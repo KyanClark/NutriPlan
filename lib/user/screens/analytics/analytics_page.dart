@@ -168,8 +168,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
 
       // Always refresh in background for freshness (but don't show skeleton if we had cache)
       if (hasCachedWeek && hasCachedMonth && hasCachedGoals) {
-        // Background refresh - fetch fresh data but don't show loading
-        _refreshAnalyticsDataInBackground();
+        // Background refresh - fetch fresh data but don't show loading (non-blocking)
+        Future.microtask(() => _refreshAnalyticsDataInBackground());
       }
 
       if (!mounted) return;
@@ -180,8 +180,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
         _isLoading = false;
       });
 
-      // Generate AI insights
-      _generateWeeklyInsights();
+      // Generate AI insights asynchronously without blocking
+      Future.microtask(() => _generateWeeklyInsights());
     } catch (e) {
       AppLogger.error('Error loading analytics data',  e);
       if (!mounted) return;
@@ -1057,6 +1057,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
     };
 
     // Build expected keys (for weekly ensure Mon-Sun order even when missing)
+    // For monthly, generate all days of the month to show full chart even with limited data
     List<String> sortedKeys;
     if (_selectedPeriod == 'weekly') {
       // Use user-selected week start (Monday)
@@ -1066,7 +1067,13 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
         return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
       });
     } else {
-      sortedKeys = daily.keys.toList()..sort();
+      // For monthly: generate all days of the selected month
+      final monthStart = _selectedMonthStart;
+      final daysInMonth = DateTime(monthStart.year, monthStart.month + 1, 0).day;
+      sortedKeys = List.generate(daysInMonth, (i) {
+        final d = DateTime(monthStart.year, monthStart.month, i + 1);
+        return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      });
     }
 
     // Build points for area line (calories per day)
@@ -1207,23 +1214,44 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
           else if (noData)
             _buildNoDataBanner('No data for this ${_selectedPeriod == 'weekly' ? 'week' : 'month'}')
           else
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: SizedBox(
-            height: 220,
-                child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.vertical,
-                    child: SizedBox(
-                      width: sortedKeys.length > 7 ? sortedKeys.length * 50.0 : double.infinity, // 50px per day if many days
-                      height: 220,
-                      child: _buildChartWithComparison(spots, sortedKeys, dailyGoal),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final bool isWeekly = _selectedPeriod == 'weekly';
+                final double baseWidth = constraints.maxWidth;
+                double chartWidth;
+                if (isWeekly) {
+                  chartWidth = baseWidth;
+                } else {
+                  // For monthly: ensure minimum width is baseWidth, then scale based on days
+                  final double desiredWidth = sortedKeys.length * 40.0;
+                  final double maxWidth = (sortedKeys.length * 50.0).clamp(0, 2000.0);
+                  // Always use at least baseWidth for monthly view to show full chart
+                  final double minWidth = baseWidth;
+                  chartWidth = desiredWidth.clamp(minWidth, maxWidth);
+                  if (!chartWidth.isFinite || chartWidth <= 0) {
+                    chartWidth = baseWidth;
+                  }
+                }
+                final double safeChartWidth = chartWidth.clamp(0.0, 10000.0).isFinite 
+                    ? chartWidth.clamp(0.0, 10000.0)
+                    : baseWidth;
+                
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: SizedBox(
+                    height: 220,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SizedBox(
+                        width: safeChartWidth,
+                        height: 220,
+                        child: _buildChartWithComparison(spots, sortedKeys, dailyGoal),
+                      ),
                     ),
                   ),
-                ),
-              ),
-          ),
+                );
+              },
+            ),
         ],
       ),
     );
@@ -2135,7 +2163,11 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
         },
       ),
       minX: 0,
-      maxX: (spots.isEmpty ? 6 : (spots.length - 1)).toDouble(),
+      // For monthly view, show full month range even if limited data
+      // For weekly, show 6 days (0-6 for 7 days)
+      maxX: _selectedPeriod == 'monthly' 
+          ? (sortedKeys.length - 1).toDouble().clamp(0, 100) // Full month range, capped at 100
+          : (spots.isEmpty ? 6 : (spots.length - 1).toDouble()),
       minY: 0,
       maxY: calculatedMaxY, // Use calculated max with ceiling
       gridData: FlGridData(
@@ -2219,7 +2251,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
         LineChartBarData(
           spots: [
             FlSpot(0, dailyGoal),
-            FlSpot((spots.isEmpty ? 6 : (spots.length - 1)).toDouble(), dailyGoal),
+            FlSpot(_selectedPeriod == 'monthly' 
+                ? (sortedKeys.length - 1).toDouble().clamp(0, 100)
+                : (spots.isEmpty ? 6 : (spots.length - 1)).toDouble(), dailyGoal),
           ],
           color: Colors.orange,
           barWidth: 2,

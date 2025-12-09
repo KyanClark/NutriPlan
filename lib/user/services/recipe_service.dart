@@ -12,6 +12,8 @@ class RecipeService {
     'betamax', // coagulated blood
     'helmet', // chicken head
     'dinuguan', // pork blood stew
+    // Test/development recipes
+    'test', 'test1', 'test2', 'test3', 'testing', 'sample', 'demo',
   ];
 
   /// Returns true if the recipe should be disallowed in smart suggestions

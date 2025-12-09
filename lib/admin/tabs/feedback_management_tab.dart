@@ -5,7 +5,8 @@ import '../pages/view_feedback_dialog.dart';
 import '../widgets/feedback_card_skeleton.dart';
 
 class FeedbackManagementTab extends StatefulWidget {
-  const FeedbackManagementTab({super.key});
+  final bool isDarkMode;
+  const FeedbackManagementTab({super.key, this.isDarkMode = false});
 
   @override
   State<FeedbackManagementTab> createState() => _FeedbackManagementTabState();
@@ -326,19 +327,19 @@ class _FeedbackManagementTabState extends State<FeedbackManagementTab> {
           ),
         ],
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-      child: Row(
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 12,
         children: [
-            SizedBox(
-              width: 200,
+          SizedBox(
+            width: 180,
             child: DropdownButtonFormField<String>(
               value: _filterRating,
               decoration: InputDecoration(
-                  labelText: 'Rating',
+                labelText: 'Rating',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                isDense: true,
               ),
               items: const [
                 DropdownMenuItem(value: 'all', child: Text('All Ratings')),
@@ -349,62 +350,11 @@ class _FeedbackManagementTabState extends State<FeedbackManagementTab> {
                 DropdownMenuItem(value: '1', child: Text('1 Star')),
               ],
               onChanged: (value) {
-                  if (!mounted) return;
+                if (!mounted) return;
                 setState(() => _filterRating = value ?? 'all');
               },
             ),
           ),
-            const SizedBox(width: 12),
-            SizedBox(
-              width: 200,
-              child: DropdownButtonFormField<String>(
-                value: _filterComments,
-                decoration: InputDecoration(
-                  labelText: 'Comments',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  isDense: true,
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'all', child: Text('All')),
-                  DropdownMenuItem(value: 'with', child: Text('With Comments')),
-                  DropdownMenuItem(value: 'without', child: Text('Without Comments')),
-                ],
-                onChanged: (value) {
-                  if (!mounted) return;
-                  setState(() => _filterComments = value ?? 'all');
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-            SizedBox(
-              width: 200,
-            child: DropdownButtonFormField<String>(
-              value: _filterRecipe,
-              decoration: InputDecoration(
-                  labelText: 'Recipe',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  isDense: true,
-              ),
-              items: [
-                const DropdownMenuItem(value: 'all', child: Text('All Recipes')),
-                ..._recipes.map((recipe) => DropdownMenuItem(
-                      value: recipe['id'].toString(),
-                      child: Text(
-                        recipe['title'] ?? 'Unknown',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    )),
-              ],
-              onChanged: (value) {
-                if (!mounted) return;
-                setState(() => _filterRecipe = value ?? 'all');
-              },
-            ),
-          ),
-          const SizedBox(width: 12),
           SizedBox(
             width: 200,
             child: DropdownButtonFormField<String>(
@@ -423,6 +373,33 @@ class _FeedbackManagementTabState extends State<FeedbackManagementTab> {
               onChanged: (value) {
                 if (!mounted) return;
                 setState(() => _filterComments = value ?? 'all');
+              },
+            ),
+          ),
+          SizedBox(
+            width: 220,
+            child: DropdownButtonFormField<String>(
+              value: _filterRecipe,
+              decoration: InputDecoration(
+                labelText: 'Recipe',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                isDense: true,
+              ),
+              items: [
+                const DropdownMenuItem(value: 'all', child: Text('All Recipes')),
+                ..._recipes.map((recipe) => DropdownMenuItem(
+                      value: recipe['id'].toString(),
+                      child: Text(
+                        recipe['title'] ?? 'Unknown',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    )),
+              ],
+              onChanged: (value) {
+                if (!mounted) return;
+                setState(() => _filterRecipe = value ?? 'all');
               },
             ),
           ),

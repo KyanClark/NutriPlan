@@ -273,8 +273,8 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
               children: [
                 // Recipe image
                 Container(
-                  width: 80,
-                  height: 80,
+                  width: 90,
+                  height: 140,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
                     color: Colors.grey[200],
@@ -300,7 +300,7 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
                           size: 32,
                         ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 32),
                 
                 // Recipe details
                 Expanded(
@@ -313,7 +313,8 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
                           fontWeight: FontWeight.w600,
                           fontSize: 16,
                         ),
-                        maxLines: 2,
+                        // Allow slightly longer titles before truncating
+                        maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 6),
@@ -323,7 +324,8 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
                           color: Colors.grey[600],
                           fontSize: 13,
                         ),
-                        maxLines: 2,
+                        // Show more of the explanation while still guarding overflow
+                        maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 8),

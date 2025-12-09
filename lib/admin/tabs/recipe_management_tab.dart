@@ -6,7 +6,9 @@ import '../pages/view_recipes_page.dart';
 import '../widgets/recipe_card_skeleton.dart';
 
 class RecipeManagementTab extends StatefulWidget {
-  const RecipeManagementTab({super.key});
+  final bool isDarkMode;
+  final ValueChanged<bool>? onToggleDarkMode;
+  const RecipeManagementTab({super.key, this.isDarkMode = false, this.onToggleDarkMode});
 
   @override
   State<RecipeManagementTab> createState() => _RecipeManagementTabState();
@@ -144,8 +146,8 @@ class _RecipeManagementTabState extends State<RecipeManagementTab> {
       invalidateCache();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Recipe deleted successfully'),
+          SnackBar(
+            content: Text('Recipe "${recipe.title}" deleted successfully'),
             backgroundColor: Colors.green,
           ),
         );
@@ -396,32 +398,59 @@ class _RecipeManagementTabState extends State<RecipeManagementTab> {
   @override
   Widget build(BuildContext context) {
     final isWideScreen = MediaQuery.of(context).size.width > 800;
+    final bool isDark = widget.isDarkMode;
+    final Color cardBg = isDark ? const Color(0xFF1F1F1F) : Colors.white;
+    final Color textPrimary = isDark ? Colors.white : Colors.black87;
+    final Color textSecondary = isDark ? Colors.white70 : Colors.grey[700]!;
+    final Color borderColor = isDark ? Colors.white10 : Colors.grey[300]!;
     
     return Column(
       children: [
-        // Recipe count above search
+        // Recipe count row with dark mode toggle on the right
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              '${_filteredRecipes.length} recipe${_filteredRecipes.length != 1 ? 's' : ''}',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 5.0),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${_filteredRecipes.length} recipe${_filteredRecipes.length != 1 ? 's' : ''}',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: textSecondary,
+                  ),
+                ),
               ),
-            ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Dark mode',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: textPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Switch.adaptive(
+                    value: widget.isDarkMode,
+                    onChanged: widget.onToggleDarkMode,
+                    activeColor: const Color(0xFF4CAF50),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
         Container(
           padding: const EdgeInsets.all(20.0),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: cardBg,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withOpacity(isDark ? 0.25 : 0.05),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -447,11 +476,11 @@ class _RecipeManagementTabState extends State<RecipeManagementTab> {
                         : null,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(20),
-                      borderSide: const BorderSide(color: Colors.grey, width: 2),
+                    borderSide: BorderSide(color: borderColor, width: 2),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(20),
-                      borderSide: const BorderSide(color: Colors.grey, width: 2),
+                    borderSide: BorderSide(color: borderColor, width: 2),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(20),
@@ -476,10 +505,31 @@ class _RecipeManagementTabState extends State<RecipeManagementTab> {
                 ),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  backgroundColor: Colors.grey[100],
-                  foregroundColor: Colors.black87,
+                  backgroundColor: isDark ? const Color(0xFF2A2A2A) : Colors.grey[100],
+                  foregroundColor: textPrimary,
                   elevation: 0,
-                  side: BorderSide(color: Colors.grey[300]!),
+                  side: BorderSide(color: borderColor),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Refresh button
+              IconButton(
+                onPressed: _isLoading ? null : _loadRecipes,
+                icon: _isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4CAF50)),
+                        ),
+                      )
+                    : const Icon(Icons.refresh),
+                tooltip: 'Refresh recipes',
+                style: IconButton.styleFrom(
+                  backgroundColor: isDark ? const Color(0xFF2A2A2A) : Colors.grey[100],
+                  foregroundColor: textPrimary,
+                  padding: const EdgeInsets.all(12),
                 ),
               ),
               const SizedBox(width: 12),
@@ -505,9 +555,15 @@ class _RecipeManagementTabState extends State<RecipeManagementTab> {
                       padding: const EdgeInsets.all(16),
                       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4CAF50).withOpacity(0.1),
+                        color: isDark
+                            ? const Color(0xFF4CAF50).withOpacity(0.12)
+                            : const Color(0xFF4CAF50).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFF4CAF50).withOpacity(0.3)),
+                        border: Border.all(
+                          color: isDark
+                              ? const Color(0xFF4CAF50).withOpacity(0.25)
+                              : const Color(0xFF4CAF50).withOpacity(0.3),
+                        ),
                       ),
                       child: Row(
                         children: [
@@ -520,12 +576,12 @@ class _RecipeManagementTabState extends State<RecipeManagementTab> {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          const Text(
+                          Text(
                             'Loading recipes...',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
-                              color: Color(0xFF4CAF50),
+                              color: isDark ? Colors.white : const Color(0xFF4CAF50),
                             ),
                           ),
                         ],
@@ -536,10 +592,10 @@ class _RecipeManagementTabState extends State<RecipeManagementTab> {
                           ? GridView.builder(
                               padding: const EdgeInsets.all(8),
                               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 3,
-                                crossAxisSpacing: 16,
-                                mainAxisSpacing: 16,
-                                childAspectRatio: 0.75,
+                                crossAxisCount: 4,
+                                crossAxisSpacing: 14,
+                                mainAxisSpacing: 14,
+                                childAspectRatio: 0.7,
                               ),
                               itemCount: 6,
                               itemBuilder: (context, index) {
@@ -582,10 +638,10 @@ class _RecipeManagementTabState extends State<RecipeManagementTab> {
                           ? GridView.builder(
                               padding: const EdgeInsets.all(8),
                               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 3,
-                                crossAxisSpacing: 16,
-                                mainAxisSpacing: 16,
-                                childAspectRatio: 0.75,
+                                crossAxisCount: 4,
+                                crossAxisSpacing: 14,
+                                mainAxisSpacing: 14,
+                                childAspectRatio: 0.7,
                               ),
                               itemCount: _filteredRecipes.length,
                               itemBuilder: (context, index) {
@@ -629,7 +685,7 @@ class _RecipeCard extends StatelessWidget {
     
     return Card(
       elevation: 4,
-      shadowColor: Colors.black.withOpacity(0.2),
+      shadowColor: Colors.black.withOpacity(0.99),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: onView,
@@ -663,76 +719,61 @@ class _RecipeCard extends StatelessWidget {
                       ),
               ),
               const SizedBox(height: 12),
-              // Title
-              Text(
-                recipe.title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 6),
-              // Description
-              Text(
-                recipe.shortDescription,
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 14,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const Spacer(),
-              const SizedBox(height: 12),
-              // Calorie and Cost display (standalone, larger)
-              Row(
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.local_fire_department, size: 22, color: Colors.orange[700]),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${recipe.calories} cal',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 24),
-                  Row(
-                    children: [
-                      Icon(Icons.payments, size: 22, color: Colors.green[700]),
-                      const SizedBox(width: 8),
-                      Text(
-                        '₱${recipe.cost.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-                  ),
-              if (recipe.tags.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+              // Body content with bottom-anchored calories
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _InfoChip(
-                      icon: Icons.label,
-                      label: recipe.tags.first,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          recipe.title,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          recipe.shortDescription,
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                          ),
+                          maxLines: 1, // limit to one line to prevent overflow
+                          overflow: TextOverflow.ellipsis,
+                          softWrap: true,
+                        ),
+                        // Diet types/tags removed from card display per request
+                      ],
                     ),
-                ],
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Image.asset(
+                          'assets/meal-tracker-icons/calories.png',
+                          height: 22,
+                          width: 22,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${recipe.calories} cal',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-                ],
             ],
           ),
         ),

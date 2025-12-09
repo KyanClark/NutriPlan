@@ -1,7 +1,8 @@
+import 'dart:math';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/recipes.dart';
-import '../models/meal_history_entry.dart';
-import 'smart_meal_suggestion_service.dart';
+import '../models/user_nutrition_goals.dart';
+import 'ai_meal_plan_service.dart';
 import 'recipe_service.dart';
 import '../utils/app_logger.dart';
 
@@ -10,10 +11,9 @@ import '../utils/app_logger.dart';
 class AutoMealPlanService {
   static final SupabaseClient _client = Supabase.instance.client;
 
-  /// Generate a complete meal plan for a specific date
-  /// Returns a list of recipes with meal types and times
-  /// Ensures different meals for breakfast, lunch, and dinner
-  static Future<List<Map<String, dynamic>>> generateMealPlan({
+  /// Generate a complete meal plan using AI to analyze and select the best meals
+  /// This is the enhanced version that uses AI to intelligently choose meals
+  static Future<List<Map<String, dynamic>>> generateMealPlanWithAI({
     required String userId,
     required DateTime targetDate,
     bool includeBreakfast = true,
@@ -21,6 +21,115 @@ class AutoMealPlanService {
     bool includeDinner = true,
     List<String>? excludeRecipeIds, // Exclude these recipe IDs (for "Generate Again")
   }) async {
+    try {
+      // Get all necessary user data
+      final mealHistory = await _getUserMealHistory(userId, days: 30);
+      final userPrefs = await _getUserPreferences(userId);
+      final userGoals = await _getUserNutritionGoals(userId);
+      
+      // Get all available recipes (already filtered by allergies and diet type)
+      var allRecipes = await RecipeService.fetchRecipes(userId: userId);
+      // Filter out disallowed recipes and test recipes
+      allRecipes = allRecipes.where((r) {
+        if (RecipeService.isRecipeDisallowed(r)) return false;
+        // Also filter out test recipes explicitly
+        final titleLower = r.title.toLowerCase();
+        if (titleLower.contains('test') || titleLower.contains('sample') || titleLower.contains('demo')) {
+          return false;
+        }
+        // Ensure recipe has valid title and calories
+        if (r.title.trim().isEmpty || r.calories <= 0) return false;
+        return true;
+      }).toList();
+      
+      // Filter out excluded recipe IDs
+      if (excludeRecipeIds != null && excludeRecipeIds.isNotEmpty) {
+        allRecipes = allRecipes.where((r) => !excludeRecipeIds.contains(r.id)).toList();
+      }
+      
+      // Get recent meals to avoid repetition (last 14 days)
+      final recentMeals = await _getRecentMealTitles(userId, days: 14);
+      
+      // Get current day nutrition
+      final currentNutrition = await _getCurrentDayNutrition(userId, targetDate);
+      
+      // Use dedicated AI meal plan service (separate from smart meal suggestions)
+      final aiMeals = await AIMealPlanService.generateMealPlan(
+        userId: userId,
+        targetDate: targetDate,
+        allRecipes: allRecipes,
+        mealHistory: mealHistory,
+        userPrefs: userPrefs,
+        userGoals: userGoals,
+        currentNutrition: currentNutrition,
+        recentMeals: recentMeals,
+        includeBreakfast: includeBreakfast,
+        includeLunch: includeLunch,
+        includeDinner: includeDinner,
+      );
+      
+      if (aiMeals.isNotEmpty) {
+        return aiMeals;
+      }
+      
+      // Fallback to rule-based if AI fails
+      AppLogger.warning('AI meal plan generation failed, falling back to rule-based');
+      return await generateMealPlan(
+        userId: userId,
+        targetDate: targetDate,
+        includeBreakfast: includeBreakfast,
+        includeLunch: includeLunch,
+        includeDinner: includeDinner,
+        excludeRecipeIds: excludeRecipeIds,
+        useAI: false, // Prevent infinite loop
+      );
+    } catch (e) {
+      AppLogger.error('Error generating AI meal plan', e);
+      // Fallback to rule-based
+      return await generateMealPlan(
+        userId: userId,
+        targetDate: targetDate,
+        includeBreakfast: includeBreakfast,
+        includeLunch: includeLunch,
+        includeDinner: includeDinner,
+        excludeRecipeIds: excludeRecipeIds,
+      );
+    }
+  }
+
+  /// Generate a complete meal plan for a specific date
+  /// Returns a list of recipes with meal types and times
+  /// Ensures different meals for breakfast, lunch, and dinner
+  /// Now uses AI by default for intelligent meal selection
+  static Future<List<Map<String, dynamic>>> generateMealPlan({
+    required String userId,
+    required DateTime targetDate,
+    bool includeBreakfast = true,
+    bool includeLunch = true,
+    bool includeDinner = true,
+    List<String>? excludeRecipeIds, // Exclude these recipe IDs (for "Generate Again")
+    bool useAI = true, // Use AI-powered generation by default
+  }) async {
+    // Try AI-powered generation first if enabled
+    if (useAI) {
+      try {
+        final aiResult = await generateMealPlanWithAI(
+          userId: userId,
+          targetDate: targetDate,
+          includeBreakfast: includeBreakfast,
+          includeLunch: includeLunch,
+          includeDinner: includeDinner,
+          excludeRecipeIds: excludeRecipeIds,
+        );
+        if (aiResult.isNotEmpty) {
+          return aiResult;
+        }
+      } catch (e) {
+        AppLogger.warning('AI meal plan generation failed, falling back to rule-based', e);
+      }
+    }
+    
+    // Fallback to rule-based generation
     try {
       final List<Map<String, dynamic>> mealPlan = [];
       final Set<String> usedRecipeIds = {}; // Track used recipes to ensure uniqueness
@@ -34,62 +143,107 @@ class AutoMealPlanService {
       // Get all available recipes (already filtered by allergies and diet type)
       var allRecipes = await RecipeService.fetchRecipes(userId: userId);
       
-      // Filter out disallowed recipes
-      allRecipes = allRecipes.where((r) => !RecipeService.isRecipeDisallowed(r)).toList();
+      // Filter out disallowed recipes and test recipes
+      allRecipes = allRecipes.where((r) {
+        if (RecipeService.isRecipeDisallowed(r)) return false;
+        // Also filter out test recipes explicitly
+        final titleLower = r.title.toLowerCase();
+        if (titleLower.contains('test') || titleLower.contains('sample') || titleLower.contains('demo')) {
+          return false;
+        }
+        // Ensure recipe has valid title and calories
+        if (r.title.trim().isEmpty || r.calories <= 0) return false;
+        return true;
+      }).toList();
       
       // Filter out excluded recipe IDs (for "Generate Again" feature)
       if (excludeRecipeIds != null && excludeRecipeIds.isNotEmpty) {
         allRecipes = allRecipes.where((r) => !excludeRecipeIds.contains(r.id)).toList();
       }
 
+      // Check health conditions
+      final healthConditions = userPrefs['health_conditions'] as List<dynamic>? ?? [];
+      final hasHealthConditions = healthConditions.isNotEmpty && !healthConditions.contains('none');
+      
       // Build recipe scores based on user patterns (TikTok algorithm)
       final recipeScores = _buildRecipeScores(allRecipes, mealHistory, userPrefs);
-
-      // Generate breakfast
-      if (includeBreakfast) {
-        final breakfast = await _generateMealForType(
-          userId: userId,
-          mealType: 'breakfast',
-          targetTime: DateTime(targetDate.year, targetDate.month, targetDate.day, 8, 0),
-          recipeScores: recipeScores,
-          allRecipes: allRecipes,
-          usedRecipeIds: usedRecipeIds,
-        );
-        if (breakfast != null) {
-          mealPlan.add(breakfast);
-          usedRecipeIds.add((breakfast['recipe'] as Recipe).id);
+      
+      // Separate recipes into healthy and all recipes
+      final healthyRecipes = allRecipes.where((r) {
+        final protein = (r.macros['protein'] ?? 0).toDouble();
+        final fiber = (r.macros['fiber'] ?? 0).toDouble();
+        final sugar = (r.macros['sugar'] ?? 0).toDouble();
+        final sodium = (r.macros['sodium'] ?? 0).toDouble();
+        final calories = r.calories.toDouble();
+        
+        // Healthy criteria: reasonable calories, low sugar, low sodium, has protein or fiber
+        if (calories < 200 || calories > 800) return false;
+        if (sugar > 30) return false;
+        if (sodium > 1000) return false;
+        if (protein < 5 && fiber < 2) return false;
+        
+        // Check health conditions if any
+        if (hasHealthConditions) {
+          return _isRecipeHealthyForConditions(r, healthConditions.map((e) => e.toString()).toList());
         }
-      }
+        return true;
+      }).toList();
 
-      // Generate lunch
-      if (includeLunch) {
-        final lunch = await _generateMealForType(
-          userId: userId,
-          mealType: 'lunch',
-          targetTime: DateTime(targetDate.year, targetDate.month, targetDate.day, 12, 30),
-          recipeScores: recipeScores,
-          allRecipes: allRecipes,
-          usedRecipeIds: usedRecipeIds,
-        );
-        if (lunch != null) {
-          mealPlan.add(lunch);
-          usedRecipeIds.add((lunch['recipe'] as Recipe).id);
+      // Generate meals: 1 random + 2 healthy (if no health conditions), or all healthy (if health conditions)
+      final mealsToGenerate = <Map<String, String>>[];
+      if (includeBreakfast) mealsToGenerate.add({'type': 'breakfast', 'time': '8:00'});
+      if (includeLunch) mealsToGenerate.add({'type': 'lunch', 'time': '12:30'});
+      if (includeDinner) mealsToGenerate.add({'type': 'dinner', 'time': '19:00'});
+      
+      // Shuffle for randomness
+      final random = Random();
+      mealsToGenerate.shuffle(random);
+      
+      int randomMealCount = 0;
+      for (final mealInfo in mealsToGenerate) {
+        final mealType = mealInfo['type']!;
+        final mealTime = mealInfo['time']!.split(':');
+        final hour = int.parse(mealTime[0]);
+        final minute = int.parse(mealTime[1]);
+        final targetTime = DateTime(targetDate.year, targetDate.month, targetDate.day, hour, minute);
+        
+        Recipe? selectedRecipe;
+        
+        // If no health conditions: 1 random + 2 healthy
+        // If health conditions: all healthy
+        if (!hasHealthConditions && randomMealCount == 0 && mealsToGenerate.length > 1) {
+          // First meal: random from all recipes
+          final availableRecipes = allRecipes.where((r) => !usedRecipeIds.contains(r.id)).toList();
+          if (availableRecipes.isNotEmpty) {
+            availableRecipes.shuffle(random);
+            selectedRecipe = availableRecipes.first;
+            randomMealCount++;
+          }
+        } else {
+          // Healthy meal: prioritize healthy recipes
+          final availableHealthy = healthyRecipes.where((r) => !usedRecipeIds.contains(r.id)).toList();
+          if (availableHealthy.isNotEmpty) {
+            // Sort by score for better selection
+            availableHealthy.sort((a, b) => (recipeScores[b.id] ?? 0).compareTo(recipeScores[a.id] ?? 0));
+            selectedRecipe = availableHealthy.first;
+          } else {
+            // Fallback to any available recipe
+            final availableRecipes = allRecipes.where((r) => !usedRecipeIds.contains(r.id)).toList();
+            if (availableRecipes.isNotEmpty) {
+              availableRecipes.shuffle(random);
+              selectedRecipe = availableRecipes.first;
+            }
+          }
         }
-      }
-
-      // Generate dinner
-      if (includeDinner) {
-        final dinner = await _generateMealForType(
-          userId: userId,
-          mealType: 'dinner',
-          targetTime: DateTime(targetDate.year, targetDate.month, targetDate.day, 19, 0),
-          recipeScores: recipeScores,
-          allRecipes: allRecipes,
-          usedRecipeIds: usedRecipeIds,
-        );
-        if (dinner != null) {
-          mealPlan.add(dinner);
-          usedRecipeIds.add((dinner['recipe'] as Recipe).id);
+        
+        if (selectedRecipe != null) {
+          usedRecipeIds.add(selectedRecipe.id);
+          mealPlan.add({
+            'recipe': selectedRecipe,
+            'meal_type': mealType,
+            'meal_time': _formatTime(targetTime),
+            'date': targetTime,
+          });
         }
       }
 
@@ -221,71 +375,6 @@ class AutoMealPlanService {
     return scores;
   }
 
-  /// Generate a meal for a specific meal type
-  /// Ensures the recipe is not already used in the meal plan
-  static Future<Map<String, dynamic>?> _generateMealForType({
-    required String userId,
-    required String mealType,
-    required DateTime targetTime,
-    required Map<String, double> recipeScores,
-    required List<Recipe> allRecipes,
-    required Set<String> usedRecipeIds,
-  }) async {
-    try {
-      // Use smart meal suggestion service for better recommendations
-      final mealCategory = mealType == 'breakfast' 
-          ? MealCategory.breakfast 
-          : mealType == 'lunch' 
-              ? MealCategory.lunch 
-              : MealCategory.dinner;
-
-      final suggestions = await SmartMealSuggestionService.getSmartSuggestions(
-        userId: userId,
-        mealCategory: mealCategory,
-        targetTime: targetTime,
-        useAI: true,
-      );
-
-      // Filter out already used recipes
-      final availableSuggestions = suggestions.where((s) => !usedRecipeIds.contains(s.recipe.id)).toList();
-      
-      Recipe? selectedRecipe;
-      
-      if (availableSuggestions.isNotEmpty) {
-        // Use the top available suggestion
-        selectedRecipe = availableSuggestions.first.recipe;
-      } else {
-        // Fallback: use scored recipes that haven't been used
-        final availableRecipes = allRecipes.where((r) => !usedRecipeIds.contains(r.id)).toList();
-        if (availableRecipes.isEmpty) {
-          // If all recipes are used, allow repeats but prefer unused ones
-          final scoredRecipes = allRecipes.map((r) => MapEntry(r, recipeScores[r.id] ?? 1.0)).toList();
-          scoredRecipes.sort((a, b) => b.value.compareTo(a.value));
-          if (scoredRecipes.isEmpty) return null;
-          selectedRecipe = scoredRecipes.first.key;
-        } else {
-          final scoredRecipes = availableRecipes.map((r) => MapEntry(r, recipeScores[r.id] ?? 1.0)).toList();
-          scoredRecipes.sort((a, b) => b.value.compareTo(a.value));
-          if (scoredRecipes.isEmpty) return null;
-          selectedRecipe = scoredRecipes.first.key;
-        }
-      }
-      
-      // At this point, selectedRecipe should always be non-null
-      // (we return null early if no recipes are available)
-      final recipe = selectedRecipe;
-
-      return {
-        'recipe': recipe,
-        'meal_type': mealType,
-        'meal_time': _formatTime(targetTime),
-        'date': targetTime,
-      };
-    } catch (e) {
-      AppLogger.error('Error generating meal for type $mealType', e);
-      return null;
-    }
-  }
 
   /// Check if recipe is healthy for user's health conditions
   static bool _isRecipeHealthyForConditions(Recipe recipe, List<String> healthConditions) {
@@ -348,6 +437,84 @@ class AutoMealPlanService {
       return [value.trim()];
     }
     return [];
+  }
+
+  /// Get user nutrition goals
+  static Future<UserNutritionGoals?> _getUserNutritionGoals(String userId) async {
+    try {
+      final response = await _client
+          .from('user_preferences')
+          .select()
+          .eq('user_id', userId)
+          .maybeSingle();
+      return response != null ? UserNutritionGoals.fromMap(response) : null;
+    } catch (e) {
+      AppLogger.error('Error fetching user goals', e);
+      return null;
+    }
+  }
+
+  /// Get current day nutrition
+  static Future<Map<String, double>> _getCurrentDayNutrition(String userId, DateTime date) async {
+    try {
+      final startOfDay = DateTime(date.year, date.month, date.day);
+      final endOfDay = startOfDay.add(const Duration(days: 1));
+      final response = await _client
+          .from('meal_plan_history')
+          .select()
+          .eq('user_id', userId)
+          .gte('completed_at', startOfDay.toUtc().toIso8601String())
+          .lt('completed_at', endOfDay.toUtc().toIso8601String());
+      
+      double totalCalories = 0;
+      double totalProtein = 0;
+      double totalCarbs = 0;
+      double totalFat = 0;
+      double totalFiber = 0;
+      
+      for (final meal in response) {
+        totalCalories += _parseDouble(meal['calories']);
+        totalProtein += _parseDouble(meal['protein']);
+        totalCarbs += _parseDouble(meal['carbs']);
+        totalFat += _parseDouble(meal['fat']);
+        totalFiber += _parseDouble(meal['fiber']);
+      }
+      
+      return {
+        'calories': totalCalories,
+        'protein': totalProtein,
+        'carbs': totalCarbs,
+        'fat': totalFat,
+        'fiber': totalFiber,
+      };
+    } catch (e) {
+      AppLogger.error('Error fetching current day nutrition', e);
+      return {'calories': 0, 'protein': 0, 'carbs': 0, 'fat': 0, 'fiber': 0};
+    }
+  }
+
+  /// Get recent meal titles to avoid repetition
+  static Future<Set<String>> _getRecentMealTitles(String userId, {int days = 14}) async {
+    try {
+      final since = DateTime.now().subtract(Duration(days: days));
+      final response = await _client
+          .from('meal_plan_history')
+          .select('title')
+          .eq('user_id', userId)
+          .gte('completed_at', since.toUtc().toIso8601String());
+      return response.map((m) => (m['title'] ?? '').toString().toLowerCase()).where((t) => t.isNotEmpty).toSet();
+    } catch (e) {
+      AppLogger.error('Error fetching recent meals', e);
+      return <String>{};
+    }
+  }
+
+  static double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is int) return value.toDouble();
+    if (value is double) return value;
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
   }
 }
 

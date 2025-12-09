@@ -48,6 +48,12 @@ class _RecipesPageState extends State<RecipesPage> {
     _recentlyAddedFuture = RecipeService.fetchRecentlyAdded(limit: 20, userId: userId);
   }
 
+  // Helper function to format date using local time (not UTC) to prevent date shift
+  String _formatDateForMealPlan(DateTime date) {
+    final localDate = date.toLocal();
+    return '${localDate.year}-${localDate.month.toString().padLeft(2, '0')}-${localDate.day.toString().padLeft(2, '0')}';
+  }
+
   List<Recipe> _applySearchAndSort(List<Recipe> recipes) {
     List<Recipe> filtered = recipes;
     if (searchQuery.isNotEmpty) {
@@ -1422,7 +1428,7 @@ class _RecipesPageState extends State<RecipesPage> {
                                       'title': m.recipe.title,
                                       'meal_type': m.mealType ?? 'dinner',
                                       'meal_time': m.time != null ? '${m.time!.hour.toString().padLeft(2, '0')}:${m.time!.minute.toString().padLeft(2, '0')}:00' : null,
-                                      'date': (m.scheduledDate ?? DateTime.now()).toUtc().toIso8601String().split('T').first,
+                                      'date': _formatDateForMealPlan(m.scheduledDate ?? DateTime.now()),
                                     };
                                     
                                     // Add rice data if included (only if columns exist in database)
@@ -1446,7 +1452,7 @@ class _RecipesPageState extends State<RecipesPage> {
                                           'title': m.recipe.title,
                                           'meal_type': m.mealType ?? 'dinner',
                                           'meal_time': m.time != null ? '${m.time!.hour.toString().padLeft(2, '0')}:${m.time!.minute.toString().padLeft(2, '0')}:00' : null,
-                                          'date': (m.scheduledDate ?? DateTime.now()).toUtc().toIso8601String().split('T').first,
+                                          'date': _formatDateForMealPlan(m.scheduledDate ?? DateTime.now()),
                                         };
                                         await Supabase.instance.client
                                             .from('meal_plans')

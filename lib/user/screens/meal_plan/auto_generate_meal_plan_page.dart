@@ -40,7 +40,7 @@ class _AutoGenerateMealPlanPageState extends State<AutoGenerateMealPlanPage> {
 
   String? get userId => Supabase.instance.client.auth.currentUser?.id;
   
-  Widget _buildNutritionChip(String label, IconData icon) {
+  Widget _buildNutritionChip(String label, IconData icon, {Widget? leading}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -50,7 +50,12 @@ class _AutoGenerateMealPlanPageState extends State<AutoGenerateMealPlanPage> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: Colors.grey[700]),
+          leading ??
+              Icon(
+                icon,
+                size: 14,
+                color: Colors.grey[700],
+              ),
           const SizedBox(width: 4),
           Text(
             label,
@@ -565,7 +570,16 @@ class _AutoGenerateMealPlanPageState extends State<AutoGenerateMealPlanPage> {
                                   // Nutrition info
                                   Row(
                                     children: [
-                                      _buildNutritionChip('${recipe.calories} kcal', Icons.local_fire_department),
+                                      _buildNutritionChip(
+                                        '${recipe.calories} kcal',
+                                        Icons.local_fire_department,
+                                        leading: Image.asset(
+                                          'assets/meal-tracker-icons/calories.png',
+                                          height: 14,
+                                          width: 14,
+                                          fit: BoxFit.contain,
+                                        ),
+                                      ),
                                       const SizedBox(width: 8),
                                       if (recipe.macros['protein'] != null)
                                         _buildNutritionChip('${recipe.macros['protein'].toStringAsFixed(0)}g protein', Icons.fitness_center),

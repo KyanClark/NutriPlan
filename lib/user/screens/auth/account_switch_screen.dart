@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:lottie/lottie.dart';
-import '../../widgets/animated_logo.dart';
 import '../../widgets/profile_avatar_widget.dart';
 import '../home/home_page.dart';
 import 'login_screen.dart';
@@ -20,6 +19,33 @@ class _AccountSwitchScreenState extends State<AccountSwitchScreen> {
   static const _savedAccountsKey = 'saved_accounts';
   List<Map<String, dynamic>> _savedAccounts = [];
   bool _isLoading = true;
+
+  Widget _buildBrandRow({
+    Color color = Colors.black87,
+    double fontSize = 24,
+    double logoSize = 40,
+    double letterSpacing = 1.2,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Image.asset(
+          'assets/widgets/NutriPlan_Logo.png',
+          height: logoSize,
+        ),
+        const SizedBox(width: 10),
+        Text(
+          'NutriPlan',
+          style: TextStyle(
+            color: color,
+            fontSize: fontSize,
+            fontWeight: FontWeight.bold,
+            letterSpacing: letterSpacing,
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
   void initState() {
@@ -215,7 +241,12 @@ class _AccountSwitchScreenState extends State<AccountSwitchScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const AnimatedLogo(),
+              _buildBrandRow(
+                color: Colors.white,
+                fontSize: 32,
+                logoSize: 52,
+                letterSpacing: 2,
+              ),
               const SizedBox(height: 24),
               const Text(
                 'Healthy recipes, smarter planning.\nPick an account or sign in to get started.',
