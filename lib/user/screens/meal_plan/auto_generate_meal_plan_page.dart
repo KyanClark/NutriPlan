@@ -23,6 +23,7 @@ class _AutoGenerateMealPlanPageState extends State<AutoGenerateMealPlanPage> {
   bool _includeLunch = true;
   bool _includeDinner = true;
   bool _isGenerating = false;
+  bool _isDiabetic = false;
   List<Map<String, dynamic>> _generatedMeals = [];
   List<String> _previouslyGeneratedRecipeIds = []; // Track previously generated recipes
   
@@ -163,6 +164,9 @@ class _AutoGenerateMealPlanPageState extends State<AutoGenerateMealPlanPage> {
       return;
     }
 
+    // Load health conditions to show contextual messaging
+    await _loadHealthConditions();
+
     setState(() {
       _isGenerating = true;
       if (!generateAgain) {
@@ -223,6 +227,33 @@ class _AutoGenerateMealPlanPageState extends State<AutoGenerateMealPlanPage> {
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  Future<void> _loadHealthConditions() async {
+    if (userId == null) return;
+
+    try {
+      final response = await Supabase.instance.client
+          .from('user_preferences')
+          .select('health_conditions')
+          .eq('user_id', userId!)
+          .maybeSingle();
+
+      final conditions = (response?['health_conditions'] as List<dynamic>?)
+              ?.map((c) => c.toString())
+              .toList() ??
+          <String>[];
+      final hasDiabetes =
+          conditions.map((c) => c.toString().toLowerCase()).contains('diabetes');
+
+      if (mounted) {
+        setState(() {
+          _isDiabetic = hasDiabetes;
+        });
+      }
+    } catch (e) {
+      AppLogger.error('Error loading health conditions', e);
     }
   }
 
@@ -338,7 +369,7 @@ class _AutoGenerateMealPlanPageState extends State<AutoGenerateMealPlanPage> {
                   
                   const SizedBox(height: 8),
                   
-                  // Heading text - changes based on whether meals are generated
+                  // AlgiHeading text - changes based on whether meals are generated
                   Text(
                     _generatedMeals.isEmpty 
                         ? 'Generate Meal Plan'
@@ -363,6 +394,18 @@ class _AutoGenerateMealPlanPageState extends State<AutoGenerateMealPlanPage> {
                       height: 1.5,
                     ),
                   ),
+                  if (_generatedMeals.isNotEmpty && _isDiabetic) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Diabetes mode is on. Plan uses: breakfast—1 boiled egg, sinangag, sliced papaya; lunch—Utan Bisaya + inihaw na bangus/grilled tilapia; dinner—chicken tinola + ensaladang pipino.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.blueGrey[700],
+                        height: 1.4,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                   
                   const SizedBox(height: 24),
                   

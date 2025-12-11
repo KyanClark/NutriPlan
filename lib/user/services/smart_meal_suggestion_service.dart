@@ -310,12 +310,58 @@ class SmartMealSuggestionService {
       return true; // No restrictions if no health conditions
     }
 
-    final protein = (recipe.macros['protein'] ?? 0).toDouble();
     final carbs = (recipe.macros['carbs'] ?? 0).toDouble();
     final fiber = (recipe.macros['fiber'] ?? 0).toDouble();
     final sugar = (recipe.macros['sugar'] ?? 0).toDouble();
     final sodium = (recipe.macros['sodium'] ?? 0).toDouble();
-    final calories = recipe.calories.toDouble();
+    final cholesterol = (recipe.macros['cholesterol'] ?? 0).toDouble();
+    final ingredients = recipe.ingredients.map((i) => i.toLowerCase()).toList();
+
+    bool containsMeat() {
+      const meatKeywords = [
+        'pork',
+        'chicken',
+        'beef',
+        'meat',
+        'bacon',
+        'ham',
+        'sausage',
+        'ribs',
+        'steak',
+        'drumstick',
+        'wings',
+        'ground beef',
+        'ground pork',
+        'ground meat',
+        'liver',
+      ];
+      return meatKeywords.any((kw) => ingredients.any((ing) => ing.contains(kw)));
+    }
+
+    bool hasGreenVegetable() {
+      const greenVegKeywords = [
+        'spinach',
+        'kale',
+        'lettuce',
+        'broccoli',
+        'bok choy',
+        'pechay',
+        'cabbage',
+        'malunggay',
+        'moringa',
+        'ampalaya',
+        'bitter gourd',
+        'okra',
+        'kangkong',
+        'water spinach',
+        'green beans',
+        'string beans',
+        'peas',
+        'chayote',
+        'sayote',
+      ];
+      return greenVegKeywords.any((kw) => ingredients.any((ing) => ing.contains(kw)));
+    }
 
     // Check each health condition
     for (final condition in healthConditions) {
@@ -325,19 +371,21 @@ class SmartMealSuggestionService {
           if (carbs > 60 || sugar > 15 || fiber < 3) return false;
           break;
         case 'hypertension':
-          // Very low sodium
+        case 'high_blood_pressure':
+          // Hypertension: Very low sodium (<500mg), avoid meats, prefer greens
           if (sodium > 500) return false;
+          if (containsMeat()) return false;
+          if (!hasGreenVegetable()) return false;
           break;
-        case 'stroke_recovery':
-          // Very low sodium, low saturated fat
-          if (sodium > 400) return false;
-          break;
-        case 'malnutrition':
-          // High calories and protein
-          if (calories < 300 || protein < 15) return false;
+        case 'high_cholesterol':
+        case 'cholesterol':
+          // High cholesterol: avoid meats and keep cholesterol low
+          if (cholesterol > 75) return false;
+          if (containsMeat()) return false;
           break;
         default:
           // For unknown conditions, apply general healthy criteria
+          if (sugar > 30 || sodium > 1000) return false;
           break;
       }
     }
@@ -375,7 +423,7 @@ class SmartMealSuggestionService {
   static Future<List<SmartMealSuggestion>> _generateSmartSuggestions(
     SuggestionContext context,
   ) async {
-    // Fetch recipes with allergy filtering applied
+    // Fetch recipes with allergy and diet-type filtering applied
     var allRecipes = await RecipeService.fetchRecipes(userId: context.userId);
     // Filter out disallowed items (e.g., chicken feet, blood, intestines)
     final beforeCount = allRecipes.length;
@@ -417,13 +465,23 @@ class SmartMealSuggestionService {
 
     // Preference score: tag/category/title match
     double preferenceScore(Recipe r) {
+      final likedDishes = (context.userGoals.dishPreferences ?? [])
+          .map((e) => e.toLowerCase())
+          .toList();
       final favCats = context.userPatterns.favoriteCategories.map((e) => e.toLowerCase()).toList();
       final title = r.title.toLowerCase();
       final tags = r.tags.map((t) => t.toLowerCase()).toList();
       final matchesTitle = favCats.any((c) => title.contains(c)) ? 1.0 : 0.0;
       final matchesTag = favCats.any((c) => tags.any((t) => t.contains(c))) ? 1.0 : 0.0;
       final isFavoriteRecipe = context.userPatterns.mostFrequentRecipes.any((t) => t.toLowerCase() == title) ? 0.8 : 0.0;
-      return (matchesTitle * 0.6) + (matchesTag * 0.6) + isFavoriteRecipe;
+      final matchesLikedDish = likedDishes.any((d) {
+        final normalized = d.replaceAll('_', ' ').trim();
+        return normalized.isNotEmpty &&
+            (title.contains(normalized) || tags.any((t) => t.contains(normalized)));
+      }) ? 1.0 : 0.0;
+
+      // Weight favorite categories/tags and give a stronger bump for explicit likes
+      return (matchesTitle * 0.6) + (matchesTag * 0.6) + isFavoriteRecipe + (matchesLikedDish * 1.2);
     }
 
     // Last meal complement score: how well it complements the last meal
@@ -771,6 +829,9 @@ class SmartMealSuggestionService {
     final mealType = context.mealCategory.name.toLowerCase();
     final timeOfDay = context.targetTime.hour < 12 ? 'morning' : 
                      context.targetTime.hour < 17 ? 'afternoon' : 'evening';
+    final likedDishes = (context.userGoals.dishPreferences ?? [])
+        .where((d) => d.trim().isNotEmpty)
+        .toList();
     
     // Get last meal
     final lastMeal = await _getLastMeal(context.userId);
@@ -823,17 +884,23 @@ IMPORTANT: Suggest meals that COMPLEMENT the last meal nutritionally. If last me
 CRITICAL HEALTH CONDITIONS (STRICTLY ENFORCE):
 ${healthConditions.map((c) {
   switch (c.toLowerCase()) {
-    case 'diabetes': return '- Diabetes: Low carbs (<60g), high fiber (>3g), low sugar (<15g)';
-    case 'hypertension': return '- Hypertension: Very low sodium (<500mg)';
-    case 'stroke_recovery': return '- Stroke Recovery: Very low sodium (<400mg)';
-    case 'malnutrition': return '- Malnutrition: High calories (>300) and protein (>15g)';
+    case 'diabetes': return '- Diabetes: Low carbs (<60g per meal), high fiber (>3g), low sugar (<15g). AVOID: high-carb recipes, sugary foods, low-fiber meals';
+    case 'hypertension':
+    case 'high_blood_pressure': return '- Hypertension: Very low sodium (<500mg per meal). AVOID: high-sodium recipes, processed foods, salty dishes';
     default: return '- $c: Apply general healthy criteria';
   }
 }).join('\n')}
 
-ONLY suggest recipes that meet ALL health condition requirements.
+ONLY suggest recipes that meet ALL health condition requirements. NEVER suggest recipes that violate these restrictions.
 '''
         : '';
+    
+    final likedDishesInfo = likedDishes.isNotEmpty
+        ? '''
+USER-LIKED DISHES (PREFER THESE WHEN THEY MEET HEALTH RULES):
+- ${likedDishes.join(', ')}
+'''
+        : 'USER-LIKED DISHES: None specified';
     
     return '''
 You are an expert Filipino nutritionist. Analyze the user's data and suggest 3 HEALTHY Filipino recipes for $mealType in the $timeOfDay.
@@ -849,6 +916,8 @@ Current nutrition status:
 
 $healthInfo
 
+$likedDishesInfo
+
 CRITICAL ANTI-REPETITION REQUIREMENT:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 The following meals were consumed in the last 14 days. You MUST AVOID selecting these to ensure variety:
@@ -863,9 +932,10 @@ REQUIREMENTS:
 2. Meals must COMPLEMENT the last meal nutritionally (if last meal provided)
 3. STRICTLY AVOID meals from the "Recent Meals" list - prioritize variety
 4. STRICTLY follow health condition restrictions (if any)
-5. Are appropriate for $mealType
-6. Help address nutritional gaps: ${context.nutritionalGaps.map((g) => '${g.nutrient} (${g.priority.name})').join(', ')}
-7. Ensure variety - no repetitive suggestions
+5. Prefer user-liked dishes when they satisfy health rules and fit the meal type
+6. Are appropriate for $mealType
+7. Help address nutritional gaps: ${context.nutritionalGaps.map((g) => '${g.nutrient} (${g.priority.name})').join(', ')}
+8. Ensure variety - no repetitive suggestions
 
 Format your response as JSON:
 {

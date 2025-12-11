@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/recipes.dart';
-import 'meal_summary_page.dart';
+import '../recipes/recipe_info_screen.dart';
 
 class MealPlanHistoryScreen extends StatefulWidget {
   const MealPlanHistoryScreen({super.key});
@@ -13,8 +13,6 @@ class MealPlanHistoryScreen extends StatefulWidget {
 class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
   List<Map<String, dynamic>> _history = [];
   bool _loading = true;
-  String _sortBy = 'days'; // 'days', 'weeks', 'months'
-  // Removed bulk add plan; tapping a meal navigates directly to summary
 
   @override
   void initState() {
@@ -42,150 +40,16 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
     setState(() {
       _history = List<Map<String, dynamic>>.from(response);
       _loading = false;
-        // No bulk collection needed; we map per tap
       });
     }
   }
 
-  // Group meals by different time periods
-  Map<String, List<Map<String, dynamic>>> _groupMealsByPeriod() {
-    Map<String, List<Map<String, dynamic>>> grouped = {};
-    
-    for (final meal in _history) {
-      final dt = meal['completed_at'] != null
-        ? DateTime.parse(meal['completed_at']).toLocal()
-        : null;
-      
-      if (dt == null) continue;
-      
-      String periodKey;
-      switch (_sortBy) {
-        case 'weeks':
-          // Group by week (Monday to Sunday)
-          final startOfWeek = dt.subtract(Duration(days: dt.weekday - 1));
-          periodKey = '${startOfWeek.year}-W${_getWeekNumber(startOfWeek)}';
-          break;
-        case 'months':
-          // Group by month
-          periodKey = '${dt.year}-${dt.month.toString().padLeft(2, '0')}';
-          break;
-        case 'days':
-        default:
-          // Group by day
-          periodKey = '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
-          break;
-      }
-      
-      grouped.putIfAbsent(periodKey, () => []).add(meal);
-    }
-    
-    return grouped;
-  }
-
-  // Get week number of the year
-  int _getWeekNumber(DateTime date) {
-    final firstDayOfYear = DateTime(date.year, 1, 1);
-    final daysSinceFirstDay = date.difference(firstDayOfYear).inDays;
-    return (daysSinceFirstDay / 7).ceil();
-  }
-
-  // Format period header based on sort type
-  String _formatPeriodHeader(String periodKey) {
-    switch (_sortBy) {
-      case 'weeks':
-        final parts = periodKey.split('-W');
-        final year = int.parse(parts[0]);
-        final weekNum = int.parse(parts[1]);
-        final firstDayOfYear = DateTime(year, 1, 1);
-        final weekStart = firstDayOfYear.add(Duration(days: (weekNum - 1) * 7));
-        final weekEnd = weekStart.add(const Duration(days: 6));
-        return 'Week $weekNum, $year (${weekStart.day}/${weekStart.month} - ${weekEnd.day}/${weekEnd.month})';
-      
-      case 'months':
-        final parts = periodKey.split('-');
-        final year = int.parse(parts[0]);
-        final month = int.parse(parts[1]);
-        final months = [
-          'January', 'February', 'March', 'April', 'May', 'June',
-          'July', 'August', 'September', 'October', 'November', 'December'
-        ];
-        return '${months[month - 1]} $year';
-      
-      case 'days':
-      default:
-        final dt = DateTime.tryParse(periodKey);
-        if (dt == null) return periodKey;
-      final months = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
-      ];
-      return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
-    }
-  }
-
-  // Show sorting options dialog
-  void _showSortOptions() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sort Meal History'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            RadioListTile<String>(
-              title: const Text('By Days'),
-              subtitle: const Text('Group meals by individual days'),
-              value: 'days',
-              groupValue: _sortBy,
-              onChanged: (value) {
-                setState(() => _sortBy = value!);
-                Navigator.pop(context);
-              },
-            ),
-            RadioListTile<String>(
-              title: const Text('By Weeks'),
-              subtitle: const Text('Group meals by weeks (Monday-Sunday)'),
-              value: 'weeks',
-              groupValue: _sortBy,
-              onChanged: (value) {
-                setState(() => _sortBy = value!);
-                Navigator.pop(context);
-              },
-            ),
-            RadioListTile<String>(
-              title: const Text('By Months'),
-              subtitle: const Text('Group meals by months'),
-              value: 'months',
-              groupValue: _sortBy,
-              onChanged: (value) {
-                setState(() => _sortBy = value!);
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
-    );
-  }
-
-
-
-  // Removed unused _createRecipeFromMeal
-
-
-  // Removed bulk add meal plan from history
+  // Return all history (date filter removed)
+  List<Map<String, dynamic>> _filterByDate() => _history;
 
   @override
   Widget build(BuildContext context) {
-    // Group meals by selected period
-    final grouped = _groupMealsByPeriod();
-    final periodKeys = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
+    final filteredHistory = _filterByDate();
 
     String formatTime(DateTime? dt) {
       if (dt == null) return '';
@@ -228,85 +92,34 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
                       letterSpacing: 0.5,
                     ),
                   ),
-                  // Sort button on the right
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: IconButton(
-                      icon: const Icon(Icons.sort, color: Color(0xFF388E3C)),
-                      tooltip: 'Sort by Period',
-                      onPressed: _showSortOptions,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ),
                 ],
               ),
             ),
             Expanded(
               child: Column(
         children: [
-          // Sorting indicator
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-            child: Row(
-              children: [
-                Icon(
-                  _sortBy == 'days' ? Icons.calendar_today :
-                  _sortBy == 'weeks' ? Icons.date_range :
-                  Icons.calendar_month,
-                  color: Colors.green[600],
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Sorted by ${_sortBy == 'days' ? 'Days' : _sortBy == 'weeks' ? 'Weeks' : 'Months'}',
-                  style: TextStyle(
-                    color: Colors.green[600],
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '${periodKeys.length} ${_sortBy == 'days' ? 'days' : _sortBy == 'weeks' ? 'weeks' : 'months'}',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 12,
-                  ),
-          ),
-        ],
-      ),
-          ),
           // Main content
           Expanded(
             child: _loading
           ? Center(
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(3, (i) => AnimatedContainer(
-                  duration: Duration(milliseconds: 400),
-                  margin: EdgeInsets.symmetric(horizontal: 4),
+                              children: List.generate(
+                                3,
+                                (i) => AnimatedContainer(
+                                  duration: const Duration(milliseconds: 400),
+                                  margin: const EdgeInsets.symmetric(horizontal: 4),
                   width: 12,
                   height: 12,
                   decoration: BoxDecoration(
                     color: Colors.green.withOpacity(i == DateTime.now().second % 3 ? 1 : 0.4),
                     shape: BoxShape.circle,
                   ),
-                )),
+                                ),
+                              ),
               ),
             )
-          : _history.isEmpty
+                        : filteredHistory.isEmpty
               ? Center(
                   child: Padding(
                     padding: const EdgeInsets.all(32.0),
@@ -320,52 +133,84 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
                           fit: BoxFit.contain,
                         ),
                         const SizedBox(height: 24),
-                        Text(
+                                      const Text(
                           'No completed meals yet',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: Colors.grey[600],
+                                          color: Color(0xFF757575),
                           ),
                         ),
                         const SizedBox(height: 12),
-                        Text(
+                                      const Text(
                           'Complete your meal plans to see them here',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 16,
-                            color: Colors.grey[500],
+                                          color: Color(0xFF9E9E9E),
                           ),
                         ),
                       ],
                     ),
                   ),
                 )
-              : ListView.builder(
+                            : () {
+                                // Group meals by date (descending)
+                                final Map<DateTime, List<Map<String, dynamic>>> grouped = {};
+                                for (final meal in filteredHistory) {
+                                  final dt = meal['completed_at'] != null
+                                      ? DateTime.parse(meal['completed_at']).toLocal()
+                                      : null;
+                                  if (dt == null) continue;
+                                  final dateOnly = DateTime(dt.year, dt.month, dt.day);
+                                  grouped.putIfAbsent(dateOnly, () => []).add(meal);
+                                }
+                                final dateKeys = grouped.keys.toList()
+                                  ..sort((a, b) => b.compareTo(a));
+
+                                String formatDate(DateTime d) {
+                                  const months = [
+                                    'January',
+                                    'February',
+                                    'March',
+                                    'April',
+                                    'May',
+                                    'June',
+                                    'July',
+                                    'August',
+                                    'September',
+                                    'October',
+                                    'November',
+                                    'December'
+                                  ];
+                                  return '${months[d.month - 1]} ${d.day}, ${d.year}';
+                                }
+
+                                return ListView.builder(
         padding: const EdgeInsets.all(20),
-                  itemCount: periodKeys.length,
-                  itemBuilder: (context, periodIdx) {
-                    final periodKey = periodKeys[periodIdx];
-                    final meals = grouped[periodKey]!;
+                                  itemCount: dateKeys.length,
+                                  itemBuilder: (context, idx) {
+                                    final dateKey = dateKeys[idx];
+                                    final mealsForDate = grouped[dateKey] ?? [];
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8.0),
-                          child: Text(
-                            _formatPeriodHeader(periodKey),
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+                                        Text(
+                                          formatDate(dateKey),
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.black87,
           ),
                         ),
-                        ...meals.map((meal) {
+                                        const SizedBox(height: 8),
+                                        ...mealsForDate.map((meal) {
                           final dt = meal['completed_at'] != null
                             ? DateTime.parse(meal['completed_at']).toLocal()
                             : null;
                           final timeStr = formatTime(dt);
-                          return Column(
-                            children: [
-                              Card(
-                                margin: const EdgeInsets.symmetric(vertical: 4),
+                                          return Card(
+                                            margin: const EdgeInsets.symmetric(vertical: 6),
                                 child: ListTile(
                                   leading: meal['image_url'] != null
                                       ? ClipRRect(
@@ -377,18 +222,18 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
                                             fit: BoxFit.cover,
                                           ),
                                         )
-                                      : Icon(Icons.restaurant, color: Colors.green),
-                                  title: Text(meal['title'] ?? 'Meal'),
+                                                  : const Icon(Icons.restaurant, color: Colors.green),
+                                              title: Text(meal['title'] ?? meal['recipe_name'] ?? 'Meal'),
                                   subtitle: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(timeStr, style: const TextStyle(fontSize: 15)),
                                       if (meal['calories'] != null)
-                                        Text('${meal['calories']} kcal', style: TextStyle(color: Colors.black54)),
+                                                    Text('${meal['calories']} kcal',
+                                                        style: const TextStyle(color: Colors.black54)),
                                     ],
                                   ),
                                   onTap: () async {
-                                    // Navigate directly to meal summary with this meal
                                     final recipe = Recipe(
                                       id: (meal['recipe_id'] ?? '').toString(),
                                       title: meal['title'] ?? meal['recipe_name'] ?? 'Unknown Recipe',
@@ -410,24 +255,19 @@ class _MealPlanHistoryScreenState extends State<MealPlanHistoryScreen> {
                                     await Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (context) => MealSummaryPage(
-                                          meals: [recipe],
-                                          onBuildMealPlan: (mealsWithTime) async {
-                                            Navigator.of(context).pop();
-                                          },
-                                        ),
+                                                    builder: (context) => RecipeInfoScreen(recipe: recipe),
                                       ),
                                     );
                                   },
                                 ),
-                              ),
-                            ],
                           );
                         }),
+                                        const SizedBox(height: 16),
                       ],
                     );
                   },
-                ),
+                                );
+                              }(),
               ),
             ],
           ),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:nutriplan/user/screens/home/home_page.dart';
 import 'signup_screen.dart';
-import '../../widgets/animated_logo.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../onboarding/welcome_experience_page.dart';
 import '../../services/login_history_service.dart';
@@ -377,7 +376,26 @@ class _LoginScreenState extends State<LoginScreen> {
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
                       const SizedBox(height: 10),
-                      const AnimatedLogo(),
+                      // NutriPlan Logo + Text
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Image.asset(
+                            'assets/widgets/NutriPlan_Logo.png',
+                            height: 48,
+                          ),
+                          const SizedBox(width: 10),
+                          const Text(
+                            'NutriPlan',
+                            style: TextStyle(
+                              fontSize: 42,
+                              fontWeight: FontWeight.bold,
+                              color: Color.fromARGB(221, 255, 255, 255),
+                              letterSpacing: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 10),
                       // Centered tagline directly under the NutriPlan logo for readability
                       Padding(

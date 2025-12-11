@@ -7,7 +7,15 @@ import 'recipe_info_screen.dart';
 class SeeAllRecipePage extends StatefulWidget {
   final List<String> addedRecipeIds;
   final Function(Recipe)? onAddToMealPlan;
-  const SeeAllRecipePage({super.key, this.addedRecipeIds = const [], this.onAddToMealPlan});
+  final List<Recipe>? initialRecipes;
+  final String? title;
+  const SeeAllRecipePage({
+    super.key,
+    this.addedRecipeIds = const [],
+    this.onAddToMealPlan,
+    this.initialRecipes,
+    this.title,
+  });
 
   @override
   State<SeeAllRecipePage> createState() => _SeeAllRecipePageState();
@@ -30,6 +38,25 @@ class _SeeAllRecipePageState extends State<SeeAllRecipePage> {
 
   Future<void> _fetchAll() async {
     setState(() => isLoading = true);
+
+    // Use initial recipes if provided
+    if (widget.initialRecipes != null) {
+      allRecipes = widget.initialRecipes!;
+      if (userId != null) {
+        final favs = await RecipeService.fetchFavoriteRecipeIds(userId!);
+        if (!mounted) return;
+        setState(() {
+          favoriteRecipeIds = favs.toSet();
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          isLoading = false;
+        });
+      }
+      return;
+    }
+
     final recipes = await RecipeService.fetchRecipes(userId: userId);
     if (!mounted) return;
     if (userId != null) {
@@ -134,12 +161,17 @@ class _SeeAllRecipePageState extends State<SeeAllRecipePage> {
                               onPressed: () => Navigator.pop(context),
                             ),
                             const Expanded(
+                              child: SizedBox(),
+                            ),
+                            Expanded(
+                              flex: 2,
                               child: Text(
-                                'All Recipes',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+                                widget.title ?? 'All Recipes',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
                                 textAlign: TextAlign.center,
                               ),
                             ),
+                            const Expanded(child: SizedBox()),
                             IconButton(
                               icon: const Icon(Icons.search),
                               onPressed: () => setState(() => showSearch = true),
@@ -226,26 +258,6 @@ class _SeeAllRecipePageState extends State<SeeAllRecipePage> {
                                             ),
                                           );
                                         },
-                                      ),
-                                    ),
-                                    // Heart icon
-                                    Positioned(
-                                      top: 20,
-                                      right: 20,
-                                      child: GestureDetector(
-                                        onTap: () => _toggleFavorite(recipe),
-                                        child: Container(
-                                          padding: const EdgeInsets.all(6),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white.withValues(alpha: 0.9),
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: Icon(
-                                            favoriteRecipeIds.contains(recipe.id) ? Icons.favorite : Icons.favorite_border,
-                                            color: favoriteRecipeIds.contains(recipe.id) ? const Color(0xFFFF6961) : Colors.grey,
-                                            size: 25,
-                                          ),
-                                        ),
                                       ),
                                     ),
                                     // Calories and cost overlay

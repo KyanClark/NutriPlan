@@ -465,12 +465,35 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
         }
       }
 
+      // Fetch health conditions for insights
+      List<String> healthConditions = [];
+      if (user != null) {
+        try {
+          final prefsRes = await Supabase.instance.client
+              .from('user_preferences')
+              .select('health_conditions')
+              .eq('user_id', user.id)
+              .maybeSingle();
+          if (prefsRes != null && prefsRes['health_conditions'] != null) {
+            final hc = prefsRes['health_conditions'];
+            if (hc is List) {
+              healthConditions = hc.map((e) => e.toString()).where((e) => e != 'none').toList();
+            } else if (hc is String && hc.isNotEmpty) {
+              healthConditions = [hc];
+            }
+          }
+        } catch (e) {
+          AppLogger.error('Error fetching health conditions', e);
+        }
+      }
+
       final insights = await AIInsightsService.generateWeeklyInsights(
         _weeklyData, 
         _monthlyData, 
         _goals,
         availableRecipes: recipeNames,
         hasMealsToday: hasMealsToday,
+        healthConditions: healthConditions,
       );
       if (!mounted) return;
       setState(() {
@@ -1237,19 +1260,19 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
                     : baseWidth;
                 
                 return ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: SizedBox(
-                    height: 220,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: SizedBox(
+                        borderRadius: BorderRadius.circular(12),
+                        child: SizedBox(
+                          height: 220,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: SizedBox(
                         width: safeChartWidth,
-                        height: 220,
+                              height: 220,
                         child: _buildChartWithComparison(spots, sortedKeys, dailyGoal),
-                      ),
-                    ),
-                  ),
-                );
+                            ),
+                          ),
+                        ),
+                  );
               },
             ),
         ],
@@ -1681,7 +1704,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
                                     border: Border.all(color: Colors.green[200]!),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.green.withValues(alpha: 0.06),
+                                        color: const Color.fromARGB(255, 212, 154, 27).withValues(alpha: 0.06),
                                         blurRadius: 4,
                                         offset: const Offset(0, 2),
                                       ),
@@ -2153,10 +2176,16 @@ class _AnalyticsPageState extends State<AnalyticsPage> with TickerProviderStateM
               final pct = goal > 0 ? (v / goal) * 100 : 0;
               return LineTooltipItem(
                 '${v.toStringAsFixed(0)} kcal\n${pct.toStringAsFixed(0)}% of goal',
-                const TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+                const TextStyle(color: Colors.black, fontWeight: FontWeight.w600, fontSize: 12),
               );
             }).toList();
           },
+          tooltipRoundedRadius: 8,
+          tooltipPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          tooltipMargin: 8,
+          fitInsideHorizontally: true,
+          fitInsideVertically: true,
+          getTooltipColor: (touchedSpot) => Colors.white,
         ),
         touchCallback: (FlTouchEvent event, LineTouchResponse? response) {
           // Navigation removed - chart is now informational only

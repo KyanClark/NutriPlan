@@ -577,41 +577,46 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text('Rate Your Experience'),
+        contentPadding: const EdgeInsets.fromLTRB(24.0, 20.0, 24.0, 24.0),
         content: StatefulBuilder(
-          builder: (context, setState) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('How would you rate this recipe?'),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (index) {
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        rating = index + 1;
-                      });
-                    },
-                    child: Icon(
-                      index < rating ? Icons.star : Icons.star_border,
-                      color: Colors.amber,
-                      size: 32,
-                    ),
-                  );
-                }),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: commentController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  hintText: 'Share your experience with this recipe...',
-                  border: OutlineInputBorder(),
+          builder: (context, setState) => SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('How would you rate this recipe?'),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(5, (index) {
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          rating = index + 1;
+                        });
+                      },
+                      child: Icon(
+                        index < rating ? Icons.star : Icons.star_border,
+                        color: Colors.amber,
+                        size: 32,
+                      ),
+                    );
+                  }),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                TextField(
+                  controller: commentController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    hintText: 'Share your experience with this recipe...',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(24.0, 0.0, 24.0, 16.0),
         actions: [
           TextButton(
             onPressed: () async {
@@ -644,12 +649,27 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
     );
 
     if (result != null) {
+      final recipeId = widget.recipeId ?? '';
+      if (recipeId.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Cannot submit feedback: missing recipe ID'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
       try {
+        print('Submitting feedback - recipeId: $recipeId, rating: ${result['rating']}, comment: ${result['comment']}');
         await FeedbackService.addFeedback(
-          recipeId: widget.recipeId ?? '',
-          rating: result['rating'],
-          comment: result['comment'],
+          recipeId: recipeId,
+          rating: result['rating'] is double ? result['rating'] : (result['rating'] as num).toDouble(),
+          comment: result['comment'] ?? '',
         );
+        print('Feedback submitted successfully');
 
         // Navigate to thank you page
         if (mounted) {
@@ -661,14 +681,16 @@ class _InteractiveRecipePageState extends State<InteractiveRecipePage> {
             ),
           );
         }
-      } catch (e) {
-        // If feedback submission fails, just go back to home
+      } catch (e, stackTrace) {
+        print('Error submitting feedback: $e');
+        print('Stack trace: $stackTrace');
         if (mounted) {
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(
-              builder: (context) => const HomePage(),
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to submit feedback: $e'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
             ),
-            (route) => false,
           );
         }
       }

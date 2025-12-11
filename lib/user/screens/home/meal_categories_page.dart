@@ -21,12 +21,6 @@ class AllMealCategoriesPage extends StatelessWidget {
         'category': 'chicken',
       },
       {
-        'name': 'Desserts',
-        'asset': 'assets/widgets/soup-vid.gif', // Using soup as placeholder
-        'assetType': 'gif',
-        'category': 'desserts',
-      },
-      {
         'name': 'Fish',
         'asset': 'assets/widgets/fish.png',
         'assetType': 'image',

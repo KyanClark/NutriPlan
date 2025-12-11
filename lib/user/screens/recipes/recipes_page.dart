@@ -607,7 +607,11 @@ class _RecipesPageState extends State<RecipesPage> {
     ).toList();
   }
 
-  Widget _buildRecipeSection(String title, List<Recipe> recipes, int totalCount) {
+  Widget _buildRecipeSection(
+    String title,
+    List<Recipe> recipes, {
+    bool showCount = false,
+  }) {
     if (recipes.isEmpty) return const SizedBox.shrink();
     
     return Column(
@@ -628,23 +632,28 @@ class _RecipesPageState extends State<RecipesPage> {
             ),
             Row(
               children: [
-                Text(
-                  '${recipes.length} recipes',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                    fontFamily: 'Geist',
+                if (showCount)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: Text(
+                    '${recipes.length} recipes',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                      fontFamily: 'Geist',
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
+                  ),
                 GestureDetector(
                   onTap: () {
                     Navigator.push(
                       context,
                       PageRouteBuilder(
                         pageBuilder: (context, animation, secondaryAnimation) => SeeAllRecipePage(
+                          initialRecipes: recipes,
                           addedRecipeIds: _mealsForPlan.map((m) => m.id).toList(),
                           onAddToMealPlan: _addToMealPlan,
+                          title: title,
                         ),
                         transitionsBuilder: (context, animation, secondaryAnimation, child) {
                           const begin = Offset(1.0, 0.0);
@@ -758,26 +767,6 @@ class _RecipesPageState extends State<RecipesPage> {
                                     ),
                                   );
                                 },
-                              ),
-                            ),
-                            // Heart icon
-                            Positioned(
-                              top: 20,
-                              right: 20,
-                              child: GestureDetector(
-                                onTap: () => _toggleFavorite(recipe),
-                    child: Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.9),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    isFavorite ? Icons.favorite : Icons.favorite_border,
-                                    color: isFavorite ? const Color(0xFFFF6961) : Colors.grey,
-                                    size: 25,
-                                  ),
-                              ),
                             ),
                           ),
                             // Meal Plan indicator (if recipe is in meal plan)
@@ -1068,75 +1057,14 @@ class _RecipesPageState extends State<RecipesPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // All Recipes header
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'All Recipes',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
-                              fontFamily: 'Geist',
-                            ),
-                          ),
-                          Row(
-                            children: [
-                              Text(
-                                '${allRecipes.length} recipes',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
-                                  fontFamily: 'Geist',
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              GestureDetector(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    PageRouteBuilder(
-                                      pageBuilder: (context, animation, secondaryAnimation) =>
-                                          SeeAllRecipePage(
-                                        addedRecipeIds: _mealsForPlan.map((m) => m.id).toList(),
-                                        onAddToMealPlan: _addToMealPlan,
-                                      ),
-                                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                        const begin = Offset(1.0, 0.0);
-                                        const end = Offset.zero;
-                                        const curve = Curves.easeInOut;
-
-                                        var tween = Tween(begin: begin, end: end).chain(
-                                          CurveTween(curve: curve),
-                                        );
-                                        var offsetAnimation = animation.drive(tween);
-
-                                        return SlideTransition(
-                                          position: offsetAnimation,
-                                          child: child,
-                                        );
-                                      },
-                                      transitionDuration: const Duration(milliseconds: 300),
-                                    ),
-                                  );
-                                },
-                                child: const Text(
-                                  'See All',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.blue,
-                                    fontWeight: FontWeight.w500,
-                                    fontFamily: 'Geist',
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                      // All Recipes section (displayed horizontally like other sections)
+                      _buildRecipeSection(
+                        'All Recipes',
+                        filteredRecipes, // Show all filtered recipes, not just unique ones
+                        showCount: true,
                       ),
 
-                      const SizedBox(height: 50),
+                      const SizedBox(height: 24),
 
                       // Recently Added Recipes (from DB order by created_at desc)
                       FutureBuilder<List<Recipe>>(
@@ -1186,7 +1114,6 @@ class _RecipesPageState extends State<RecipesPage> {
                           return _buildRecipeSection(
                             'Recently Added',
                             getUniqueRecipes(recent),
-                            recent.length,
                           );
                         },
                       ),
@@ -1197,7 +1124,6 @@ class _RecipesPageState extends State<RecipesPage> {
                       _buildRecipeSection(
                         'Silog Meals',
                         getUniqueRecipes(_getSilogRecipes(filteredRecipes)),
-                        _getSilogRecipes(filteredRecipes).length,
                       ),
 
                       const SizedBox(height: 24),
@@ -1206,7 +1132,6 @@ class _RecipesPageState extends State<RecipesPage> {
                       _buildRecipeSection(
                         'Kainang Pamilya',
                         getUniqueRecipes(_getFamilyFavorites(filteredRecipes)),
-                        _getFamilyFavorites(filteredRecipes).length,
                       ),
 
                       const SizedBox(height: 24),
@@ -1215,7 +1140,6 @@ class _RecipesPageState extends State<RecipesPage> {
                       _buildRecipeSection(
                         'Lutong Bahay',
                         getUniqueRecipes(_getHomeCookedRecipes(filteredRecipes)),
-                        _getHomeCookedRecipes(filteredRecipes).length,
                       ),
 
                       const SizedBox(height: 24),
@@ -1234,7 +1158,6 @@ class _RecipesPageState extends State<RecipesPage> {
                           return _buildRecipeSection(
                             'Just For You',
                             justForYouRecipes,
-                            justForYouRecipes.length,
                           );
                         },
                       ),
@@ -1255,7 +1178,6 @@ class _RecipesPageState extends State<RecipesPage> {
                           return _buildRecipeSection(
                             'Try these Meals',
                             tryTheseRecipes,
-                            tryTheseRecipes.length,
                           );
                         },
                       ),
@@ -1266,7 +1188,6 @@ class _RecipesPageState extends State<RecipesPage> {
                       _buildRecipeSection(
                         'Quick & Easy Meals',
                         getUniqueRecipes(_getQuickEasyRecipes(filteredRecipes)),
-                        _getQuickEasyRecipes(filteredRecipes).length,
                       ),
 
                       const SizedBox(height: 24),
@@ -1275,7 +1196,6 @@ class _RecipesPageState extends State<RecipesPage> {
                       _buildRecipeSection(
                         'Healthy Pinoy',
                         getUniqueRecipes(_getHealthyPinoyRecipes(filteredRecipes)),
-                        _getHealthyPinoyRecipes(filteredRecipes).length,
                       ),
 
                       const SizedBox(height: 24),
@@ -1284,7 +1204,6 @@ class _RecipesPageState extends State<RecipesPage> {
                       _buildRecipeSection(
                         'Pasta & Noodles',
                         getUniqueRecipes(_getPastaRecipes(filteredRecipes)),
-                        _getPastaRecipes(filteredRecipes).length,
                       ),
 
                       const SizedBox(height: 24),
@@ -1293,7 +1212,6 @@ class _RecipesPageState extends State<RecipesPage> {
                       _buildRecipeSection(
                         'Comfort Classics',
                         getUniqueRecipes(_getComfortClassicsRecipes(filteredRecipes)),
-                        _getComfortClassicsRecipes(filteredRecipes).length,
                       ),
 
                       const SizedBox(height: 24),
@@ -1302,7 +1220,6 @@ class _RecipesPageState extends State<RecipesPage> {
                       _buildRecipeSection(
                         'Fusion Flavors',
                         getUniqueRecipes(_getFusionFlavorsRecipes(filteredRecipes)),
-                        _getFusionFlavorsRecipes(filteredRecipes).length,
                       ),
 
                       const SizedBox(height: 24),
@@ -1311,7 +1228,6 @@ class _RecipesPageState extends State<RecipesPage> {
                       _buildRecipeSection(
                         'One-Pot Wonders',
                         getUniqueRecipes(_getOnePotWondersRecipes(filteredRecipes)),
-                        _getOnePotWondersRecipes(filteredRecipes).length,
                       ),
 
                       const SizedBox(height: 24),
@@ -1320,7 +1236,6 @@ class _RecipesPageState extends State<RecipesPage> {
                       _buildRecipeSection(
                         'Weekend Specials',
                         getUniqueRecipes(_getWeekendSpecialsRecipes(filteredRecipes)),
-                        _getWeekendSpecialsRecipes(filteredRecipes).length,
                       ),
                     ],
                   ),

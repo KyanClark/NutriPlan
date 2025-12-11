@@ -13,7 +13,7 @@ class _MacroChip extends StatelessWidget {
   final String value;
   final String unit;
   const _MacroChip({required this.label, required this.value, this.unit = 'g'});
-
+  
   // Icon asset per macro
   String? _getIconPath(String label) {
     switch (label.toLowerCase()) {
@@ -35,7 +35,7 @@ class _MacroChip extends StatelessWidget {
         return null;
     }
   }
-
+  
   IconData _getFallbackIcon(String label) {
     switch (label.toLowerCase()) {
       case 'carbs':
@@ -56,7 +56,7 @@ class _MacroChip extends StatelessWidget {
         return Icons.info;
     }
   }
-
+  
   // Palette tuned for readability (darker text, subtle backgrounds)
   Color _getBaseColor(String label) {
     switch (label.toLowerCase()) {
@@ -78,12 +78,12 @@ class _MacroChip extends StatelessWidget {
         return const Color(0xFF1565C0);
     }
   }
-
+  
   @override
   Widget build(BuildContext context) {
     final color = _getBaseColor(label);
     final iconPath = _getIconPath(label);
-
+    
     return Container(
       constraints: const BoxConstraints(minWidth: 150, maxWidth: 200),
       margin: const EdgeInsets.only(right: 8, bottom: 8),
@@ -109,27 +109,27 @@ class _MacroChip extends StatelessWidget {
             alignment: Alignment.center,
             child: iconPath != null
                 ? Image.asset(
-                    iconPath,
+                iconPath,
                     width: 18,
                     height: 18,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Icon(
-                        _getFallbackIcon(label),
-                        size: 18,
-                        color: color,
-                      );
-                    },
-                    cacheWidth: 48,
-                    cacheHeight: 48,
-                    filterQuality: FilterQuality.low,
-                    gaplessPlayback: true,
-                  )
-                : Icon(
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return Icon(
                     _getFallbackIcon(label),
                     size: 18,
                     color: color,
-                  ),
+                  );
+                },
+                    cacheWidth: 48,
+                    cacheHeight: 48,
+                filterQuality: FilterQuality.low,
+                gaplessPlayback: true,
+            )
+                : Icon(
+              _getFallbackIcon(label),
+              size: 18,
+              color: color,
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -139,11 +139,11 @@ class _MacroChip extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+                style: TextStyle(
                     fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w600,
                     color: color.withOpacity(0.9),
                   ),
                 ),
@@ -156,9 +156,9 @@ class _MacroChip extends StatelessWidget {
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: Colors.black87,
+                    ),
                   ),
-                ),
-              ],
+                ],
             ),
           ),
         ],
@@ -187,12 +187,13 @@ class RecipeInfoScreen extends StatefulWidget {
   State<RecipeInfoScreen> createState() => _RecipeInfoScreenState();
 }
 
-class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProviderStateMixin {
+class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
   bool showMealPlanBar = false;
   List<Map<String, dynamic>> feedbacks = [];
   bool isLoadingFeedbacks = true;
   double averageRating = 0.0;
   int totalFeedbacks = 0;
+  bool _hasLoadedFeedbacks = false; // Track if feedbacks have been loaded
   
   // Nutrition update state
   bool isUpdatingNutrition = false;
@@ -209,6 +210,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     
     // Initialize heart animation
     _heartAnimationController = AnimationController(
@@ -235,7 +237,16 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _hasLoadedFeedbacks) {
+      // Reload feedbacks when app comes back to foreground (only if already loaded once)
+      _loadFeedbacks();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _heartAnimationController.dispose();
     _shimmerController.dispose();
     super.dispose();
@@ -255,25 +266,40 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
   }
 
   Future<void> _loadFeedbacks() async {
+    if (!mounted) return;
+    
     setState(() {
       isLoadingFeedbacks = true;
     });
 
     try {
+      print('Loading feedbacks for recipe: ${widget.recipe.id}');
       final response = await FeedbackService.fetchRecipeFeedbacks(widget.recipe.id);
+      print('Loaded ${response.length} feedbacks');
       
       if (mounted) {
         setState(() {
           feedbacks = response;
           _calculateAverageRating();
           isLoadingFeedbacks = false;
+          _hasLoadedFeedbacks = true;
         });
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('Error loading feedbacks: $e');
+      print('Stack trace: $stackTrace');
       if (mounted) {
         setState(() {
           isLoadingFeedbacks = false;
         });
+        // Show error to user
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load feedbacks: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
       }
     }
   }
@@ -568,154 +594,11 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
     }
   }
 
-  /// Calculate recipe cost from ingredients
-  Future<void> _calculateRecipeCost() async {
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: Card(
-          child: Padding(
-            padding: EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Calculating cost...'),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-
-    try {
-      final quantities = _estimateIngredientQuantities(widget.recipe.ingredients);
-      double totalCost = 0.0;
-      final costBreakdown = <String, double>{};
-
-      // Calculate cost for each ingredient
-      for (final ingredient in widget.recipe.ingredients) {
-        final quantity = quantities[ingredient] ?? 100.0; // Quantity in grams
-        final ingredientLower = ingredient.toLowerCase();
-        
-        // Estimate price per 100g based on ingredient type
-        double pricePer100g = _estimateIngredientPrice(ingredientLower);
-        // Calculate cost: (quantity in grams / 100) * price per 100g
-        final ingredientCost = (quantity / 100.0) * pricePer100g;
-        
-        totalCost += ingredientCost;
-        costBreakdown[ingredient] = ingredientCost;
-      }
-
-      // Round to 2 decimal places
-      totalCost = double.parse(totalCost.toStringAsFixed(2));
-
-      // Update recipe cost in database
-      final client = Supabase.instance.client;
-      await client
-          .from('recipes')
-          .update({
-            'cost': totalCost,
-          })
-          .eq('id', widget.recipe.id);
-
-      // Close loading dialog
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
-
-      // Show result dialog
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Row(
-              children: [
-                Icon(Icons.calculate, color: Color(0xFF4CAF50)),
-                SizedBox(width: 8),
-                Text('Cost Calculated'),
-              ],
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Total Cost: ₱${totalCost.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF4CAF50),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Cost Breakdown:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  ...costBreakdown.entries.map((entry) => Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                entry.key,
-                                style: const TextStyle(fontSize: 12),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            Text(
-                              '₱${entry.value.toStringAsFixed(2)}',
-                              style: const TextStyle(fontWeight: FontWeight.w500),
-                            ),
-                          ],
-                        ),
-                      )),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Close'),
-              ),
-            ],
-          ),
-        );
-      }
-
-      // Refresh the page to show updated cost
-      if (mounted) {
-        setState(() {
-          // Trigger rebuild to show updated cost
-        });
-      }
-    } catch (e) {
-      // Close loading dialog
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error calculating cost: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    }
-  }
+  // ignore: unused_element
+  Future<void> _calculateRecipeCost() async {}
 
   /// Estimate price per 100g for an ingredient (in PHP)
+  // ignore: unused_element
   double _estimateIngredientPrice(String ingredientLower) {
     // Meat prices (per 100g)
     if (ingredientLower.contains('chicken') || ingredientLower.contains('manok')) {
@@ -792,6 +675,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
   }
 
   /// Manually update nutrition data for the recipe
+  // ignore: unused_element
   Future<void> _updateNutrition() async {
     if (mounted) {
       setState(() {
@@ -865,6 +749,59 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
     final currentUser = Supabase.instance.client.auth.currentUser;
     if (currentUser == null) return false;
     return feedback['user_id'] == currentUser.id;
+  }
+
+  String _formatReviewerName(Map<String, dynamic> feedback) {
+    // Handle different profile data structures from Supabase
+    dynamic profileData = feedback['profiles'];
+    
+    // Debug: print the structure to understand what we're getting
+    print('Profile data type: ${profileData.runtimeType}');
+    print('Profile data: $profileData');
+    
+    // Supabase join can return as Map, List, or null
+    Map<String, dynamic>? profile;
+    if (profileData is Map<String, dynamic>) {
+      profile = profileData;
+    } else if (profileData is List && profileData.isNotEmpty) {
+      profile = profileData.first as Map<String, dynamic>?;
+    }
+    
+    if (profile != null) {
+      print('Profile map: $profile');
+      final fullName = profile['full_name']?.toString().trim();
+      final username = profile['username']?.toString().trim();
+      final email = profile['email']?.toString().trim();
+      
+      print('Full name: $fullName, Username: $username, Email: $email');
+      
+      // Prefer full name, then username. If neither, fall back to email prefix (before @).
+      if (fullName != null && fullName.isNotEmpty && fullName != 'null') return fullName;
+      if (username != null && username.isNotEmpty && username != 'null') return username;
+      if (email != null && email.isNotEmpty && email != 'null') {
+        final at = email.indexOf('@');
+        return at > 0 ? email.substring(0, at) : email;
+      }
+    }
+    
+    // If no profile data, try to get user info from auth (for current user's own feedback)
+    final userId = feedback['user_id']?.toString();
+    if (userId != null) {
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      if (currentUser != null && currentUser.id == userId) {
+        // For current user, try to get from auth metadata
+        final metadata = currentUser.userMetadata;
+        if (metadata != null) {
+          final name = metadata['full_name']?.toString() ?? 
+                      metadata['name']?.toString() ??
+                      metadata['username']?.toString();
+          if (name != null && name.isNotEmpty) return name;
+        }
+      }
+    }
+    
+    print('Returning Anonymous for feedback: ${feedback['id']}');
+    return 'Anonymous';
   }
 
   /// Get time ago string (e.g., "2 days ago", "1 week ago")
@@ -1445,48 +1382,62 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                                 else if ((recipe.macros.isNotEmpty && recipe.calories > 0) || updatedNutrition != null)
                                   Align(
                                     alignment: Alignment.centerLeft,
-                                    child: Wrap(
+                                    child: LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        final itemWidth = (constraints.maxWidth - 8) / 2;
+                                        final macroItems = [
+                                          {
+                                            'label': 'Carbs',
+                                            'value': (updatedNutrition?['carbs'] ?? recipe.macros['carbs'] ?? 0).toStringAsFixed(2),
+                                            'unit': 'g',
+                                          },
+                                          {
+                                            'label': 'Fat',
+                                            'value': (updatedNutrition?['fat'] ?? recipe.macros['fat'] ?? 0).toStringAsFixed(2),
+                                            'unit': 'g',
+                                          },
+                                          {
+                                            'label': 'Fiber',
+                                            'value': (updatedNutrition?['fiber'] ?? recipe.macros['fiber'] ?? 0).toStringAsFixed(2),
+                                            'unit': 'g',
+                                          },
+                                          {
+                                            'label': 'Protein',
+                                            'value': (updatedNutrition?['protein'] ?? recipe.macros['protein'] ?? 0).toStringAsFixed(2),
+                                            'unit': 'g',
+                                          },
+                                          {
+                                            'label': 'Sugar',
+                                            'value': (updatedNutrition?['sugar'] ?? recipe.macros['sugar'] ?? 0).toStringAsFixed(2),
+                                            'unit': 'g',
+                                          },
+                                          {
+                                            'label': 'Sodium',
+                                            'value': (updatedNutrition?['sodium'] ?? recipe.macros['sodium'] ?? 0).toStringAsFixed(2),
+                                            'unit': 'mg',
+                                          },
+                                          {
+                                            'label': 'Cholesterol',
+                                            'value': (updatedNutrition?['cholesterol'] ?? recipe.macros['cholesterol'] ?? 0).toStringAsFixed(2),
+                                            'unit': 'mg',
+                                          },
+                                        ];
+
+                                        return Wrap(
                                       spacing: 8,
                                       runSpacing: 8,
-                                      children: [
-                                        _MacroChip(
-                                          label: 'Carbs', 
-                                          value: (updatedNutrition?['carbs'] ?? recipe.macros['carbs'] ?? 0).toStringAsFixed(2),
-                                          unit: 'g'
-                                        ),
-                                        _MacroChip(
-                                          label: 'Fat', 
-                                          value: (updatedNutrition?['fat'] ?? recipe.macros['fat'] ?? 0).toStringAsFixed(2),
-                                          unit: 'g'
-                                        ),
-                                        _MacroChip(
-                                          label: 'Fiber', 
-                                          value: (updatedNutrition?['fiber'] ?? recipe.macros['fiber'] ?? 0).toStringAsFixed(2),
-                                          unit: 'g'
-                                        ),
-                                        _MacroChip(
-                                          label: 'Protein', 
-                                          value: (updatedNutrition?['protein'] ?? recipe.macros['protein'] ?? 0).toStringAsFixed(2),
-                                          unit: 'g'
-                                        ),
-                                        _MacroChip(
-                                          label: 'Sugar', 
-                                          value: (updatedNutrition?['sugar'] ?? recipe.macros['sugar'] ?? 0).toStringAsFixed(2),
-                                          unit: 'g'
-                                        ),
-                                        // Always show sodium, even if 0
-                                        _MacroChip(
-                                          label: 'Sodium', 
-                                          value: (updatedNutrition?['sodium'] ?? recipe.macros['sodium'] ?? 0).toStringAsFixed(2),
-                                          unit: 'mg'
-                                        ),
-                                        // Always show cholesterol, even if 0
-                                        _MacroChip(
-                                          label: 'Cholesterol', 
-                                          value: (updatedNutrition?['cholesterol'] ?? recipe.macros['cholesterol'] ?? 0).toStringAsFixed(2),
-                                          unit: 'mg'
-                                        ),
-                                      ],
+                                          children: macroItems
+                                              .map((m) => SizedBox(
+                                                    width: itemWidth,
+                                                    child: _MacroChip(
+                                                      label: m['label'] as String,
+                                                      value: m['value'] as String,
+                                                      unit: m['unit'] as String,
+                                                    ),
+                                                  ))
+                                              .toList(),
+                                        );
+                                      },
                                     ),
                                   )
                                 // Show message when no nutrition data available
@@ -1541,20 +1492,7 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                               const SizedBox(height: 24),
                               Padding(
                                 padding: const EdgeInsets.symmetric(vertical: 4.0),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text('Ingredients', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                                    TextButton.icon(
-                                      onPressed: () => _calculateRecipeCost(),
-                                      icon: const Icon(Icons.calculate, size: 18),
-                                      label: const Text('Calculate Cost'),
-                                      style: TextButton.styleFrom(
-                                        foregroundColor: const Color(0xFF4CAF50),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                child: const Text('Ingredients', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                               ),
                               const SizedBox(height: 16),
                               ...recipe.ingredients.map((ing) => Padding(
@@ -1726,9 +1664,9 @@ class _RecipeInfoScreenState extends State<RecipeInfoScreen> with TickerProvider
                                             // Review Header Row
                                           Row(
                                             children: [
-                                                // Reviewer Name
-                                                      Text(
-                                                  feedback['profiles']['username'] ?? 'Anonymous',
+                                                // Reviewer Name (prefer full name, then username, then email prefix)
+                                                Text(
+                                                  _formatReviewerName(feedback),
                                                   style: const TextStyle(
                                                     fontWeight: FontWeight.bold,
                                                     fontSize: 16,

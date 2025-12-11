@@ -3,7 +3,6 @@ import 'package:nutriplan/user/screens/auth/email_verification_screen.dart';
 import 'package:nutriplan/user/screens/auth/phone_otp_verification_screen.dart';
 import '../../services/sms_otp_service.dart';
 import 'login_screen.dart';
-import '../../widgets/animated_logo.dart';
 import '../../widgets/decorative_auth_background.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -116,7 +115,26 @@ class _SignupScreenState extends State<SignupScreen> {
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
                     const SizedBox(height: 40),
-                    const AnimatedLogo(),
+                    // NutriPlan Logo + Text
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset(
+                          'assets/widgets/NutriPlan_Logo.png',
+                          height: 32,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'NutriPlan',
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: Color.fromARGB(221, 255, 255, 255),
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 24),
                     // Centered tagline under logo, similar to login
                     Padding(

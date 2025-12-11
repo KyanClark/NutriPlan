@@ -261,14 +261,54 @@ class RecipeService {
   /// Filter recipes by diet type
   static List<Recipe> filterRecipesByDietType(List<Recipe> recipes, List<String> dietTypes) {
     if (dietTypes.isEmpty) return recipes;
+    final normalized = dietTypes.map((e) => e.toLowerCase()).toList();
 
-    // If user has "Vegetarian" diet type, filter to only vegetarian recipes
-    if (dietTypes.any((type) => type.toLowerCase() == 'vegetarian')) {
+    // Keto: very low carbs, avoid grain/sugar-heavy ingredients
+    if (normalized.contains('keto')) {
+      const carbLimit = 20; // grams per recipe serving
+      const sugarLimit = 8; // grams per recipe serving
+      const disallowedKeywords = [
+        'rice',
+        'noodle',
+        'pasta',
+        'bread',
+        'bun',
+        'tortilla',
+        'corn',
+        'flour',
+        'sugar',
+        'honey',
+        'syrup',
+        'sweetened',
+        'cake',
+        'dessert',
+        'cookie',
+      ];
+
+      recipes = recipes.where((recipe) {
+        final carbs = (recipe.macros['carbs'] ?? 0).toDouble();
+        final sugar = (recipe.macros['sugar'] ?? 0).toDouble();
+        if (carbs > carbLimit || sugar > sugarLimit) return false;
+
+        final haystack = ([
+          recipe.title,
+          recipe.shortDescription,
+          ...recipe.ingredients,
+          ...recipe.tags,
+        ]).join(' ').toLowerCase();
+        if (disallowedKeywords.any((kw) => haystack.contains(kw))) return false;
+
+        return true;
+      }).toList();
+    }
+
+    // Vegetarian: allow dairy/eggs, exclude meat/fish/shellfish
+    if (normalized.contains('vegetarian')) {
       return recipes.where((recipe) => _isVegetarianRecipe(recipe)).toList();
     }
 
-    // If user has "Vegan" diet type, filter to only vegan recipes (strict vegetarian + no dairy/eggs)
-    if (dietTypes.any((type) => type.toLowerCase() == 'vegan')) {
+    // Vegan: strict vegetarian + no dairy/eggs
+    if (normalized.contains('vegan')) {
       return recipes.where((recipe) {
         if (!_isVegetarianRecipe(recipe)) return false;
         
@@ -293,7 +333,60 @@ class RecipeService {
       }).toList();
     }
 
-    // For other diet types, return all recipes (can be extended later)
+    // Pescatarian: allow fish/seafood, exclude meat/poultry
+    if (normalized.contains('pescatarian')) {
+      final meatKeywords = ['chicken', 'pork', 'beef', 'turkey', 'duck', 'lamb', 'mutton', 'meat', 'poultry'];
+      recipes = recipes.where((recipe) {
+        final title = recipe.title.toLowerCase();
+        final tags = recipe.tags.map((t) => t.toLowerCase()).toList();
+        final hasMeat = meatKeywords.any((kw) => title.contains(kw) || tags.any((t) => t.contains(kw)));
+        return !hasMeat;
+      }).toList();
+    }
+
+    // Dairy-Free: exclude dairy keywords
+    if (normalized.contains('dairy-free')) {
+      final dairyKw = ['milk', 'cheese', 'butter', 'cream', 'yogurt', 'keso', 'mozzarella', 'cheddar', 'dairy'];
+      recipes = recipes.where((recipe) {
+        final hay = (recipe.title + ' ' + recipe.shortDescription + ' ' + recipe.ingredients.join(' ') + ' ' + recipe.tags.join(' ')).toLowerCase();
+        return !dairyKw.any((kw) => hay.contains(kw));
+      }).toList();
+    }
+
+    // Gluten-Free: exclude wheat/gluten keywords
+    if (normalized.contains('gluten-free')) {
+      final glutenKw = ['gluten', 'wheat', 'flour', 'bread', 'pasta', 'noodle', 'batter', 'breadcrumbs'];
+      recipes = recipes.where((recipe) {
+        final hay = (recipe.title + ' ' + recipe.shortDescription + ' ' + recipe.ingredients.join(' ') + ' ' + recipe.tags.join(' ')).toLowerCase();
+        return !glutenKw.any((kw) => hay.contains(kw));
+      }).toList();
+    }
+
+    // Low Carb: carbs <= 30g per serving
+    if (normalized.contains('low carb')) {
+      recipes = recipes.where((r) {
+        final carbs = (r.macros['carbs'] ?? 0).toDouble();
+        return carbs <= 30;
+      }).toList();
+    }
+
+    // Low Fat: fat <= 15g per serving
+    if (normalized.contains('low fat')) {
+      recipes = recipes.where((r) {
+        final fat = (r.macros['fat'] ?? 0).toDouble();
+        return fat <= 15;
+      }).toList();
+    }
+
+    // High Protein: protein >= 25g per serving
+    if (normalized.contains('high protein')) {
+      recipes = recipes.where((r) {
+        final protein = (r.macros['protein'] ?? 0).toDouble();
+        return protein >= 25;
+      }).toList();
+    }
+
+    // Balance Diet or Flexitarian: no extra filtering (return remaining)
     return recipes;
   }
 

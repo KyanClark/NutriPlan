@@ -334,9 +334,9 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
                           _buildSuggestionTypeChip(suggestion.type),
                           const SizedBox(width: 8),
                           Text(
-                            '₱${suggestion.recipe.cost.toStringAsFixed(2)}',
+                            '${suggestion.recipe.calories} kcal',
                             style: TextStyle(
-                              color: Colors.green[600],
+                              color: Colors.orange[700],
                               fontWeight: FontWeight.w600,
                               fontSize: 12,
                             ),

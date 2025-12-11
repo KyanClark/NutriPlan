@@ -165,6 +165,13 @@ class _FilteredRecipesPageState extends State<FilteredRecipesPage> {
           title.contains('chicken') || title.contains('manok')) {
         return false;
       }
+
+      // Exclude non-pork items that were mis-categorized
+      if (title.contains('pancit palabok') ||
+          title.contains('kilawing labanos') ||
+          title.contains('ginataang puso nang saging')) {
+        return false;
+      }
       
       // Check ingredients - exclude if contains beef or chicken
       if (ingredients.contains('beef') || ingredients.contains('baka') ||

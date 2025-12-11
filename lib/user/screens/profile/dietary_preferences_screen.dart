@@ -101,32 +101,22 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
   final List<Map<String, dynamic>> _healthOptions = [
     {'key': 'none', 'title': '✅ None', 'desc': 'No specific health conditions'},
     {'key': 'diabetes', 'title': '🩺 Diabetes / High Blood Sugar', 'desc': 'Lower carbs, higher fiber'},
-    {'key': 'stroke_recovery', 'title': '🧠 Stroke Recovery', 'desc': 'Low sodium, heart-healthy fats'},
     {'key': 'hypertension', 'title': '🫀 High Blood Pressure', 'desc': 'Very low sodium, DASH diet'},
-    {'key': 'malnutrition', 'title': '🌾 Malnutrition / Underweight', 'desc': 'High calories, nutrient-dense foods'},
   ];
 
-  final List<Map<String, dynamic>> _nutritionNeedsOptions = [
-    {'key': 'none', 'title': '✅ None', 'desc': 'No specific nutrition needs'},
-    {'key': 'higher_protein', 'title': '💪 Higher Protein', 'desc': 'Increased protein for muscle support'},
-    {'key': 'muscle_gain', 'title': '🏋️ Muscle Gain', 'desc': 'High protein and calories for muscle building'},
-    {'key': 'weight_gain', 'title': '📈 Weight Gain', 'desc': 'Calorie-dense meals for healthy weight gain'},
-  ];
 
-  final List<String> _dietTypeOptions = [
-    'Balance Diet',
-    'High Protein',
-    'Low Carb',
-    'Low Fat',
-    'Vegetarian',
-    'Vegan',
-    'Dairy-Free',
-    'Gluten-Free',
-    'Pescatarian',
-    'Flexitarian',
-    'Keto',
-    'Paleo',
-    'Mediterranean',
+  final List<Map<String, dynamic>> _dietTypeOptions = [
+    {'key': 'none', 'title': '✅ None', 'desc': 'No specific diet preference'},
+    {'key': 'High Protein', 'title': 'High Protein', 'desc': 'Prioritize 25g+ protein per meal'},
+    {'key': 'Low Carb', 'title': 'Low Carb', 'desc': 'Keep carbs around or below 30g per meal'},
+    {'key': 'Low Fat', 'title': 'Low Fat', 'desc': 'Keep fats around or below 15g per meal'},
+    {'key': 'Vegetarian', 'title': 'Vegetarian', 'desc': 'No meat or fish; dairy/eggs allowed'},
+    {'key': 'Vegan', 'title': 'Vegan', 'desc': 'No animal products, dairy, or eggs'},
+    {'key': 'Dairy-Free', 'title': 'Dairy-Free', 'desc': 'No milk, cheese, butter, or yogurt'},
+    {'key': 'Gluten-Free', 'title': 'Gluten-Free', 'desc': 'Avoid wheat, bread, pasta, and flour'},
+    {'key': 'Pescatarian', 'title': 'Pescatarian', 'desc': 'Fish/seafood allowed; no meat/poultry'},
+    {'key': 'Flexitarian', 'title': 'Flexitarian', 'desc': 'Mostly plant-based with occasional meat'},
+    {'key': 'Keto', 'title': 'Keto', 'desc': 'Very low carbs (~20g), moderate protein, higher fat'},
   ];
 
   @override
@@ -152,7 +142,7 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
             _allergies = _safeStringList(data['allergies'] ?? []);
             _healthConditions = _safeStringList(data['health_conditions'] ?? []);
             _dietTypes = _safeStringList(data['diet_type'] ?? []);
-            _nutritionNeeds = _safeStringList(data['nutrition_needs'] ?? []);
+            _nutritionNeeds = [];
           });
         }
       } catch (e) {
@@ -179,9 +169,9 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
     }
     
     try {
-      // Filter out "none" from health conditions and nutrition needs
+      // Filter out "none" from health conditions
       final healthConditionsToSave = _healthConditions.where((h) => h != 'none').toList();
-      final nutritionNeedsToSave = _nutritionNeeds.where((n) => n != 'none').toList();
+      final nutritionNeedsToSave = <String>[];
       
       // Fetch current sodium_limit to preserve it
       double? currentSodiumLimit;
@@ -205,7 +195,7 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
         'allergies': _allergies.isEmpty ? [] : _allergies,
         'health_conditions': healthConditionsToSave.isEmpty ? [] : healthConditionsToSave,
         'diet_type': _dietTypes.isEmpty ? [] : _dietTypes,
-        'nutrition_needs': nutritionNeedsToSave.isEmpty ? [] : nutritionNeedsToSave,
+        'nutrition_needs': [],
         if (currentSodiumLimit != null) 'sodium_limit': currentSodiumLimit,
       };
       
@@ -262,6 +252,7 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool _showAllergyDebug = false; // hide excluded/allergen warning recipe lists
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: SafeArea(
@@ -352,14 +343,17 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
                   Card(
                     child: ListTile(
                       title: const Text('Diet Type'),
-                      subtitle: Text(_dietTypes.isEmpty ? 'None selected' : _dietTypes.join(', ')),
+                      subtitle: Text(_dietTypes.isEmpty ? 'None selected' : _getDisplayText(_dietTypes, _dietTypeOptions, 'key')),
                       leading: const Icon(Icons.restaurant, color: Colors.blue),
                       trailing: const Icon(Icons.edit),
-                      onTap: () => _showSimpleMultiSelectDialog(
+                      onTap: () => _showMultiSelectDialog(
                         'Diet Type',
                         _dietTypeOptions,
                         _dietTypes,
+                        'key',
                         (selected) => setState(() => _dietTypes = selected),
+                        allowMultiple: true,
+                        hasNoneOption: true,
                       ),
                     ),
                   ),
@@ -378,26 +372,6 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
                         _healthConditions,
                         'key',
                         (selected) => setState(() => _healthConditions = selected),
-                        allowMultiple: true,
-                        hasNoneOption: true,
-                      ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                
-                // Nutrition Needs
-                Card(
-                  child: ListTile(
-                      title: const Text('Nutrition Needs'),
-                      subtitle: Text(_getDisplayText(_nutritionNeeds, _nutritionNeedsOptions, 'key')),
-                      leading: const Icon(Icons.fitness_center, color: Colors.green),
-                    trailing: const Icon(Icons.edit),
-                      onTap: () => _showMultiSelectDialog(
-                        'Nutrition Needs',
-                        _nutritionNeedsOptions,
-                        _nutritionNeeds,
-                        'key',
-                        (selected) => setState(() => _nutritionNeeds = selected),
                         allowMultiple: true,
                         hasNoneOption: true,
                       ),
@@ -428,8 +402,9 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
                   ),
                   const SizedBox(height: 24),
                   
-                  // Debug Section: Excluded Recipes & Warnings
-                  if (_allergies.isNotEmpty) ...[
+                // Debug Section: Excluded Recipes & Warnings (hidden unless enabled)
+                // ignore: dead_code
+                if (_showAllergyDebug) ...[
                     ExpansionTile(
                       initiallyExpanded: false,
                       title: const Text(

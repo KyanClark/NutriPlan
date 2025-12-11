@@ -6,8 +6,9 @@ class AINutritionPrompts {
   static String buildNutritionPrompt(
     Map<String, dynamic> weeklyData,
     Map<String, dynamic> monthlyData,
-    UserNutritionGoals? goals,
-  ) {
+    UserNutritionGoals? goals, {
+    List<String> healthConditions = const [],
+  }) {
     final weeklyAverages = weeklyData['averages'] as Map<String, double>;
     final monthlyAverages = monthlyData['averages'] as Map<String, double>;
 
@@ -36,6 +37,24 @@ MONTHLY TRENDS:
 • Average Fat: ${monthlyAverages['fat']!.toStringAsFixed(1)}g
 • Average Fiber: ${monthlyAverages['fiber']!.toStringAsFixed(1)}g
 • Average Sugar: ${monthlyAverages['sugar']!.toStringAsFixed(1)}g
+• Average Sodium: ${monthlyAverages['sodium']?.toStringAsFixed(1) ?? '0.0'}mg
+
+${healthConditions.isNotEmpty && !healthConditions.contains('none') ? '''
+⚠️ CRITICAL HEALTH CONDITIONS TO MONITOR:
+${healthConditions.map((c) {
+  switch (c.toLowerCase()) {
+    case 'diabetes':
+      return '• Diabetes: Monitor carbs (<60g per meal), sugar (<15g per meal), and fiber (>3g per meal). Weekly average carbs: ${weeklyAverages['carbs']!.toStringAsFixed(1)}g, sugar: ${weeklyAverages['sugar']!.toStringAsFixed(1)}g, fiber: ${weeklyAverages['fiber']!.toStringAsFixed(1)}g';
+    case 'hypertension':
+    case 'high_blood_pressure':
+      return '• Hypertension: Monitor sodium (<500mg per meal, <2000mg daily). Weekly average sodium: ${weeklyAverages['sodium']?.toStringAsFixed(1) ?? '0.0'}mg';
+    default:
+      return '• $c: Monitor general health metrics';
+  }
+}).join('\n')}
+
+PRIORITY: Pay special attention to metrics that affect these health conditions. Highlight any concerns or violations immediately.
+''' : ''}
 
 ANALYSIS REQUIRED:
 Please provide comprehensive insights covering:
@@ -79,6 +98,7 @@ Generate a comprehensive analysis that empowers this user to optimize their nutr
     UserNutritionGoals? goals, {
     List<String> availableRecipes = const [],
     bool hasMealsToday = true,
+    List<String> healthConditions = const [],
   }) {
     final weeklyAverages = weeklyData['averages'] as Map<String, double>? ?? {};
     final dailyData = weeklyData['dailyData'] as Map<String, Map<String, double>>? ?? {};
@@ -125,6 +145,32 @@ WEEKLY AVERAGES:
 • Daily Fat: ${(weeklyAverages['fat'] ?? 0).toStringAsFixed(1)}g (Goal: ${fatGoal.toStringAsFixed(0)}g) - ${(((weeklyAverages['fat'] ?? 0) / fatGoal) * 100).toStringAsFixed(0)}% of target
 • Daily Fiber: ${(weeklyAverages['fiber'] ?? 0).toStringAsFixed(1)}g (Recommended: 25-30g)
 • Daily Sugar: ${(weeklyAverages['sugar'] ?? 0).toStringAsFixed(1)}g (Recommended: <50g)
+• Daily Sodium: ${(weeklyAverages['sodium'] ?? 0).toStringAsFixed(1)}mg (Recommended: <2300mg, <2000mg for hypertension)
+
+${healthConditions.isNotEmpty && !healthConditions.contains('none') ? '''
+⚠️ HEALTH CONDITIONS TO MONITOR:
+${healthConditions.map((c) {
+  switch (c.toLowerCase()) {
+    case 'diabetes':
+      final avgCarbs = weeklyAverages['carbs'] ?? 0;
+      final avgSugar = weeklyAverages['sugar'] ?? 0;
+      final avgFiber = weeklyAverages['fiber'] ?? 0;
+      final carbsStatus = avgCarbs > 420 ? '⚠️ HIGH' : avgCarbs > 350 ? '⚠️ MODERATE' : '✅ GOOD';
+      final sugarStatus = avgSugar > 105 ? '⚠️ HIGH' : avgSugar > 70 ? '⚠️ MODERATE' : '✅ GOOD';
+      final fiberStatus = avgFiber < 21 ? '⚠️ LOW' : avgFiber < 25 ? '⚠️ MODERATE' : '✅ GOOD';
+      return '• Diabetes: Carbs ${avgCarbs.toStringAsFixed(1)}g/day ($carbsStatus), Sugar ${avgSugar.toStringAsFixed(1)}g/day ($sugarStatus), Fiber ${avgFiber.toStringAsFixed(1)}g/day ($fiberStatus)';
+    case 'hypertension':
+    case 'high_blood_pressure':
+      final avgSodium = weeklyAverages['sodium'] ?? 0;
+      final sodiumStatus = avgSodium > 14000 ? '⚠️ HIGH' : avgSodium > 10000 ? '⚠️ MODERATE' : '✅ GOOD';
+      return '• Hypertension: Sodium ${avgSodium.toStringAsFixed(1)}mg/day ($sodiumStatus) - Target: <14000mg/week (<2000mg/day)';
+    default:
+      return '• $c: Monitor general health metrics';
+  }
+}).join('\n')}
+
+CRITICAL: If any health condition metrics are in ⚠️ status, prioritize addressing those in insights. Highlight concerns immediately.
+''' : ''}
 
 CONSISTENCY METRICS:
 • Days with consistent calorie intake: $calorieConsistency/7 days (${((calorieConsistency / 7) * 100).toStringAsFixed(0)}% consistency)

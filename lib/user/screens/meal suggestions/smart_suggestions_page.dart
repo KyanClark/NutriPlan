@@ -138,105 +138,108 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
       ),
       body: Column(
         children: [
-          // Selected meals indicator and build button
-          if (_selectedRecipes.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.green[50],
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  // Selected meal images
-                  Flexible(
-                    flex: 2,
-                    child: SizedBox(
-                      height: 100,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        shrinkWrap: true,
-                        itemCount: _selectedRecipes.length,
-                        itemBuilder: (context, index) {
-                          final recipe = _selectedRecipes[index];
-                          return Container(
-                            margin: const EdgeInsets.only(right: 8),
-                            width: 50,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.green, width: 2),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(6),
-                              child: recipe.imageUrl.isNotEmpty
-                                  ? Image.network(
-                                      recipe.imageUrl,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) {
-                                        return Container(
-                                          color: Colors.grey[200],
-                                          child: const Icon(
-                                            Icons.restaurant,
-                                            color: Colors.grey,
-                                            size: 20,
-                                          ),
-                                        );
-                                      },
-                                    )
-                                  : Container(
-                                      color: Colors.grey[200],
-                                      child: const Icon(
-                                        Icons.restaurant,
-                                        color: Colors.grey,
-                                        size: 20,
-                                      ),
-                                    ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: TextButton(
-                      onPressed: () {
-                        setState(() {
-                          _selectedRecipes.clear();
-                        });
-                      },
-                      child: const Text('Clear'),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    flex: 2,
-                    child: ElevatedButton(
-                      onPressed: () => _buildMealPlan(),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4CAF50),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      ),
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: const Text('Build Meal Plan'),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           Expanded(
             child: _buildSuggestionsContent(),
           ),
+          // Selected meals indicator and build button (anchored at bottom like recipes page)
+          if (_selectedRecipes.isNotEmpty)
+            SafeArea(
+              top: false,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.green[50],
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    // Selected meal images
+                    Flexible(
+                      flex: 2,
+                      child: SizedBox(
+                        height: 100,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          shrinkWrap: true,
+                          itemCount: _selectedRecipes.length,
+                          itemBuilder: (context, index) {
+                            final recipe = _selectedRecipes[index];
+                            return Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.green, width: 2),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(6),
+                                child: recipe.imageUrl.isNotEmpty
+                                    ? Image.network(
+                                        recipe.imageUrl,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Container(
+                                            color: Colors.grey[200],
+                                            child: const Icon(
+                                              Icons.restaurant,
+                                              color: Colors.grey,
+                                              size: 20,
+                                            ),
+                                          );
+                                        },
+                                      )
+                                    : Container(
+                                        color: Colors.grey[200],
+                                        child: const Icon(
+                                          Icons.restaurant,
+                                          color: Colors.grey,
+                                          size: 20,
+                                        ),
+                                      ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _selectedRecipes.clear();
+                          });
+                        },
+                        child: const Text('Clear'),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      flex: 2,
+                      child: ElevatedButton(
+                        onPressed: () => _buildMealPlan(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4CAF50),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: const Text('Build Meal Plan'),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -656,9 +659,9 @@ class _SmartSuggestionsPageState extends State<SmartSuggestionsPage> {
                         children: [
                           Flexible(
                             child: Text(
-                              '₱${suggestion.recipe.cost.toStringAsFixed(2)}',
+                              '${suggestion.recipe.calories} kcal',
                               style: TextStyle(
-                                color: Colors.green[600],
+                                color: Colors.orange[700],
                                 fontWeight: FontWeight.w600,
                                 fontSize: 12,
                               ),

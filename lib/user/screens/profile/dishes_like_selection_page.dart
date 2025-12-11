@@ -18,6 +18,7 @@ class _DishesLikeSelectionPageState extends State<DishesLikeSelectionPage> {
   bool _saving = false;
 
   final List<Map<String, dynamic>> _dishOptions = [
+    {'key': 'all', 'title': '✅ All of them', 'desc': 'I enjoy all types of dishes'},
     {'key': 'fish_seafood', 'title': '🐟 Fish & Seafood', 'desc': 'Bangus, tilapia, shrimp, crab, squid'},
     {'key': 'meat_poultry', 'title': '🥩 Meat & Poultry', 'desc': 'Chicken, pork, beef, turkey'},
     {'key': 'soups_stews', 'title': '🍲 Soups & Stews', 'desc': 'Sinigang, tinola, bulalo, nilaga'},
@@ -33,6 +34,23 @@ class _DishesLikeSelectionPageState extends State<DishesLikeSelectionPage> {
   void initState() {
     super.initState();
     _selectedDishes = Set<String>.from(widget.initialSelections);
+    // If all individual dishes are selected, also select 'all'
+    _updateAllSelection();
+  }
+
+  void _updateAllSelection() {
+    final allIndividualDishes = _dishOptions
+        .where((dish) => dish['key'] != 'all')
+        .map((dish) => dish['key'] as String)
+        .toSet();
+    
+    final allSelected = allIndividualDishes.every((key) => _selectedDishes.contains(key));
+    
+    if (allSelected && allIndividualDishes.isNotEmpty) {
+      _selectedDishes.add('all');
+    } else {
+      _selectedDishes.remove('all');
+    }
   }
 
   Future<void> _savePreferences() async {
@@ -40,15 +58,27 @@ class _DishesLikeSelectionPageState extends State<DishesLikeSelectionPage> {
     final user = Supabase.instance.client.auth.currentUser;
     if (user != null) {
       try {
+        List<String> dishesToSave;
+        if (_selectedDishes.contains('all')) {
+          // If "all" is selected, save all dish keys except "all"
+          dishesToSave = _dishOptions
+              .where((dish) => dish['key'] != 'all')
+              .map((dish) => dish['key'] as String)
+              .toList();
+        } else {
+          // Otherwise, save selected dishes (excluding 'all' if present)
+          dishesToSave = _selectedDishes.where((key) => key != 'all').toList();
+        }
+        
         await Supabase.instance.client
             .from('user_preferences')
             .upsert({
               'user_id': user.id,
-              'like_dishes': _selectedDishes.toList(),
+              'like_dishes': dishesToSave,
             });
         
         if (!mounted) return;
-        Navigator.of(context).pop(_selectedDishes.toList());
+        Navigator.of(context).pop(dishesToSave);
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -131,7 +161,7 @@ class _DishesLikeSelectionPageState extends State<DishesLikeSelectionPage> {
                         ],
                       )
                     : Text(
-                        'Save (${_selectedDishes.length} selected)',
+                        'Save (${_selectedDishes.contains('all') ? _dishOptions.length - 1 : _selectedDishes.where((k) => k != 'all').length} selected)',
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
               ),
@@ -143,7 +173,8 @@ class _DishesLikeSelectionPageState extends State<DishesLikeSelectionPage> {
   }
 
   Widget _buildDishCard(Map<String, dynamic> dish) {
-    final isSelected = _selectedDishes.contains(dish['key']);
+    final dishKey = dish['key'] as String;
+    final isSelected = _selectedDishes.contains(dishKey);
     
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -166,10 +197,31 @@ class _DishesLikeSelectionPageState extends State<DishesLikeSelectionPage> {
         value: isSelected,
         onChanged: (bool? value) {
           setState(() {
-            if (value == true) {
-              _selectedDishes.add(dish['key']);
+            if (dishKey == 'all') {
+              // "All of them" selected
+              if (value == true) {
+                // Select all individual dishes
+                _selectedDishes.clear();
+                _selectedDishes.add('all');
+                for (var d in _dishOptions) {
+                  if (d['key'] != 'all') {
+                    _selectedDishes.add(d['key'] as String);
+                  }
+                }
+              } else {
+                // Deselect all
+                _selectedDishes.clear();
+              }
             } else {
-              _selectedDishes.remove(dish['key']);
+              // Individual dish selected
+              if (value == true) {
+                _selectedDishes.remove('all'); // Remove 'all' if individual dish is selected
+                _selectedDishes.add(dishKey);
+              } else {
+                _selectedDishes.remove(dishKey);
+              }
+              // Check if all individual dishes are now selected
+              _updateAllSelection();
             }
           });
         },

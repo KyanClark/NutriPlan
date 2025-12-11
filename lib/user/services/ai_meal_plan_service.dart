@@ -130,13 +130,10 @@ class AIMealPlanService {
         ? healthConditions.map((c) {
             switch (c.toString().toLowerCase()) {
               case 'diabetes':
-                return 'Diabetes: Low carbs (<60g), high fiber (>3g), low sugar (<15g)';
+                return 'Diabetes: Low carbs (<60g per meal), high fiber (>3g), low sugar (<15g). AVOID recipes with: high carbs (>60g), high sugar (>15g), low fiber (<3g)';
               case 'hypertension':
-                return 'Hypertension: Very low sodium (<500mg)';
-              case 'stroke_recovery':
-                return 'Stroke Recovery: Very low sodium (<400mg)';
-              case 'malnutrition':
-                return 'Malnutrition: High calories (>300) and protein (>15g)';
+              case 'high_blood_pressure':
+                return 'Hypertension: Very low sodium (<500mg per meal). AVOID recipes with: high sodium (>500mg), processed foods, salty dishes';
               default:
                 return '$c: Apply general healthy criteria';
             }

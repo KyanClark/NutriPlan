@@ -61,35 +61,21 @@ class HealthConditionSuggestionsService {
     Recipe recipe,
     List<String> healthConditions,
   ) {
-    final protein = (recipe.macros['protein'] ?? 0).toDouble();
     final carbs = (recipe.macros['carbs'] ?? 0).toDouble();
     final fiber = (recipe.macros['fiber'] ?? 0).toDouble();
     final sugar = (recipe.macros['sugar'] ?? 0).toDouble();
     final sodium = (recipe.macros['sodium'] ?? 0).toDouble();
-    final calories = recipe.calories.toDouble();
 
     for (final condition in healthConditions) {
       switch (condition.toLowerCase()) {
         case 'diabetes':
-          // Low carbs, high fiber, low sugar
+          // Diabetes: Low carbs (<60g), high fiber (>3g), low sugar (<15g)
           if (carbs > 60 || sugar > 15 || fiber < 3) return false;
           break;
         case 'hypertension':
         case 'high_blood_pressure':
-          // Very low sodium
+          // Hypertension: Very low sodium (<500mg)
           if (sodium > 500) return false;
-          break;
-        case 'stroke_recovery':
-          // Very low sodium, low saturated fat
-          if (sodium > 400) return false;
-          break;
-        case 'malnutrition':
-          // High calories and protein
-          if (calories < 300 || protein < 15) return false;
-          break;
-        case 'heart_disease':
-          // Low sodium, low saturated fat, high fiber
-          if (sodium > 600 || fiber < 2) return false;
           break;
         default:
           // For unknown conditions, apply general healthy criteria
@@ -112,7 +98,6 @@ class HealthConditionSuggestionsService {
     final fiber = (recipe.macros['fiber'] ?? 0).toDouble();
     final sugar = (recipe.macros['sugar'] ?? 0).toDouble();
     final sodium = (recipe.macros['sodium'] ?? 0).toDouble();
-    final calories = recipe.calories.toDouble();
 
     for (final condition in healthConditions) {
       switch (condition.toLowerCase()) {
@@ -133,33 +118,6 @@ class HealthConditionSuggestionsService {
           if (sodium <= 500) score += 5;
           // Prefer high potassium (fiber-rich foods often have potassium)
           if (fiber >= 5) score += 10;
-          break;
-        case 'stroke_recovery':
-          // Prefer very low sodium, high protein
-          if (sodium <= 300) score += 20;
-          if (sodium <= 400) score += 10;
-          if (protein >= 20) score += 15;
-          if (protein >= 15) score += 5;
-          break;
-        case 'malnutrition':
-          // Prefer high calories and protein
-          if (calories >= 400) score += 15;
-          if (calories >= 300) score += 5;
-          if (protein >= 25) score += 20;
-          if (protein >= 20) score += 10;
-          break;
-        case 'kidney_disease':
-          // Prefer low sodium, moderate protein
-          if (sodium <= 400) score += 15;
-          if (sodium <= 500) score += 5;
-          if (protein >= 15 && protein <= 25) score += 15;
-          break;
-        case 'heart_disease':
-          // Prefer low sodium, high fiber
-          if (sodium <= 400) score += 15;
-          if (sodium <= 500) score += 5;
-          if (fiber >= 5) score += 15;
-          if (fiber >= 3) score += 5;
           break;
         default:
           // General healthy criteria
@@ -184,20 +142,11 @@ class HealthConditionSuggestionsService {
         case 'hypertension':
         case 'high_blood_pressure':
           return 'high blood pressure';
-        case 'stroke_recovery':
-          return 'stroke recovery';
-        case 'malnutrition':
-          return 'malnutrition';
-        case 'kidney_disease':
-          return 'kidney health';
-        case 'heart_disease':
-          return 'heart health';
         default:
           return c.replaceAll('_', ' ');
       }
     }).join(' and ');
 
-    final protein = (recipe.macros['protein'] ?? 0).toDouble();
     final carbs = (recipe.macros['carbs'] ?? 0).toDouble();
     final fiber = (recipe.macros['fiber'] ?? 0).toDouble();
     final sugar = (recipe.macros['sugar'] ?? 0).toDouble();
@@ -214,16 +163,6 @@ class HealthConditionSuggestionsService {
     if (healthConditions.any((c) => c.toLowerCase().contains('hypertension') || 
                                c.toLowerCase().contains('blood_pressure'))) {
       if (sodium <= 500) benefits.add('low in sodium');
-    }
-    
-    if (healthConditions.any((c) => c.toLowerCase() == 'stroke_recovery')) {
-      if (sodium <= 400) benefits.add('low in sodium');
-      if (protein >= 15) benefits.add('high in protein');
-    }
-    
-    if (healthConditions.any((c) => c.toLowerCase() == 'malnutrition')) {
-      if (recipe.calories >= 300) benefits.add('nutrient-dense');
-      if (protein >= 15) benefits.add('high in protein');
     }
 
     if (benefits.isEmpty) {
@@ -243,15 +182,13 @@ class HealthConditionSuggestionsService {
     final fiber = (recipe.macros['fiber'] ?? 0).toDouble();
     final sodium = (recipe.macros['sodium'] ?? 0).toDouble();
 
-    if (healthConditions.any((c) => c.toLowerCase() == 'diabetes' || 
-                             c.toLowerCase() == 'malnutrition')) {
+    if (healthConditions.any((c) => c.toLowerCase() == 'diabetes')) {
       if (protein > 0) benefits['protein'] = protein;
       if (fiber > 0) benefits['fiber'] = fiber;
     }
 
     if (healthConditions.any((c) => c.toLowerCase().contains('hypertension') || 
-                             c.toLowerCase().contains('blood_pressure') ||
-                             c.toLowerCase() == 'stroke_recovery')) {
+                             c.toLowerCase().contains('blood_pressure'))) {
       if (sodium < 500) benefits['low_sodium'] = sodium;
     }
 

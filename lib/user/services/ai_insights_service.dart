@@ -27,14 +27,15 @@ class AIInsightsService {
   static Future<String> generateNutritionInsights(
     Map<String, dynamic> weeklyData,
     Map<String, dynamic> monthlyData,
-    UserNutritionGoals? goals,
-  ) async {
+    UserNutritionGoals? goals, {
+    List<String> healthConditions = const [],
+  }) async {
     try {
 
       if (_groqApiKey.isEmpty) {
         return getDefaultInsights();
       }
-      final prompt = AINutritionPrompts.buildNutritionPrompt(weeklyData, monthlyData, goals);
+      final prompt = AINutritionPrompts.buildNutritionPrompt(weeklyData, monthlyData, goals, healthConditions: healthConditions);
 
       // Simple in-memory cache keyed by prompt hash
       final cacheKey = prompt.hashCode;
@@ -110,6 +111,7 @@ class AIInsightsService {
     UserNutritionGoals? goals, {
     List<String> availableRecipes = const [],
     bool hasMealsToday = true,
+    List<String> healthConditions = const [],
   }) async {
     try {
       if (_groqApiKey.isEmpty) {
@@ -122,6 +124,7 @@ class AIInsightsService {
         goals, 
         availableRecipes: availableRecipes,
         hasMealsToday: hasMealsToday,
+        healthConditions: healthConditions,
       );
       final cacheKey = prompt.hashCode;
       final now = DateTime.now();

@@ -256,11 +256,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         AppLogger.error('Error deleting profile picture from storage', e);
       }
 
-      // Delete the auth user (this will cascade delete related auth data)
-      // Note: Supabase doesn't have a direct client method to delete users
-      // You may need to use the Admin API or create a database function
-      // For now, we'll sign out and the user will need to contact support
-      // or you can implement a server-side function to handle this
+      // Delete the auth user (phone/email) using Admin API if configured
+      final deletedAuthUser = await _deleteAuthUser(user.id);
+      if (!deletedAuthUser) {
+        AppLogger.warning('Auth user deletion skipped (no admin privileges available on client).');
+      }
       
       // Sign out the user
       await Supabase.instance.client.auth.signOut();
@@ -280,7 +280,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Your account has been deleted successfully.'),
-            backgroundColor: Colors.green,
+            backgroundColor: Color.fromARGB(255, 144, 170, 144),
             duration: Duration(seconds: 3),
           ),
         );
@@ -368,6 +368,97 @@ class _ProfileScreenState extends State<ProfileScreen> {
           SnackBar(content: Text('Logout failed: $e')),
         );
       }
+    }
+  }
+
+  /// Attempt to delete the authenticated user using the Admin API.
+  /// Requires the client to be initialized with a service role key.
+  Future<bool> _deleteAuthUser(String userId) async {
+    try {
+      await Supabase.instance.client.auth.admin.deleteUser(userId);
+      return true;
+    } catch (e) {
+      // Handle missing admin privileges gracefully (common on client builds without service key)
+      final message = e.toString();
+      final isNotAdmin = message.contains('not_admin') || message.contains('statusCode: 403');
+      if (isNotAdmin) {
+        AppLogger.warning('Auth user deletion skipped (no admin privileges).');
+      } else {
+        AppLogger.error('Failed to delete auth user via admin API', e);
+      }
+      return false;
+    }
+  }
+
+  Future<void> _showEditNameDialog() async {
+    final currentName = _fullName ?? '';
+    final controller = TextEditingController(text: currentName);
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Edit Name'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(
+              labelText: 'Full name',
+              hintText: 'Enter your name',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final value = controller.text.trim();
+                Navigator.of(context).pop(value.isEmpty ? null : value);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (newName == null || newName.isEmpty) return;
+
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      // Update auth user metadata
+      await Supabase.instance.client.auth.updateUser(
+        UserAttributes(data: {'full_name': newName}),
+      );
+
+      // Update profiles table if column exists (best-effort)
+      try {
+        await Supabase.instance.client
+            .from('profiles')
+            .update({'full_name': newName})
+            .eq('id', user.id);
+      } catch (e) {
+        AppLogger.warning('Skipping profile full_name update: $e');
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _fullName = newName;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Name updated')),
+      );
+    } catch (e) {
+      AppLogger.error('Error updating name', e);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update name: $e')),
+      );
     }
   }
 
@@ -763,9 +854,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             right: -4,
                             child: GestureDetector(
                               behavior: HitTestBehavior.opaque,
-                              onTap: _uploadingImage ? null : () {
-                                _showProfileImagePicker();
-                              },
+                              onTap: _uploadingImage
+                                  ? null
+                                  : () {
+                                      _showProfileImagePicker();
+                                    },
                               child: Material(
                                 color: Colors.transparent,
                                 shape: const CircleBorder(),
@@ -795,6 +888,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                             ),
                           ),
+                          // Positioned(
+                          //   bottom: -30,
+                          //   right: -4,
+                          //   child: GestureDetector(
+                          //     behavior: HitTestBehavior.opaque,
+                          //     onTap: _showEditNameDialog,
+                          //     child: Material(
+                          //       color: Colors.transparent,
+                          //       shape: const CircleBorder(),
+                          //       child: Container(
+                          //         width: 32,
+                          //         height: 32,
+                          //         decoration: BoxDecoration(
+                          //           color: Colors.white,
+                          //           shape: BoxShape.circle,
+                          //           boxShadow: [
+                          //             BoxShadow(
+                          //               color: Colors.black.withOpacity(0.08),
+                          //               blurRadius: 4,
+                          //               offset: const Offset(0, 2),
+                          //             ),
+                          //           ],
+                          //         ),
+                          //         padding: const EdgeInsets.all(6),
+                          //         child: const Icon(
+                          //           Icons.edit,
+                          //           color: Colors.black87,
+                          //           size: 14,
+                          //         ),
+                          //       ),
+                          //     ),
+                          //   ),
+                          // ),
                         ],
                       ),
                     ),

@@ -483,6 +483,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   return _buildInteractiveRecipeBanner(tip);
                 } else if (tip['type'] == 'stay_hydrated') {
                   return _buildStayHydratedBanner(tip);
+                } else if (tip['type'] == 'meal_planning') {
+                  // Use the rich image overlay style (no solid blue background)
+                  return _buildStayHydratedBanner(tip);
                 } else {
                   return _buildNutritionTipBanner(tip);
                 }
@@ -595,7 +598,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     final categories = [
       {'name': 'Beef', 'asset': 'assets/widgets/beef_category.gif', 'category': 'beef'},
       {'name': 'Chicken', 'asset': 'assets/widgets/chicken_category.gif', 'category': 'chicken'},
-      {'name': 'Desserts', 'asset': 'assets/widgets/soup-vid.gif', 'category': 'desserts'},
       {'name': 'Fish', 'asset': 'assets/widgets/fish.png', 'category': 'fish'},
       {'name': 'Pork', 'asset': 'assets/widgets/pork.png', 'category': 'pork'},
       {'name': 'Silog Meals', 'asset': 'assets/widgets/silog-meals.jpg', 'category': 'silog'},

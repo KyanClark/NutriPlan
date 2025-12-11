@@ -23,6 +23,15 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
   bool _hideChecked = false;
   bool _isLoading = true;
   final Map<String, bool> _categoryExpanded = {};
+  int _messageCursor = 0;
+
+  static const List<String> _altSearchMessages = [
+    'Scanning the pantry for close matches…',
+    'Finding ingredient swaps that keep the flavor on point…',
+    'Checking nutrition so the swap stays balanced…',
+    'Looking for budget-friendly alternatives…',
+    'Matching textures so your recipe still shines…',
+  ];
 
   @override
   void initState() {
@@ -47,6 +56,49 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
     });
   }
 
+  String _nextAltMessage() {
+    final message = _altSearchMessages[_messageCursor % _altSearchMessages.length];
+    _messageCursor++;
+    return message;
+  }
+
+  Widget _buildLoadingDialog(String title, String subtitle) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: TextStyle(color: Colors.grey[700]),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _toggleAllItems(bool markAsChecked) {
     if (_data == null) return;
     for (final items in _data!.itemsByCategory.values) {
@@ -60,12 +112,13 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
   Future<void> _findAlternativeForItem(ShoppingListItem item) async {
     if (_isLoading) return;
 
+    final primary = 'Searching alternatives for "${item.displayName}"';
+    final secondary = _nextAltMessage();
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      builder: (context) => _buildLoadingDialog(primary, secondary),
     );
 
     try {
@@ -193,7 +246,7 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? _buildPageLoading()
           : _data == null || !_data!.hasItems
               ? _buildEmptyState()
               : RefreshIndicator(
@@ -246,6 +299,27 @@ class _ShoppingListPageState extends State<ShoppingListPage> {
                 color: Colors.green[300],
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPageLoading() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: 16),
+          const Text(
+            'Building your shopping list…',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _nextAltMessage(),
+            style: TextStyle(color: Colors.grey[700]),
           ),
         ],
       ),

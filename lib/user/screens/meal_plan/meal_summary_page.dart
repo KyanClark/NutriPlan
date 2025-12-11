@@ -655,65 +655,82 @@ class _MealSummaryPageState extends State<MealSummaryPage> {
                 ),
                 Expanded(
                   child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     itemCount: _mealsWithTime.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 16),
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final meal = _mealsWithTime[index];
-                      return Card(
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        child: ListTile(
-                          leading: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              meal.recipe.imageUrl,
-                              width: 56,
-                              height: 56,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => Icon(Icons.broken_image),
-                            ),
-                          ),
-                          title: Text(meal.recipe.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (widget.isAdvancePlanning && meal.scheduledDate != null)
-                                Text(
-                                  'Date: ${_formatDate(meal.scheduledDate!)}',
-                                  style: const TextStyle(
-                                    color: Colors.blue,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                      return Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 560),
+                          child: Card(
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.all(12),
+                              leading: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  meal.recipe.imageUrl,
+                                  width: 52,
+                                  height: 52,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image),
                                 ),
-                              if (meal.mealType != null)
-                                Text(
-                                  'Meal Type: ${meal.mealType!.capitalize()}',
-                                  style: TextStyle(
-                                    color: _getMealTypeColor(meal.mealType!),
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                              ),
+                              title: Text(meal.recipe.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (widget.isAdvancePlanning && meal.scheduledDate != null)
+                                    Text(
+                                      'Date: ${_formatDate(meal.scheduledDate!)}',
+                                      style: const TextStyle(
+                                        color: Colors.blue,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  if (meal.mealType != null)
+                                    Text(
+                                      'Meal Type: ${meal.mealType!.capitalize()}',
+                                      style: TextStyle(
+                                        color: _getMealTypeColor(meal.mealType!),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  if (meal.time != null)
+                                    Text('Time: ${meal.time!.format(context)}'),
+                                  if (meal.mealType == null)
+                                    const Text('Select meal type first'),
+                                  if (meal.mealType != null && meal.time == null)
+                                    const Text(''),
+                                ],
+                              ),
+                              trailing: ElevatedButton(
+                                onPressed: () {
+                                  final mealTypeLocked = widget.initialMealTypes != null;
+                                  if (mealTypeLocked) {
+                                    // Meal type already set by auto-generate; go straight to rice/time selection
+                                    _showRiceSelectionDialog(index);
+                                  } else {
+                                    _showMealTypeDialog(index);
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF4CAF50),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  minimumSize: const Size(0, 0),
                                 ),
-                              if (meal.time != null)
-                                Text('Time: ${meal.time!.format(context)}'),
-                              if (meal.mealType == null)
-                                const Text('Select meal type first'),
-                            ],
-                          ),
-                          trailing: ElevatedButton(
-                            onPressed: () => _showMealTypeDialog(index),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: meal.mealType == null 
-                                ? const Color(0xFF4CAF50) // Green background for "Set Meal"
-                                : Colors.white, // White background for "Change"
-                              foregroundColor: meal.mealType == null 
-                                ? Colors.white // White text for "Set Meal"
-                                : const Color(0xFF4CAF50), // Green text for "Change"
-                              side: meal.mealType == null 
-                                ? null 
-                                : BorderSide(color: const Color(0xFF4CAF50)), // Green border for "Change"
+                                child: Text(
+                                  widget.initialMealTypes != null
+                                      ? 'Set Time & Rice'
+                                      : meal.mealType == null
+                                          ? 'Set Meal'
+                                          : 'Change',
+                                ),
+                              ),
                             ),
-                            child: Text(meal.mealType == null ? 'Set Meal' : 'Change'),
                           ),
                         ),
                       );

@@ -47,6 +47,21 @@ class AutoMealPlanService {
         allRecipes = allRecipes.where((r) => !excludeRecipeIds.contains(r.id)).toList();
       }
       
+      // Enforce diabetes-safe pool if applicable
+      final healthConditions = userPrefs['health_conditions'] as List<dynamic>? ?? [];
+      final hasDiabetes = healthConditions.map((e) => e.toString().toLowerCase()).contains('diabetes');
+      if (hasDiabetes) {
+        allRecipes = await _filterDiabetesSafeRecipes(allRecipes);
+        // For diabetes, use the fixed template meals
+        return await _generateFixedDiabetesPlan(
+          allRecipes: allRecipes,
+          targetDate: targetDate,
+          includeBreakfast: includeBreakfast,
+          includeLunch: includeLunch,
+          includeDinner: includeDinner,
+        );
+      }
+      
       // Get recent meals to avoid repetition (last 14 days)
       final recentMeals = await _getRecentMealTitles(userId, days: 14);
       
@@ -139,6 +154,20 @@ class AutoMealPlanService {
       
       // Get user preferences
       final userPrefs = await _getUserPreferences(userId);
+      final healthConditions = userPrefs['health_conditions'] as List<dynamic>? ?? [];
+      final hasHealthConditions = healthConditions.isNotEmpty && !healthConditions.contains('none');
+      final hasDiabetes = healthConditions.map((e) => e.toString().toLowerCase()).contains('diabetes');
+      if (hasDiabetes) {
+        var diabeticRecipes = await RecipeService.fetchRecipes(userId: userId);
+        diabeticRecipes = await _filterDiabetesSafeRecipes(diabeticRecipes);
+        return await _generateFixedDiabetesPlan(
+          allRecipes: diabeticRecipes,
+          targetDate: targetDate,
+          includeBreakfast: includeBreakfast,
+          includeLunch: includeLunch,
+          includeDinner: includeDinner,
+        );
+      }
       
       // Get all available recipes (already filtered by allergies and diet type)
       var allRecipes = await RecipeService.fetchRecipes(userId: userId);
@@ -161,9 +190,10 @@ class AutoMealPlanService {
         allRecipes = allRecipes.where((r) => !excludeRecipeIds.contains(r.id)).toList();
       }
 
-      // Check health conditions
-      final healthConditions = userPrefs['health_conditions'] as List<dynamic>? ?? [];
-      final hasHealthConditions = healthConditions.isNotEmpty && !healthConditions.contains('none');
+      // Enforce diabetes-safe pool if applicable
+      if (hasDiabetes) {
+        allRecipes = await _filterDiabetesSafeRecipes(allRecipes);
+      }
       
       // Build recipe scores based on user patterns (TikTok algorithm)
       final recipeScores = _buildRecipeScores(allRecipes, mealHistory, userPrefs);
@@ -382,34 +412,499 @@ class AutoMealPlanService {
       return true;
     }
 
-    final protein = (recipe.macros['protein'] ?? 0).toDouble();
     final carbs = (recipe.macros['carbs'] ?? 0).toDouble();
     final fiber = (recipe.macros['fiber'] ?? 0).toDouble();
     final sugar = (recipe.macros['sugar'] ?? 0).toDouble();
     final sodium = (recipe.macros['sodium'] ?? 0).toDouble();
-    final calories = recipe.calories.toDouble();
+    final cholesterol = (recipe.macros['cholesterol'] ?? 0).toDouble();
+    final ingredients = recipe.ingredients.map((i) => i.toLowerCase()).toList();
+
+    bool containsMeat() {
+      const meatKeywords = [
+        'pork',
+        'chicken',
+        'beef',
+        'meat',
+        'bacon',
+        'ham',
+        'sausage',
+        'ribs',
+        'steak',
+        'drumstick',
+        'wings',
+        'ground beef',
+        'ground pork',
+        'ground meat',
+        'liver',
+      ];
+      return meatKeywords.any((kw) => ingredients.any((ing) => ing.contains(kw)));
+    }
+
+    bool hasGreenVegetable() {
+      const greenVegKeywords = [
+        'spinach',
+        'kale',
+        'lettuce',
+        'broccoli',
+        'bok choy',
+        'pechay',
+        'cabbage',
+        'malunggay',
+        'moringa',
+        'ampalaya',
+        'bitter gourd',
+        'okra',
+        'kangkong',
+        'water spinach',
+        'green beans',
+        'string beans',
+        'peas',
+        'chayote',
+        'sayote',
+      ];
+      return greenVegKeywords.any((kw) => ingredients.any((ing) => ing.contains(kw)));
+    }
 
     for (final condition in healthConditions) {
       switch (condition.toLowerCase()) {
         case 'diabetes':
+          // Diabetes: Low carbs (<60g), high fiber (>3g), low sugar (<15g)
           if (carbs > 60 || sugar > 15 || fiber < 3) return false;
           break;
         case 'hypertension':
+        case 'high_blood_pressure':
+          // Hypertension: Very low sodium (<500mg), avoid meats, prefer greens
           if (sodium > 500) return false;
+          if (containsMeat()) return false;
+          if (!hasGreenVegetable()) return false;
           break;
-        case 'stroke_recovery':
-          if (sodium > 400) return false;
-          break;
-        case 'malnutrition':
-          if (calories < 300 || protein < 15) return false;
+        case 'high_cholesterol':
+        case 'cholesterol':
+          // High cholesterol: avoid meats and keep cholesterol low
+          if (cholesterol > 75) return false;
+          if (containsMeat()) return false;
           break;
         default:
+          // For unknown conditions, apply general healthy criteria
+          if (sugar > 30 || sodium > 1000) return false;
           break;
       }
     }
 
     return true;
   }
+
+  /// Restrict recipe pool to diabetes-safe whitelist when diabetes condition is present.
+  /// Titles are matched case-insensitively.
+  static const List<String> _diabetesAllowedTitles = [
+    'Boiled egg (1 pc)',
+    '1 boiled egg',
+    'Sliced papaya (1/4 cup)',
+    'Sliced papaya',
+    'Ensaladang pipino',
+    'Sinangag',
+    'Utan Bisaya-style boiled vegetables',
+    'Utan Bisaya',
+    'Inihaw na bangus',
+    'Grilled milkfish',
+    'Chicken tinola',
+    'Tinolang manok',
+    'Tinola',
+  ];
+
+  static Future<List<Recipe>> _filterDiabetesSafeRecipes(List<Recipe> recipes) async {
+    final normalizedAllowed = _diabetesAllowedTitles.map((t) => t.toLowerCase()).toList();
+    final filtered = recipes.where((r) {
+      final title = r.title.toLowerCase();
+      return normalizedAllowed.any((allowed) => title.contains(allowed));
+    }).toList();
+
+    final missingTitles = _diabetesAllowedTitles.where((allowed) {
+      final allowedLower = allowed.toLowerCase();
+      return filtered.every((r) => !r.title.toLowerCase().contains(allowedLower));
+    }).toList();
+
+    if (missingTitles.isNotEmpty) {
+      try {
+        final response = await _client
+            .from('simple_meals')
+            .select('id,title,image_url,short_description,calories,macros,cost')
+            .inFilter('title', missingTitles);
+
+        for (final meal in response) {
+          final recipe = _mapSimpleMealToRecipe(meal);
+          if (recipe != null) {
+            filtered.add(recipe);
+          }
+        }
+      } catch (e) {
+        AppLogger.error('Error fetching diabetes simple meals', e);
+      }
+
+      // Fallback to hardcoded values if still missing
+      final remainingMissing = missingTitles.where((allowed) {
+        final allowedLower = allowed.toLowerCase();
+        return filtered.every((r) => !r.title.toLowerCase().contains(allowedLower));
+      }).toList();
+      if (remainingMissing.isNotEmpty) {
+        for (final fallback in _diabetesFallbackSimpleMeals) {
+          if (remainingMissing.any((title) => title.toLowerCase() == fallback['title'].toString().toLowerCase())) {
+            final recipe = _mapSimpleMealToRecipe(fallback);
+            if (recipe != null) {
+              filtered.add(recipe);
+            }
+          }
+        }
+      }
+    }
+
+    return filtered;
+  }
+
+  /// Fixed template for diabetic meal plans (breakfast: 3, lunch: 2, dinner: 2).
+  /// Each entry may specify alternate titles to improve matching.
+  static final List<Map<String, dynamic>> _diabetesTemplateMeals = [
+    {
+      'title': '1 boiled egg',
+      'alternateTitles': ['Boiled egg (1 pc)'],
+      'meal_type': 'breakfast',
+      'time': '08:00',
+    },
+    {
+      'title': 'Sinangag',
+      'alternateTitles': [],
+      'meal_type': 'breakfast',
+      'time': '08:00',
+    },
+    {
+      'title': 'Sliced papaya',
+      'alternateTitles': ['Sliced papaya (1/4 cup)'],
+      'meal_type': 'breakfast',
+      'time': '08:00',
+    },
+    {
+      'title': 'Utan Bisaya',
+      'alternateTitles': ['Utan Bisaya-style boiled vegetables', 'Law-uy', 'Lawuy'],
+      'meal_type': 'lunch',
+      'time': '12:30',
+    },
+    {
+      'title': 'Inihaw na Bangus (Grilled Milkfish)',
+      'alternateTitles': [],
+      'meal_type': 'lunch',
+      'time': '12:30',
+    },
+    {
+      'title': 'Chicken tinola',
+      'alternateTitles': ['Tinolang manok', 'Tinola'],
+      'meal_type': 'dinner',
+      'time': '19:00',
+    },
+    {
+      'title': 'Ensaladang pipino',
+      'alternateTitles': [],
+      'meal_type': 'dinner',
+      'time': '19:00',
+    },
+  ];
+
+  static Future<Recipe?> _findRecipeByTitles(List<Recipe> recipes, List<String> titles) async {
+    final lowered = titles.map((t) => t.toLowerCase()).toList();
+    for (final recipe in recipes) {
+      final titleLower = recipe.title.toLowerCase();
+      if (lowered.any((t) => titleLower.contains(t))) {
+        return recipe;
+      }
+    }
+    return null;
+  }
+
+  static Future<Recipe?> _fetchSimpleMealByTitles(List<String> titles) async {
+    try {
+      final response = await _client
+          .from('simple_meals')
+          .select('id,title,image_url,short_description,calories,macros,cost,ingredients,instructions')
+          .inFilter('title', titles);
+      if (response.isNotEmpty) {
+        final meal = response.first;
+        return _mapSimpleMealToRecipe(meal);
+      }
+    } catch (e) {
+      AppLogger.error('Error fetching simple meal by titles', e);
+    }
+    return null;
+  }
+
+  static Future<List<Map<String, dynamic>>> _generateFixedDiabetesPlan({
+    required List<Recipe> allRecipes,
+    required DateTime targetDate,
+    required bool includeBreakfast,
+    required bool includeLunch,
+    required bool includeDinner,
+  }) async {
+    final List<Map<String, dynamic>> mealPlan = [];
+
+    for (final entry in _diabetesTemplateMeals) {
+      final mealType = entry['meal_type'] as String;
+      if ((mealType == 'breakfast' && !includeBreakfast) ||
+          (mealType == 'lunch' && !includeLunch) ||
+          (mealType == 'dinner' && !includeDinner)) {
+        continue;
+      }
+
+      final titles = <String>[
+        entry['title'] as String,
+        ...(entry['alternateTitles'] as List<dynamic>? ?? const []),
+      ];
+
+      Recipe? recipe = await _findRecipeByTitles(allRecipes, titles);
+      recipe ??= await _fetchSimpleMealByTitles(titles);
+
+      if (recipe == null) {
+        final fallback = _diabetesFallbackSimpleMeals.firstWhere(
+          (f) => titles.any((t) => t.toLowerCase() == f['title'].toString().toLowerCase()),
+          orElse: () => {},
+        );
+        if (fallback.isNotEmpty) {
+          recipe = _mapSimpleMealToRecipe(fallback);
+        }
+      }
+
+      if (recipe != null) {
+        final timeParts = (entry['time'] as String).split(':');
+        final hour = int.parse(timeParts[0]);
+        final minute = int.parse(timeParts[1]);
+        final mealDate = DateTime(targetDate.year, targetDate.month, targetDate.day, hour, minute);
+        mealPlan.add({
+          'recipe': recipe,
+          'meal_type': mealType,
+          'meal_time': _formatTime(mealDate),
+          'date': mealDate,
+        });
+      }
+    }
+
+    return mealPlan;
+  }
+
+  static Recipe? _mapSimpleMealToRecipe(Map<String, dynamic> meal) {
+    final title = (meal['title'] ?? '').toString();
+    if (title.isEmpty) return null;
+    final macros = Map<String, dynamic>.from(meal['macros'] ?? {});
+    final caloriesRaw = meal['calories'];
+    final calories = caloriesRaw is int
+        ? caloriesRaw
+        : caloriesRaw is double
+            ? caloriesRaw.round()
+            : int.tryParse(caloriesRaw?.toString() ?? '') ?? _parseDouble(caloriesRaw).round();
+    final costRaw = meal['cost'];
+    final cost = costRaw is double ? costRaw : _parseDouble(costRaw);
+
+    return Recipe(
+      id: 'simple_${meal['id'] ?? title.toLowerCase().replaceAll(' ', '_')}',
+      title: title,
+      imageUrl: (meal['image_url'] ?? '').toString(),
+      shortDescription: (meal['short_description'] ?? '').toString(),
+      ingredients: List<String>.from(meal['ingredients'] ?? const []),
+      instructions: List<String>.from(meal['instructions'] ?? const []),
+      macros: macros,
+      allergyWarning: '',
+      calories: calories,
+      tags: const ['simple_meal', 'diabetes_safe'],
+      cost: cost,
+      notes: 'simple_meal',
+    );
+  }
+
+  static final List<Map<String, dynamic>> _diabetesFallbackSimpleMeals = [
+    {
+      'id': 'fallback_sinangag',
+      'title': 'Sinangag',
+      'image_url': '',
+      'short_description': 'Garlic fried rice, ½ cup, low oil, low sodium',
+      'calories': 180,
+      'macros': {
+        'protein': 3,
+        'fat': 3.5,
+        'carbs': 35,
+        'sugar': 0.5,
+        'fiber': 1,
+        'sodium': 120,
+        'cholesterol': 0,
+      },
+      'cost': 0,
+    },
+    {
+      'id': 'fallback_utan_bisaya',
+      'title': 'Utan Bisaya-style boiled vegetables',
+      'image_url': '',
+      'short_description': 'Kalabasa, okra, upo; light broth',
+      'calories': 90,
+      'macros': {
+        'protein': 3,
+        'fat': 2,
+        'carbs': 15,
+        'sugar': 6,
+        'fiber': 4,
+        'sodium': 220,
+        'cholesterol': 0,
+      },
+      'cost': 0,
+    },
+    {
+      'id': 'fallback_utan_bisaya_simple',
+      'title': 'Utan Bisaya',
+      'image_url': '',
+      'short_description': 'Kalabasa, okra, upo; light broth',
+      'calories': 90,
+      'macros': {
+        'protein': 3,
+        'fat': 2,
+        'carbs': 15,
+        'sugar': 6,
+        'fiber': 4,
+        'sodium': 220,
+        'cholesterol': 0,
+      },
+      'cost': 0,
+    },
+    {
+      'id': 'fallback_grilled_tilapia',
+      'title': 'Grilled tilapia',
+      'image_url': '',
+      'short_description': 'Approx 2 oz portion',
+      'calories': 110,
+      'macros': {
+        'protein': 22,
+        'fat': 2,
+        'carbs': 0,
+        'sugar': 0,
+        'fiber': 0,
+        'sodium': 90,
+        'cholesterol': 55,
+      },
+      'cost': 0,
+    },
+    {
+      'id': 'fallback_inihaw_bangus',
+      'title': 'Inihaw na bangus (grilled milkfish)',
+      'image_url': '',
+      'short_description': 'Lean grilled milkfish fillet',
+      'calories': 140,
+      'macros': {
+        'protein': 23,
+        'fat': 4,
+        'carbs': 0,
+        'sugar': 0,
+        'fiber': 0,
+        'sodium': 95,
+        'cholesterol': 70,
+      },
+      'cost': 0,
+    },
+    {
+      'id': 'fallback_chicken_tinola',
+      'title': 'Chicken tinola',
+      'image_url': '',
+      'short_description': 'Skin removed, low salt',
+      'calories': 220,
+      'macros': {
+        'protein': 28,
+        'fat': 8,
+        'carbs': 8,
+        'sugar': 2,
+        'fiber': 1,
+        'sodium': 320,
+        'cholesterol': 90,
+      },
+      'cost': 0,
+    },
+    {
+      'id': 'fallback_boiled_egg',
+      'title': 'Boiled egg (1 pc)',
+      'image_url': 'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/simple_meals/large_boiled_egg.jpg',
+      'short_description': 'Simple protein-rich boiled egg',
+      'calories': 78,
+      'macros': {
+        'protein': 6.3,
+        'fat': 5.3,
+        'carbs': 0.6,
+        'sugar': 0,
+        'fiber': 0,
+        'sodium': 62,
+        'cholesterol': 200,
+      },
+      'cost': 0,
+    },
+    {
+      'id': 'fallback_boiled_egg_one',
+      'title': '1 boiled egg',
+      'image_url': 'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/simple_meals/large_boiled_egg.jpg',
+      'short_description': 'Simple protein-rich boiled egg',
+      'calories': 78,
+      'macros': {
+        'protein': 6.3,
+        'fat': 5.3,
+        'carbs': 0.6,
+        'sugar': 0,
+        'fiber': 0,
+        'sodium': 62,
+        'cholesterol': 200,
+      },
+      'cost': 0,
+    },
+    {
+      'id': 'fallback_papaya',
+      'title': 'Sliced papaya (1/4 cup)',
+      'image_url': 'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/simple_meals/sliced_papaya.jpg',
+      'short_description': 'Light, fruit-based option',
+      'calories': 62,
+      'macros': {
+        'protein': 0.7,
+        'fat': 0.4,
+        'carbs': 16,
+        'sugar': 11,
+        'fiber': 2.5,
+        'sodium': 0,
+        'cholesterol': 0,
+      },
+      'cost': 0,
+    },
+    {
+      'id': 'fallback_papaya_simple',
+      'title': 'Sliced papaya',
+      'image_url': 'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/simple_meals/sliced_papaya.jpg',
+      'short_description': 'Light, fruit-based option',
+      'calories': 62,
+      'macros': {
+        'protein': 0.7,
+        'fat': 0.4,
+        'carbs': 16,
+        'sugar': 11,
+        'fiber': 2.5,
+        'sodium': 0,
+        'cholesterol': 0,
+      },
+      'cost': 0,
+    },
+    {
+      'id': 'fallback_ensaladang_pipino',
+      'title': 'Ensaladang pipino',
+      'image_url': 'https://ehpwztftkbzjwezmdwzt.supabase.co/storage/v1/object/public/simple_meals/ensaladang_pipino.jpg',
+      'short_description': 'Simple cucumber salad',
+      'calories': 35,
+      'macros': {
+        'protein': 1.3,
+        'fat': 0.2,
+        'carbs': 8.3,
+        'sugar': 5.4,
+        'fiber': 1.5,
+        'sodium': 120,
+        'cholesterol': 0,
+      },
+      'cost': 0,
+    },
+  ];
 
   /// Format time as HH:MM
   static String _formatTime(DateTime time) {

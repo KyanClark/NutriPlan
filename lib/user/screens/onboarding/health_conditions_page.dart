@@ -52,21 +52,6 @@ class _HealthConditionsPageState extends State<HealthConditionsPage> {
         'saturated_fat_limit': 0.8, // Reduce saturated fat by 20%
       },
     },
-    {
-      'key': 'malnutrition',
-      'title': '🌾 Malnutrition / Underweight',
-      'desc': 'High calories, nutrient-dense foods, frequent small meals',
-      'icon': '🌾',
-      'color': Colors.green.shade700,
-      'adjustments': {
-        'calorie_increase': 1.4, // +40% calories for weight gain
-        'protein_increase': 1.3, // +30% protein for muscle building
-        'healthy_fats_increase': 1.4, // +40% healthy fats (calorie-dense)
-        'micronutrient_focus': true, // Focus on vitamins/minerals
-        'frequent_meals': true, // 5-6 small meals per day
-        'calorie_dense_foods': true, // Nuts, oils, dairy
-      },
-    },
   ];
 
   @override
@@ -260,7 +245,7 @@ class _HealthConditionsPageState extends State<HealthConditionsPage> {
                     (route) => false,
                   );
                 } : null,
-                child: const Text('Apply Health Adjustments', style: TextStyle(fontSize: 18)),
+                child: const Text('Continue', style: TextStyle(fontSize: 18)),
               ),
             ),
           ],
