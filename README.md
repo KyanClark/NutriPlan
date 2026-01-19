@@ -15,7 +15,7 @@ NutriPlan is a feature-rich nutrition and meal planning application that leverag
 - **User Feedback System**: Rating and review system for community-driven improvements
 
 ### 🧮 **Smart Nutrition Calculator**
-- **FNRI Integration**: Local CSV database with 1542+ Filipino ingredients
+- **FNRI Integration**: Local CSV database with 100+ Filipino ingredients
 - **Data Validation**: Automatic filtering of nutrition data for accuracy
 - **Realistic Calculations**: Conservative quantity estimation and validation ranges
 - **Complete Dish Matching**: Priority-based nutrition calculation for common Filipino dishes
@@ -25,12 +25,6 @@ NutriPlan is a feature-rich nutrition and meal planning application that leverag
 - **Nutritional Analytics**: Daily, weekly, and monthly analysis
 - **Goal Management**: Customizable nutrition targets and progress monitoring
 - **Meal History**: Complete record of dietary intake with search and filtering
-
-### 🎨 **Modern User Interface**
-- **Responsive Design**: Optimized for various screen sizes and orientations
-- **Dynamic Navigation**: Scroll-based transparency effects for modern aesthetics
-- **Intuitive Workflows**: Streamlined user experience with minimal manual intervention
-- **Accessibility Features**: User-friendly design with clear visual hierarchy
 
 ## 🏗️ Technical Architecture
 
